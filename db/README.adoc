@@ -1,0 +1,336 @@
+
+:toc:
+
+= COVID Workflow Database (CoW-DB)
+
+== Concepts
+
+The DB data exists in a directory that Postgres calls the "DB cluster",
+we call it +DB_DATA+.  You can have several of these in different directories.
+
+A running DB server is attached to one +DB_DATA+.  Several servers can be
+running on different ports (+DB_PORT+).
+Servers can run on different hosts (+DB_HOST+)
+within Theta as long as they are using different +DB_DATA+.
+
+A DB cluster can contain multiple logical DBs (+DB_NAME+).  We always
+call this +DB_NAME=CoW+ for "COVID-Workflow".
+
+Within the DB are the tables.
+
+== Usage
+
+=== One-time setup
+
+----
+# Add these scripts to PATH:
+$ PATH=$PWD/db:$PATH
+# Source the correct env script:
+$ source env-theta.sh
+# Set any non-existent directory here:
+$ export DB_DATA=/path/to/DB
+# Edit db-settings.sh to set the common variables (see below)
+# Initialize the DB cluster directory
+$ db-init.sh
+# Start the DB server (with no DBs!):
+$ db-start.sh
+# Create the SQL DB named "CoW"
+$ db-create.sh
+# Create tables inside DB CoW
+$ db-mk-tables.sh
+----
+
+=== Test access to DB
+
+Use these when connecting for the first time:
+
+These tools all self-configure with db-settings.sh
+
+----
+# Simple connect/detach:
+$ db-ping.sh
+# Print the DB using psql:
+$ db-print.sh
+# Print the DB for IMABC using Python:
+$ db-pretty-imabc.sh -- --expid X380
+----
+
+=== Typical startup
+
+----
+$ export DB_DATA=/path/to/DB
+$ source env-SITE.sh
+$ db-start.sh
+...
+2020-06-26 14:05:51 START DB on stan 11219
+2020-06-26 14:05:51 START PID 3542
+$ db-ping.sh
+db-ping: OK
+----
+
+=== Typical use
+
+----
+# Insert an EXPID (called by workflow.sh)
+$ db-exp-init.sh CoW $EXPID
+# Subsequent SQL operations are performed by Swift/T+Python
+----
+
+=== To reset all tables
+
+Delete and re-make all tables.
+
+----
+$ db-clear.sh
+$ db-mk-tables.sh
+----
+
+=== Completely destroy and re-create the the DB
+
+----
+$ db-stop.sh
+$ db-destroy.sh
+$ db-init.sh
+$ db-start.sh
+$ db-create.sh
+$ db-mk-tables.sh
+----
+
+== Common variables
+
+You can set these in the environment, or they will be set to
+defaults in db-settings.sh
+
++DB_HOST+::
+The database host (e.g., "thetalogin6" works from the compute nodes)
+
++DB_PORT+::
+The database port (default: 11219)
+
++DB_MODE+::
+Possible values: +ON+, +SOFT+, +OFF+.
++ON+ means insist on the DB, errors are fatal.
++SOFT+ means to try to use the DB, but run through errors.
++OFF+ means do not try to use the DB.
+
++DB_DATA+::
+The database storage directory (+/projects/Swift-T/public/DB/CoW-TEST+)
+
++DB_NAME+::
+The database name (default: +"CoW"+)
+
+== Logs
+
++$DB_DATA/db.log+::
+The main Postgres log.  Somewhat readable.  Has useful timestamps and IP/port info.
+
++$DB_DATA/postmaster.pid+::
+A main Postgres info file.  Has useful port, PID info.
+Only exists if the DB is running.
+
++$DB_DATA/hosts.log+::
+A log we added to just capture start/stop info, with the host/port/PID.
+
+== Tools
+
+Initialize the DB cluster::
++
+Set +DB_DATA+ then run this:
++
+----
+$ db-init.sh
+----
+
+Start the DB server::
++
+Starts DB on the local host using +DB_PORT+ and +DB_DATA+. +
+Runs under nice:
++
+----
+$ db-start.sh
+----
+
+Check that the DB server is running::
++
+----
+$ db-ping.sh
+----
+
+Create the DB::
++
+Creates the DB with +DB_NAME+.
++
+----
+$ db-create.sh
+----
+
+Make the tables::
++
+----
+$ db-mk-tables.sh
+----
+
+Plain SQL dump of all table data::
++
+----
+$ db-print.sh
+----
+
+Insert a new experiment ID (EXPID)::
++
+----
+$ db-exp-init.sh
+----
+
+Delete all tables::
++
+Provides multiple opportunities to cancel:
++
+----
+$ db-clear.sh
+----
+
+Destroy the DB::
++
+Deletes +DB_DATA+ from the FS. +
+You must stop the DB server first. +
+Provides multiple opportunities to cancel:
++
+----
+$ db-destroy.sh
+----
+
+Shutdown the DB server::
++
+----
+$ db-stop.sh
+----
+
+Interactive session::
++
+----
+$ source db-settings.sh
+# A shell function:
+$ sql
+CoW=#
+-- Example command
+CoW=# \dt
+            List of relations
+ Schema |     Name     | Type  |  Owner
+--------+--------------+-------+---------
+ public | exp_instnces | table | wozniak
+ public | exp_runs     | table | wozniak
+ public | expids       | table | wozniak
+-- To exit: Ctrl-D or:
+CoW=# \q
+$
+----
+
+== Postgres installation/setup
+
+=== Install
+
+==== Linux
+
+----
+$ wget https://ftp.postgresql.org/pub/source/v12.2/postgresql-12.2.tar.bz2
+$ bunzip
+$ configure
+$ make install
+# Install the Python Postgres adapter
+# Cf. https://www.psycopg.org
+$ pip install psycopg2
+----
+
+==== Theta
+
+Cf. https://www.alcf.anl.gov/support-center/theta/postgresql-and-sqlite
+
+Same install.  Install the adapter:
+
+----
+$ /opt/python/3.6.5.3/bin/pip install --user psycopg2
+----
+
+NOTE: This uses the wrong Postgres lib (libpq.so.5) but it works for now.
+
+Then enable network access in the server by doing:
+
+. Edit postgresql.conf to set:
++
+----
+listen_addresses = '*'
+----
+. Edit pg_hba.conf to append:
++
+----
+host all all 0.0.0.0/0 trust
+----
+
+This is insecure.  We will want to change this for production.
+
+=== Bebop
+
+Just use GCC, but you need readline:
+
+----
+$ module load readline
+$ configure ; make ; make install
+----
+
+== Remote access from Bebop
+
+In one session, do:
+
+----
+$ db-tunnel.sh thetalogin6.alcf.anl.gov
+----
+
+Then, in another session, simply set:
+
+----
+$ module load readline
+$ DB_HOST=localhost
+$ DB_PORT=11219
+----
+
+Then try +db-ping.sh+ or +db-print.sh+ to test the connection.
+
+*Optional:*
+Set +DB_USER+ to your remote user name if different from
+the local user name.
+
+== Workflows
+
+=== IMABC
+
+This workflow inserts records for each instance and its runs.
+
+For non-interactive runs, usage has not changed, just set DB_DATA.
+
+----
+$ cd swift_proj
+$ export DB_DATA=/home/wozniak/DB3
+$ theta_run_imabc.sh -a swift/cfgs/imabc_1.cfg
+----
+
+For interactive runs:
+
+----
+$ qsub-theta.sh
+# on MOM node:
+$ cd swift_proj
+$ export DB_DATA=/home/wozniak/DB3
+$ export INTERACTIVE=1
+$ theta_run_imabc.sh -a swift/cfgs/imabc_1.cfg
+----
+
+During or after a run, use db-pretty-imabc.sh to view progress.
+
+
+
+////
+Local Variables:
+mode: doc;
+eval: (auto-fill-mode 1)
+////
