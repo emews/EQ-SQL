@@ -1,8 +1,8 @@
 #!/bin/bash
 set -eu
 
-# DB CLEAR SH
-# Deletes all the tables!
+# DB RESET SH
+# Deletes all the table data!
 # Set environment variable DB_CONFIRM=0 to skip confirmations
 
 if (( ${#} != 0 ))
@@ -18,7 +18,7 @@ DB_DELAY=5
 if (( ${DB_CONFIRM:-1} ))
 then
   echo
-  echo "Deleting all tables ... Enter to confirm ... Ctrl-C to cancel ..."
+  echo "Deleting all table rows ... Enter to confirm ... Ctrl-C to cancel ..."
   read _
   echo "Deleting ..."
   echo
@@ -32,12 +32,12 @@ sql <<EOF
 \set ON_ERROR_STOP on
 \dt
 select pg_sleep($DB_DELAY);
-drop table exp_runs;
-drop table exp_instnces;
-drop table expids;
-drop sequence emews_id_generator;
-drop table emews_queue_OUT;
-drop table emews_queue_IN;
+delete from exp_runs;
+delete from exp_instnces;
+delete from expids;
+delete from emews_id_generator;
+delete from emews_queue_OUT;
+delete from emews_queue_IN;
 EOF
 
-echo "db-clear.sh: OK"
+echo "db-reset.sh: OK"

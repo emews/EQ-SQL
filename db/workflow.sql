@@ -71,9 +71,12 @@ create table exp_runs(
        foreign key (exp_int) references expids(exp_int)
 );
 
+create sequence emews_id_generator start 1 no cycle;
+
 create table emews_queue_OUT(
        eq_id integer,
-       json  text
+       json  text,
+       claimed integer
 );
 
 create table emews_queue_IN(

@@ -1,16 +1,9 @@
-
-# EQ-SQL eq.py
-
-import random
-import sys
 import threading
-# import importlib
+# import sys
+import importlib
 import traceback
-import time
 
-import db_tools
-
-EQPY_ABORT = "EQPY_ABORT"
+EQ_ABORT = "EQ_ABORT"
 
 try:
     import queue as q
@@ -24,9 +17,6 @@ output_q = q.Queue()
 p = None
 aborted = False
 wait_info = None
-
-# The psycopg2 handle:
-DB = None
 
 
 class WaitInfo:
@@ -55,10 +45,12 @@ class ThreadRunner(threading.Thread):
             self.exc = traceback.format_exc()
 
 
-def init():
-    global DB
-    DB = db_tools.setup_db(envs=True)
-    DB.connect()
+def init(pkg):
+    global p, wait_info
+    wait_info = WaitInfo()
+    imported_pkg = importlib.import_module(pkg)
+    p = ThreadRunner(imported_pkg)
+    p.start()
 
 
 def output_q_get():
@@ -67,6 +59,7 @@ def output_q_get():
     # thread's runnable might put work on queue
     # and finish, so it would not longer be alive
     # but something remains on the queue to be pulled
+    print("GET")
     while p.is_alive() or not output_q.empty():
         try:
             result = output_q.get(True, wait)
@@ -79,58 +72,18 @@ def output_q_get():
         if aborted:
             result = p.exc
         else:
-            result = EQPY_ABORT
-        print("EXCEPTION: " + str(p.exc))
+            result = EQ_ABORT
         aborted = True
+        print("EXCEPTION: " + str(p.exc))
 
     return result
 
 
 def OUT_put(string_params):
-    global DB
-    DB.execute("select nextval('emews_id_generator');")
-    rs = DB.get()
-    id = rs[0]
-    # V = db_tools.sql_tuple([str(id), "'M'"])
-    # print("V: " + str(V))
-    DB.insert("emews_queue_OUT", ["eq_id", "json"],
-              [str(id), db_tools.q(string_params)])
-
-
-def OUT_get(delay=0.1, timeout=1.0):
-    # From: https://www.2ndquadrant.com/en/blog/what-is-select-skip-locked-for-in-postgresql-9-5
-    global DB
-    sql_pop = """
-    DELETE FROM emews_queue_OUT
-    WHERE eq_id = (
-    SELECT eq_id
-    FROM emews_queue_OUT
-    ORDER BY eq_id
-    FOR UPDATE SKIP LOCKED
-    LIMIT 1
-    )
-    RETURNING *;
-    """
-    start = time.time()
-    while True:
-        DB.execute(sql_pop)
-        rs = DB.get()
-        if rs is not None:
-            break  # got good data
-        if time.time() - start > timeout:
-            break  # timeout
-        time.sleep(delay)
-        delay = delay * random.random() * 4
-        print("OUT_get(): " + str(delay))
-        sys.stdout.flush()
-
-    print("OUT_get(): " + str(rs))
-    sys.stdout.flush()
-    if rs is None: return None
-    params = rs[1]
-    return params
+    output_q.put(string_params)
 
 
 def IN_get():
+    # global input_q
     result = input_q.get()
     return result

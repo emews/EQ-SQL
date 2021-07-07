@@ -12,13 +12,13 @@ import logging
 import os
 
 
-def setup_db(db_file):
+def setup_db(log=False, envs=False):
     """ Convenience function to use from Swift/T """
     if 'DB' not in globals():
         rank = os.getenv('PMIX_RANK')
         print('rank %s Connecting to DB...' % rank)
         global DB
-        DB = workflow_sql(db_file)
+        DB = workflow_sql(log=log, envs=envs)
     return DB
 
 
@@ -122,53 +122,45 @@ class workflow_sql:
                 self.info("connect(): Already connected.")
         return "OK"
 
-    def insert(self, table, names, values):
+    def insert(self, table, names, values, echo=False):
         """ Do a SQL insert
             return rowid or -1 on SOFT error
         """
-        if self.mode == DB_Mode.OFF:
-            return
+        if len(names) != len(values):
+            raise ValueError("lengths of names, values must agree!")
         names_tpl  = sql_tuple(names)
         values_tpl = sql_tuple(values)
         cmd = "insert into {} {} values {};" \
             .format(table, names_tpl, values_tpl)
-        self.info(cmd)
         try:
-            self.execute(cmd)
+            self.execute(cmd, echo=echo)
             self.commit()
-            rowid = str(self.cursor.lastrowid)
         except Exception as e:
             if self.mode == DB_Mode.SOFT:
                 return -1
             self.info(e)
             raise(e)
-        return rowid
 
     def update(self, table, names, values, search):
         """ Do a SQL update
             return rowid or -1 on SOFT error
         """
-        if self.mode == DB_Mode.OFF:
-            return
-        assign_list = []
         if len(names) != len(values):
             raise ValueError("lengths of names, values must agree!")
+        assign_list = []
         for n, v in zip(names, values):
             assign_list.append("%s=%s" % (n, str(v)))
         assigns = ", ".join(assign_list)
         cmd = "update {} set {} where {};" \
             .format(table, assigns, search)
-        print(cmd)
         try:
             self.execute(cmd)
             self.commit()
-            rowid = str(self.cursor.lastrowid)
         except Exception as e:
             if self.mode == DB_Mode.SOFT:
                 return -1
             self.info(e)
             raise(e)
-        return rowid
 
     def select(self, table, what, where=None):
         ''' Do a SQL select '''
@@ -179,8 +171,10 @@ class workflow_sql:
         cmd += ";"
         self.execute(cmd)
 
-    def execute(self, cmd):
+    def execute(self, cmd, echo=False):
         self.info(cmd)
+        if echo:
+            print(cmd)
         try:
             self.cursor.execute(cmd)
         except Exception as e:
@@ -203,6 +197,12 @@ class workflow_sql:
     def commit(self):
         """ Should not be called if mode==OFF """
         self.conn.commit()
+
+    def get(self):
+        """ Wrapper for fetchone() """
+        result = self.cursor.fetchone()
+        self.info("get(): %r" % (result is not None))
+        return result
 
     def close(self):
         self.autoclose = False
@@ -266,9 +266,20 @@ def qA(*args):
 
 def sql_tuple(L):
     """ Make the given list into a SQL-formatted tuple """
+    L = list(map(str, L))
     result = ""
     result += "("
     result += ",".join(L)
+    result += ")"
+    return result
+
+
+def sql_tuple_q(L):
+    """ Make the given list into a Quoted SQL-formatted tuple """
+    L = list(map(str, L))
+    result = ""
+    result += "("
+    result += ",".join(qL(L))
     result += ")"
     return result
 
