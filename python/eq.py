@@ -86,6 +86,25 @@ def output_q_get():
     return result
 
 
+def sql_pop_q(table):
+    """
+    Generate code for a queue pop from given table
+    From: https://www.2ndquadrant.com/en/blog/what-is-select-skip-locked-for-in-postgresql-9-5
+    """
+    code = """
+    DELETE FROM emews_queue_OUT
+    WHERE eq_id = (
+    SELECT eq_id
+    FROM %s
+    ORDER BY eq_id
+    FOR UPDATE SKIP LOCKED
+    LIMIT 1
+    )
+    RETURNING *;
+    """ % table
+    return code
+
+
 def OUT_put(string_params):
     global DB
     DB.execute("select nextval('emews_id_generator');")
@@ -98,19 +117,8 @@ def OUT_put(string_params):
 
 
 def OUT_get(delay=0.1, timeout=1.0):
-    # From: https://www.2ndquadrant.com/en/blog/what-is-select-skip-locked-for-in-postgresql-9-5
     global DB
-    sql_pop = """
-    DELETE FROM emews_queue_OUT
-    WHERE eq_id = (
-    SELECT eq_id
-    FROM emews_queue_OUT
-    ORDER BY eq_id
-    FOR UPDATE SKIP LOCKED
-    LIMIT 1
-    )
-    RETURNING *;
-    """
+    sql_pop = sql_pop_q("emews_queue_OUT")
     start = time.time()
     while True:
         DB.execute(sql_pop)
