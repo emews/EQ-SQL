@@ -128,23 +128,30 @@ def queue_pop(table, delay, timeout):
     return result
 
 
-def OUT_put(string_params):
+def queue_push(table, value):
     global DB
     DB.execute("select nextval('emews_id_generator');")
     rs = DB.get()
     id = rs[0]
     # V = db_tools.sql_tuple([str(id), "'M'"])
     # print("V: " + str(V))
-    DB.insert("emews_queue_OUT", ["eq_id", "json"],
-              [str(id), db_tools.q(string_params)])
+    DB.insert(table, ["eq_id", "json"],
+              [str(id), db_tools.q(value)])
+
+
+def OUT_put(string_params):
+    queue_push("emews_queue_OUT", string_params)
+
+
+def IN_put(string_params):
+    queue_push("emews_queue_IN", string_params)
 
 
 def OUT_get(delay=0.1, timeout=1.0):
-    global DB
     result = queue_pop("emews_queue_OUT", delay, timeout)
     return result
 
 
-def IN_get():
-    result = input_q.get()
+def IN_get(delay=0.1, timeout=1.0):
+    result = queue_pop("emews_queue_IN", delay, timeout)
     return result
