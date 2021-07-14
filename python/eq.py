@@ -61,6 +61,20 @@ def init():
     DB.connect()
 
 
+def validate():
+    """ Connect to DB or die! """
+    global DB
+    # This code has no effect except to validate the connection:
+    try:
+        DB.execute("select * from emews_id_generator;")
+        DB.get()
+    except Exception:
+        print("ERROR: eq.validate() failed!")
+        sys.stdout.flush()
+        return None
+    return "EQ-SQL:OK"
+
+
 def output_q_get():
     global output_q, aborted
     wait = wait_info.getWait()
