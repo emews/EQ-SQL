@@ -92,7 +92,7 @@ def sql_pop_q(table):
     From: https://www.2ndquadrant.com/en/blog/what-is-select-skip-locked-for-in-postgresql-9-5
     """
     code = """
-    DELETE FROM emews_queue_OUT
+    DELETE FROM %s
     WHERE eq_id = (
     SELECT eq_id
     FROM %s
@@ -101,7 +101,7 @@ def sql_pop_q(table):
     LIMIT 1
     )
     RETURNING *;
-    """ % table
+    """ % (table, table)
     return code
 
 
