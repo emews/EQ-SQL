@@ -119,10 +119,11 @@ def OUT_get(delay=0.1, timeout=1.0):
             break  # got good data
         if time.time() - start > timeout:
             break  # timeout
+        delay = delay * random.random() * 2
         time.sleep(delay)
-        delay = delay * random.random() * 4
         print("OUT_get(): " + str(delay))
         sys.stdout.flush()
+        delay = delay * 2
 
     print("OUT_get(): " + str(rs))
     sys.stdout.flush()
