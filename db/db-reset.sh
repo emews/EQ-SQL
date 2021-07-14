@@ -3,6 +3,7 @@ set -eu
 
 # DB RESET SH
 # Deletes all the table data!
+#         and resets the sequence to its start value.
 # Set environment variable DB_CONFIRM=0 to skip confirmations
 
 if (( ${#} != 0 ))
@@ -35,9 +36,9 @@ select pg_sleep($DB_DELAY);
 delete from exp_runs;
 delete from exp_instnces;
 delete from expids;
-delete from emews_id_generator;
 delete from emews_queue_OUT;
 delete from emews_queue_IN;
+alter sequence emews_id_generator restart;
 EOF
 
 echo "db-reset.sh: OK"
