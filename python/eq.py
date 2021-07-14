@@ -121,7 +121,7 @@ def OUT_get(delay=0.1, timeout=1.0):
             break  # timeout
         delay = delay * random.random() * 2
         time.sleep(delay)
-        print("OUT_get(): " + str(delay))
+        # print("OUT_get(): " + str(delay))
         sys.stdout.flush()
         delay = delay * 2
 
