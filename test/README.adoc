@@ -1,0 +1,16 @@
+
+= Tests
+
+ME::
+The Model Explorer
+
+WF::
+The workflow worker.
+
+== Plain Python
+
+test-py-1.sh::
+Simple one-way handoff of parameters from a Python ME to a Python WF
+
+test-py-2.sh::
+Simple two-way exchange of parameters between a Python ME and a Python WF
