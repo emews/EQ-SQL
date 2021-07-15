@@ -10,9 +10,8 @@ eq.init()
 
 while True:
     msg = eq.OUT_get()
-    if msg is None:
-        print("queue is empty")
-        break
     print("msg: " + str(msg))
+    if msg == "EQ_FINAL":
+        break
 
 print("PY TEST 1 WF: STOP")

@@ -57,6 +57,8 @@ class ThreadRunner(threading.Thread):
 
 def init():
     global DB
+    if DB is not None:
+        return
     DB = db_tools.setup_db(envs=True)
     DB.connect()
 
@@ -120,6 +122,7 @@ def sql_pop_q(table):
 
 
 def queue_pop(table, delay, timeout):
+    global DB
     sql_pop = sql_pop_q(table)
     start = time.time()
     while True:
@@ -154,18 +157,48 @@ def queue_push(table, value):
 
 
 def OUT_put(string_params):
-    queue_push("emews_queue_OUT", string_params)
+    try:
+        queue_push("emews_queue_OUT", string_params)
+    except Exception as e:
+        info = sys.exc_info()
+        s = traceback.format_tb(info[2])
+        print(str(e) + ' ... \\n' + ''.join(s))
+        sys.stdout.flush()
 
 
 def IN_put(string_params):
-    queue_push("emews_queue_IN", string_params)
+    try:
+        queue_push("emews_queue_IN", string_params)
+    except Exception as e:
+        info = sys.exc_info()
+        s = traceback.format_tb(info[2])
+        print(str(e) + ' ... \\n' + ''.join(s))
+        sys.stdout.flush()
 
 
 def OUT_get(delay=0.1, timeout=1.0):
-    result = queue_pop("emews_queue_OUT", delay, timeout)
+    try:
+        result = queue_pop("emews_queue_OUT", delay, timeout)
+        if result is None:
+            print("eq.py:OUT_get(): popped None: abort!")
+            sys.stdout.flush()
+            result = "EQ_ABORT"
+    except Exception as e:
+        info = sys.exc_info()
+        s = traceback.format_tb(info[2])
+        print(str(e) + ' ... \\n' + ''.join(s))
+        sys.stdout.flush()
+        result = "EQ_ABORT"
     return result
 
 
-def IN_get(delay=0.1, timeout=1.0):
-    result = queue_pop("emews_queue_IN", delay, timeout)
+def IN_get(delay=0.1, timeout=2.0):
+    try:
+        result = queue_pop("emews_queue_IN", delay, timeout)
+    except Exception as e:
+        info = sys.exc_info()
+        s = traceback.format_tb(info[2])
+        print(str(e) + ' ... \\n' + ''.join(s))
+        sys.stdout.flush()
+        result = "EQ_ABORT"
     return result

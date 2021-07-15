@@ -14,6 +14,8 @@ while True:
         print("queue is empty")
         break
     print("msg: " + str(msg))
+    if msg == "EQ_FINAL":
+        break
     tokens = msg.split(":")
     result = "result:" + tokens[1]
     eq.IN_put(result)

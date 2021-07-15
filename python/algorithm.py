@@ -2,7 +2,6 @@
 # GA0 DEAP_GA
 
 import json
-import math
 import numpy as np
 import os
 import random
@@ -17,6 +16,17 @@ import eq
 
 # Global variable names we are going to set from the JSON settings file
 global_settings = ["num_iter", "num_pop", "sigma", "mate_pb", "mutate_pb"]
+
+# Defaults for Elpy:
+mate_pb   = None
+mutate_pb = None
+num_iter  = None
+num_pop   = None
+
+
+def message(s):
+    print("algorithm.py: " + s)
+    sys.stdout.flush()
 
 
 def i2s(i):
@@ -52,8 +62,13 @@ def queue_map(obj_func, pops):
     """
     if not pops:
         return []
-    eqpy.OUT_put(create_list_of_lists_string(pops))
-    result = eqpy.IN_get()
+    eq.OUT_put(create_list_of_lists_string(pops))
+    result = eq.IN_get()
+    # message("result: " + str(result))
+    if result is None:
+        message("IN_get() returned None: abort!")
+        # DEAP has no early stopping: Cf. issue #271
+        exit(1)
     split_result = result.split(';')
     return [(float(x),) for x in split_result]
 
@@ -67,7 +82,7 @@ def mutate_Gaussian_float(x):
 # Returns a tuple of one individual
 def custom_mutate(individual, indpb):
     old_individual = i2s(individual)
-    for i,m in enumerate(individual):
+    for i, m in enumerate(individual):
         individual[i] = mutate_Gaussian_float(individual[i])
     print("mutate: %s to: %s" % (old_individual, i2s(individual)))
     return individual,
@@ -91,9 +106,9 @@ def run():
     :param csv_file_name: csv file name (e.g., "params_for_deap.csv")
     """
 
-    eqsql.OUT_put("Settings")
-    settings_filename = eqpy.IN_get()
-    load_settings(settings_filename)
+    # eq.OUT_put("Settings")
+    # settings_filename = eq.IN_get()
+    # load_settings(settings_filename)
 
     # parse settings # num_iter, num_pop, seed,
 
@@ -110,7 +125,7 @@ def run():
     toolbox.register("evaluate", obj_func)
     toolbox.register("mate", cxUniform, indpb=mate_pb)
     toolbox.register("mutate", custom_mutate, indpb=mutate_pb)
-    toolbox.register("select", tools.selTournament, tournsize=num_pop/2)
+    toolbox.register("select", tools.selTournament, tournsize=int(num_pop/2))
     toolbox.register("map", queue_map)
 
     pop = toolbox.population(n=num_pop)
@@ -121,32 +136,40 @@ def run():
     stats.register("min", np.min)
     stats.register("max", np.max)
 
-    # num_iter-1 generations since the initial population is evaluated once first
+    # num_iter-1 generations since the initial population is
+    # evaluated once first
     pop, log = algorithms.eaSimple(pop, toolbox, cxpb=0.5, mutpb=mutate_pb,
                                    ngen=num_iter - 1,
                                    stats=stats, halloffame=hof, verbose=True)
 
     fitnesses = [str(p.fitness.values[0]) for p in pop]
 
-    eqpy.OUT_put("FINAL")
+    eq.OUT_put("FINAL")
     # return the final population
-    eqpy.OUT_put("{0}\n{1}\n{2}".format(create_list_of_lists_string(pop), ';'.join(fitnesses), log))
+    msg = "{0}\n{1}\n{2}".format(create_list_of_lists_string(pop),
+                                 ';'.join(fitnesses),
+                                 log)
+    # eq.OUT_put(format(msg))
+    message(msg)
+
 
 def load_settings(settings_filename):
-    print("Reading settings: '%s'" % settings_filename)
+    message("reading settings: '%s'" % settings_filename)
     try:
         with open(settings_filename) as fp:
             settings = json.load(fp)
-    except IOError as e:
-        print("Could not open: '%s'" % settings_filename)
-        print("PWD is: '%s'" % os.getcwd())
+    except IOError:
+        message("could not open: '%s'" % settings_filename)
+        message("PWD is: '%s'" % os.getcwd())
         sys.exit(1)
     try:
         for s in global_settings:
+            message("setting %s=%s" % (s, settings[s]))
             globals()[s] = settings[s]
         random.seed(settings["seed"])
     except KeyError as e:
-        print("Settings file (%s) does not contain key: %s" % (settings_filename, str(e)))
+        message("settings file '%s' does not contain key: %s" %
+                (settings_filename, str(e)))
         sys.exit(1)
-    print("num_iter: ", num_iter)
-    print("Settings loaded.")
+        # print("num_iter: ", num_iter)
+    message("settings loaded.")

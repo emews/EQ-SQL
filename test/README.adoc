@@ -7,6 +7,9 @@ The Model Explorer
 WF::
 The workflow worker.
 
+NOTE: Remember to run db-reset after any failed tests!
+      Otherwise, old messages will be in the queue.
+
 == Plain Python
 
 test-py-1.sh::
@@ -14,3 +17,11 @@ Simple one-way handoff of parameters from a Python ME to a Python WF
 
 test-py-2.sh::
 Simple two-way exchange of parameters between a Python ME and a Python WF
+
+== Swift
+
+test-swift-1.sh::
+Simple test to connect to DB
+
+test-swift-2.sh::
+Real DEAP run
