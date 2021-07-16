@@ -1,7 +1,7 @@
 
 :toc:
 
-= COVID Workflow Database (CoW-DB)
+= EWEWS Database Tools
 
 == Concepts
 
@@ -14,7 +14,7 @@ Servers can run on different hosts (+DB_HOST+)
 within Theta as long as they are using different +DB_DATA+.
 
 A DB cluster can contain multiple logical DBs (+DB_NAME+).  We always
-call this +DB_NAME=CoW+ for "COVID-Workflow".
+call this +DB_NAME=EQ_SQL+ for "COVID-Workflow".
 
 Within the DB are the tables.
 
@@ -26,7 +26,7 @@ Within the DB are the tables.
 # Add these scripts to PATH:
 $ PATH=$PWD/db:$PATH
 # Source the correct env script:
-$ source env-theta.sh
+$ source env-local.sh
 # Set any non-existent directory here:
 $ export DB_DATA=/path/to/DB
 # Edit db-settings.sh to set the common variables (see below)
@@ -34,9 +34,9 @@ $ export DB_DATA=/path/to/DB
 $ db-init.sh
 # Start the DB server (with no DBs!):
 $ db-start.sh
-# Create the SQL DB named "CoW"
+# Create the EQ-SQL DB named "EQ_SQL"
 $ db-create.sh
-# Create tables inside DB CoW
+# Create tables inside DB EQ_SQL
 $ db-mk-tables.sh
 ----
 
@@ -51,8 +51,6 @@ These tools all self-configure with db-settings.sh
 $ db-ping.sh
 # Print the DB using psql:
 $ db-print.sh
-# Print the DB for IMABC using Python:
-$ db-pretty-imabc.sh -- --expid X380
 ----
 
 === Typical startup
@@ -68,15 +66,15 @@ $ db-ping.sh
 db-ping: OK
 ----
 
-=== Typical use
+=== Reset all tables
+
+Remove the data from all tables.
 
 ----
-# Insert an EXPID (called by workflow.sh)
-$ db-exp-init.sh CoW $EXPID
-# Subsequent SQL operations are performed by Swift/T+Python
+$ db-reset.sh
 ----
 
-=== To reset all tables
+=== To remake all tables
 
 Delete and re-make all tables.
 
@@ -114,10 +112,10 @@ Possible values: +ON+, +SOFT+, +OFF+.
 +OFF+ means do not try to use the DB.
 
 +DB_DATA+::
-The database storage directory (+/projects/Swift-T/public/DB/CoW-TEST+)
+The database storage directory (e.g. +/projects/Swift-T/public/DB/001+)
 
 +DB_NAME+::
-The database name (default: +"CoW"+)
+The database name (default: +"EQ_SQL"+)
 
 == Logs
 
@@ -212,9 +210,9 @@ Interactive session::
 $ source db-settings.sh
 # A shell function:
 $ sql
-CoW=#
+EQ_SQL=#
 -- Example command
-CoW=# \dt
+EQ_SQL=# \dt
             List of relations
  Schema |     Name     | Type  |  Owner
 --------+--------------+-------+---------
@@ -222,7 +220,7 @@ CoW=# \dt
  public | exp_runs     | table | wozniak
  public | expids       | table | wozniak
 -- To exit: Ctrl-D or:
-CoW=# \q
+EQ_SQL=# \q
 $
 ----
 
@@ -232,11 +230,22 @@ $
 
 ==== Linux
 
+===== APT
+
+Requires sudo all the time for startup/shutdown:
+----
+$ apt-get install postgresql
+---- 
+
+===== From source
+
+Better to run as a user:
 ----
 $ wget https://ftp.postgresql.org/pub/source/v12.2/postgresql-12.2.tar.bz2
 $ bunzip
 $ configure
 $ make install
+
 # Install the Python Postgres adapter
 # Cf. https://www.psycopg.org
 $ pip install psycopg2

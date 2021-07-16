@@ -45,7 +45,7 @@ export DB_HOST=${DB_HOST:-localhost} # thetalogin4
 export DB_PORT=${DB_PORT:-11219}
 # The user name to use for the DB
 export DB_USER=${DB_USER:-}
-export DB_NAME=${DB_NAME:-CoW}
+export DB_NAME=${DB_NAME:-EQ_SQL}
 export DB_MODE=${DB_MODE:-SOFT} # Choices: ON, SOFT, OFF
 export DB_DATA
 
