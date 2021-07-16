@@ -9,7 +9,7 @@ source $THIS/db-settings.sh -v $*
 
 (
   set -x
-  createdb --host=$DB_HOST --port=$DB_PORT CoW
+  createdb --host=$DB_HOST --port=$DB_PORT EQ_SQL
 )
 
 echo "db-create.sh: OK"
