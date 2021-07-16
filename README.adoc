@@ -3,9 +3,9 @@
 
 This module supports EMEWS workflows in which the parameter queues are implemented in a SQL database.
 
-See the tests directory and README for usage examples.
+See the directory `tests/` and its `README` for usage examples.
 
-See the db directory and README for information about the database.
+See the directory `db/` and `README` for information about the database.
 
 == Overview
 
@@ -13,11 +13,11 @@ The workflows run as normal Swift/T workflows, but the EQ functions are implemen
 
 The call stack is:
 
-* The Swift/T workflow (e.g., workflow.swift)
-* The EQ module (EQ-SQL/swift/EQ.swift)
-* The EQ Python code (EQ-SQL/python/eq.py)
-* The EMEWS database tool abstraction (EQ-SQL/db/db_tools.py)
-* The Python SQL API (the psycopg2 library)
+* The Swift/T workflow (e.g., `workflow.swift`)
+* The EQ module (`EQ-SQL/swift/EQ.swift`)
+* The EQ Python code (`EQ-SQL/python/eq.py`)
+* The EMEWS database tool abstraction (`EQ-SQL/db/db_tools.py`)
+* The Python SQL API (the psycopg2 library (installed via e.g. `pip`))
 * Postgres itself
 
 == File index
@@ -26,14 +26,14 @@ swift/loop.swift::
 A reusable workflow to consume tasks from EQ-SQL
 
 swift/EQ.swift::
-The Swift/T API functions to access EQ-SQL.  Import this into your workflow with `import EQ;` .  Calls into eq.py .
+The Swift/T API functions to access EQ-SQL.  Import this into your workflow with `import EQ;` .  Calls into `eq.py` .
 
 python/eq.py::
-The Python code to access the DB via the API in db/db_tools.py .
+The Python code to access the DB via the API in `db/db_tools.py` .
 
 == DEAP Example
 
-See tests/test-swift-2 for this example.
+See `tests/test-swift-2` for this example.
 
 === Overview
 
