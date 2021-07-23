@@ -1,33 +1,52 @@
 
-= DEAP Example
+= EQ-SQL: EWEWS Queues: SQL implementation
+
+This module supports EMEWS workflows in which the parameter queues are implemented in a SQL database.
+
+See the directory `tests/` and its `README` for usage examples.
+
+See the directory `db/` and `README` for information about the database.
 
 == Overview
+
+The workflows run as normal Swift/T workflows, but the EQ functions are implemented with calls to SQL.
+
+The call stack is:
+
+* The Swift/T workflow (e.g., `workflow.swift`)
+* The EQ module (`EQ-SQL/swift/EQ.swift`)
+* The EQ Python code (`EQ-SQL/python/eq.py`)
+* The EMEWS database tool abstraction (`EQ-SQL/db/db_tools.py`)
+* The Python SQL API (the psycopg2 library (installed via e.g. `pip`))
+* Postgres itself
+
+== File index
+
+swift/loop.swift::
+A reusable workflow to consume tasks from EQ-SQL
+
+swift/EQ.swift::
+The Swift/T API functions to access EQ-SQL.  Import this into your workflow with `import EQ;` .  Calls into `eq.py` .
+
+python/eq.py::
+The Python code to access the DB via the API in `db/db_tools.py` .
+
+== DEAP Example
+
+See `tests/test-swift-2` for this example.
+
+=== Overview
 
 This runs a real EA with http://deap.readthedocs.io/en/master[DEAP].  The objective function is simply:
 
 _sin(4x) + sin(4y) - 2x + x² - 2y + y²_
-
-== Installation
-
-Clone EQ-Py and install it into the ext/ directory.
-
-----
-$ git clone git@github.com:emews/mela.git
-$ git clone git@github.com:emews/EQ-Py.git
-$ cd mela/deap # This example
-$ ../../EQ-Py/src/install ext/EQ-Py
-...
-file creation messages
-...
-----
 
 == Run
 
 Run with:
 
 ----
-$ cd mela/deap # This example
-$ swift/run --settings=swift/settings.json > run.log
+$ test/test-swift-2.sh
 ----
 
 == Objective function
