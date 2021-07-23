@@ -97,11 +97,8 @@ octave trajectory.m
 
 . Run with σ = 0.5:
 +
-[My image](j-woz.github.com/EQ-SQL/plots/plot-s05.png)
+image::plots/plot-s05.png[width=400,align="center"]
 +
 . Run with σ = 0.1:
 +
 image::plots/plot-s01.png[width=400,align="center"]
-
-
-image::plots/plot-s05.png[width=400,align="center"]
