@@ -1,0 +1,5 @@
+Remember to install with:
+
+----
+$ sudo R CMD INSTALL EQ.SQL
+----
