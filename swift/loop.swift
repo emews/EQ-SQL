@@ -68,4 +68,4 @@ loop()
 
 }
 
-loop();
+loop() => printf("loop.swift: normal exit.");
