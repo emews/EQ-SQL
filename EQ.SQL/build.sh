@@ -7,5 +7,5 @@ cd $THIS
 Rscript -e "devtools::document()"
 cd ..
 
-     R CMD build   EQ.SQL
-sudo R CMD INSTALL EQ.SQL
+R CMD build   EQ.SQL
+R CMD INSTALL EQ.SQL
