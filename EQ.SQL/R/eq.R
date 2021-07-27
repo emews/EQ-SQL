@@ -47,6 +47,17 @@ eq.OUT_get <- function(delay, timeout) {
   }
 }
 
+#' @export
+eq.IN_get <- function() {
+  result = queue_pop("emews_queue_IN", 1, 5)
+  if (result == FALSE) {
+    print("eq.IN_get(): nothing to pop!")
+    quit(status=1)
+  } else {
+    result
+  }
+}
+
 queue_push <- function(table, value) {
   cat("\n")
   rs <- dbGetQuery(conn, "select nextval('emews_id_generator');")
