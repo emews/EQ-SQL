@@ -15,7 +15,18 @@
 //     // do nothing
 // }
 
-string code_get = "import eq ; eq.init() ; result = eq.OUT_get()";
+string code_get = """
+import eq
+eq.init()
+try:
+    result = eq.OUT_get()
+except Exception as e:
+        info = sys.exc_info()
+        s = traceback.format_tb(info[2])
+        print(str(e) + ' ... \\n' + ''.join(s))
+        sys.stdout.flush()
+        result = 'EQ_ABORT'
+""";
 
 (string result) EQ_get() {
     result = python_persist(code_get, "result");
