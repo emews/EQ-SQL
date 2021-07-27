@@ -144,7 +144,7 @@ def run():
 
     fitnesses = [str(p.fitness.values[0]) for p in pop]
 
-    eq.OUT_put("FINAL")
+    eq.OUT_put("EQ_FINAL")
     # return the final population
     msg = "{0}\n{1}\n{2}".format(create_list_of_lists_string(pop),
                                  ';'.join(fitnesses),
