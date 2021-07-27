@@ -176,7 +176,7 @@ def IN_put(string_params):
         sys.stdout.flush()
 
 
-def OUT_get(delay=0.1, timeout=1.0):
+def OUT_get(delay=0.1, timeout=5.0):
     try:
         result = queue_pop("emews_queue_OUT", delay, timeout)
         if result is None:
@@ -192,7 +192,7 @@ def OUT_get(delay=0.1, timeout=1.0):
     return result
 
 
-def IN_get(delay=0.1, timeout=2.0):
+def IN_get(delay=0.1, timeout=5.0):
     try:
         result = queue_pop("emews_queue_IN", delay, timeout)
     except Exception as e:
