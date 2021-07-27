@@ -50,16 +50,10 @@ eq.OUT_get <- function(delay, timeout) {
 queue_push <- function(table, value) {
   cat("\n")
   rs <- dbGetQuery(conn, "select nextval('emews_id_generator');")
-  cat("rs: _", rs[1,1], "_\n")
   # Convert SQL integer64 to R integer:
   id <- as.integer(rs[1,1])
-  # print(id)
-  # cat("cat id ", id, "\n")
-  # cat("push: value", value, "\n")
-  # printf("rs: %f\n", x)
   SQL.insert(table, list("eq_id", "json"), list(id, value))
 }
-
 
 sql_pop_q <- function(table) {
   # Generate code for a queue pop from given table
