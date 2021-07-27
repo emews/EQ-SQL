@@ -1,7 +1,7 @@
 #!/bin/zsh -f
 set -eu
 
-# TEST SWIFT 2
+# TEST SWIFT PY 2
 
 THIS=$(   readlink --canonicalize $( dirname $0 ) )
 EQ_SQL=$( readlink --canonicalize $THIS/.. )
