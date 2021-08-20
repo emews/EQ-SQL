@@ -38,4 +38,7 @@ Real DEAP run with loop.swift
 === R ME
 
 test-swift-3.sh::
-Workflow with loop.swift with fake R ME
+Workflow with loop.swift with fake R ME; comma-separated messages
+
+test-swift-4.sh::
+Workflow with loopj.swift with fake R ME; JSON messages
