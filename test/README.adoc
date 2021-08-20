@@ -10,6 +10,8 @@ The workflow worker.
 NOTE: Remember to run db-reset after any failed tests!
       Otherwise, old messages will be in the queue.
 
+Run these tests in the order given below.
+
 == Plain Python
 
 test-py-1.sh::
@@ -18,10 +20,22 @@ Simple one-way handoff of parameters from a Python ME to a Python WF
 test-py-2.sh::
 Simple two-way exchange of parameters between a Python ME and a Python WF
 
+== Plain R
+
+test-R-1.sh::
+Simple one-way handoff of parameters from a R ME to a R WF
+
 == Swift
 
 test-swift-1.sh::
 Simple test to connect to DB
 
+=== Python ME
+
 test-swift-2.sh::
-Real DEAP run
+Real DEAP run with loop.swift
+
+=== R ME
+
+test-swift-3.sh::
+Workflow with loop.swift with fake R ME
