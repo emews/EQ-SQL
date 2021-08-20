@@ -1,6 +1,6 @@
 
 /**
-   EMEWS workflow.swift
+   EMEWS loop.swift
 */
 
 import assert;
