@@ -34,7 +34,7 @@ class workflow_sql:
 
     def __init__(self, host="127.0.0.1", port=5432,
                  mode=DB_Mode.ON,
-                 dbname="CoW",
+                 dbname="EQ_SQL",
                  envs=False,
                  log=False,
                  procname=""):
