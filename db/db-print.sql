@@ -7,9 +7,12 @@
 
 \dt
 
-\echo == EXPIDS ==
-select * from expids;
-\echo == INSTANCES ==
-select * from exp_instnces;
-\echo == RUNS ==
-select * from exp_runs;
+\echo == EMEWS GROUPS ==
+select * from emews_groups;
+\echo == EMEWS POINTS ==
+select * from emews_points;
+
+\echo == EMEWS QUEUE IN ==
+select * from emews_queue_IN;
+\echo == EMEWS QUEUE OUT ==
+select * from emews_queue_OUT;
