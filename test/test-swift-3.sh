@@ -10,6 +10,6 @@ export EQ_SQL
 export PYTHONPATH=$EQ_SQL/db:$EQ_SQL/python
 
 swift-t -I $EQ_SQL/swift $EQ_SQL/swift/loop.swift &
-Rscript test/test-swift-3-me.R
+Rscript $THIS/test-swift-3-me.R
 
 wait
