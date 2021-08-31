@@ -119,6 +119,10 @@ The database storage directory (e.g. +/projects/Swift-T/public/DB/001+)
 +DB_NAME+::
 The database name (default: +"EQ_SQL"+)
 
++DB_CONFIRM+::
+By default, the scripts perform delays before deleting data in bulk.
+Setting this to `0` reduces these delays.
+
 == Logs
 
 +$DB_DATA/db.log+::
