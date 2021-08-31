@@ -177,6 +177,7 @@ class workflow_sql:
             print(cmd)
         try:
             self.cursor.execute(cmd)
+            self.conn.commit()
         except Exception as e:
             print(str(e))  # Remove this line after debugging
             if self.mode == DB_Mode.SOFT:
