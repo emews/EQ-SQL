@@ -8,69 +8,39 @@
 /* For SQLite: */
 /* PRAGMA foreign_keys = ON; */
 
-/* The main table, one row for each run
-   The workflow ID (expid) is specified by the user and is conventionally
-   the same as the EMEWS experiment ID.
-   The exp_int is a SQL integer that is the main key for the tables.
+/* Each group here is a collection of other groups or points
 */
-create table expids(
+create table emews_groups(
        /* auto-generated integer */
-       exp_int serial primary key,
-       /* string name e.g. 'X-032' */
-       expid character varying(32) unique,
-       /* JSON-formatted input values */
-       json_in  text,
+       ID serial primary key,
+       /* e.g. 'experiment':'X-032' or 'iteration':421 */
+       json_label text,
+       /* the parent group ID of this point.  May point nowhere. */
+       group_ integer,
        /* creation time */
        time timestamp
 );
 
-/* Each experiment has multiple model instances defined here
-   "instance" is a SQL reserved word- we use "instnce"
+/* Each row here is a model run
 */
-create table exp_instnces(
-       exp_int integer,
-       step integer,
-       /* the ID of this instance */
-       instnce integer,
+create table emews_points(
+       ID integer,
+       /* the group ID of this point */
+       group_ integer,
        /* See db_covid.py for valid status codes */
        status integer,
        /* JSON-formatted input values */
        json_in  text,
        /* JSON-formatted output values */
        json_out text,
+       /* time this point was created (json_in) */
        time_start timestamp,
+       /* time this point was finished (json_out) */
        time_stop  timestamp,
-       foreign key (exp_int) references expids(exp_int)
+       foreign key (group_) references emews_groups(ID)
 );
 
--- /* Each instance has a params dict, divided into key/value keyname/content pairs here
---    "key"/"value" are SQL reserved words- we use "keyname"/"content"
--- */
--- create table exp_instnce_params(
---        exp_int integer,
---        step    integer,
---        instnce integer,
---        keyname text,
---        content text,
---        foreign key (exp_int) references expids(exp_int)
--- );
-
-/* Each model run has one entry here */
-create table exp_runs(
-       exp_int integer,
-       step    integer,
-       instnce integer,
-       run     integer,
-       status  integer,
-       /* JSON-formatted input values */
-       json_in  text,
-       /* JSON-formatted output values */
-       json_out text,
-       time_start timestamp,
-       time_stop  timestamp,
-       foreign key (exp_int) references expids(exp_int)
-);
-
+/* This generator is just for the queues */
 create sequence emews_id_generator start 1 no cycle;
 
 create table emews_queue_OUT(
