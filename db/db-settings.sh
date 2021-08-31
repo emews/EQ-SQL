@@ -73,7 +73,7 @@ sql()
   local USER_ARG=""
   if (( ${#DB_USER} ))
   then
-    USER_ARG=( --username $DB_USER )
+    USER_ARG="--username=$DB_USER"
   fi
   psql --host=$DB_HOST --port=$DB_PORT $USER_ARG $DB_NAME $*
 }
