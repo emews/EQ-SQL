@@ -65,6 +65,12 @@ db-settings()
   # The EQ-SQL scripts usually require this to be set to a
   # valid location. If it is empty, this prints "unset".
   echo DB_DATA=${DB_DATA:-unset}
+  if (( ${DB_CONFIRM:-1} == 0 ))
+  then
+    RED='\033[0;31m'
+    DFLT='\033[0m'
+    echo -e "${RED}WARNING: DB_CONFIRM==0${DFLT}"
+  fi
 }
 
 sql()
