@@ -58,8 +58,12 @@ db-settings()
   echo DB_PORT=$DB_PORT
   echo DB_NAME=$DB_NAME
   echo DB_MODE=$DB_MODE
+  # DB_USER may be empty; if so, this prints "default:$USER"
+  #         because psql will use your OS USER name as the default
   echo DB_USER=${DB_USER:-default:${USER}}
   # The data directory for the DB
+  # The EQ-SQL scripts usually require this to be set to a
+  # valid location. If it is empty, this prints "unset".
   echo DB_DATA=${DB_DATA:-unset}
 }
 

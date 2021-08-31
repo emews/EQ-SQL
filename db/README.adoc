@@ -96,8 +96,10 @@ $ db-mk-tables.sh
 
 == Common variables
 
-You can set these in the environment, or they will be set to
-defaults in db-settings.sh
+These variables configure the database connection.
+Normally, you set them in you env-*.sh script.
+You can also set these in the environment,
+or they will be set to defaults in db-settings.sh .
 
 +DB_HOST+::
 The database host (e.g., "thetalogin6" works from the compute nodes)
