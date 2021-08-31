@@ -237,7 +237,7 @@ $
 Requires sudo all the time for startup/shutdown:
 ----
 $ apt-get install postgresql
----- 
+----
 
 ===== From source
 
