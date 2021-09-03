@@ -12,14 +12,34 @@ import sys;
 import EQ;
 
 /** The objective function */
+/*
 (string result)
-task(string params)
+task_string(string params)
 {
   result = python_persist(
 ----
 import sys
 from math import sin,cos
 x,y=%s
+result = sin(4*x)+sin(4*y)+-2*x+x**2-2*y+y**2
+print("TASK: " + str(x) + " " + str(y) + " -> " + str(result))
+sys.stdout.flush()
+---- % params,
+"repr(result)"
+  );
+}
+*/
+
+(string result)
+task_json(string params)
+{
+  result = python_persist(
+----
+import json, sys
+from math import sin, cos
+D = json.loads(params)
+values = D["values"]
+x, y = values[0], values[1]
 result = sin(4*x)+sin(4*y)+-2*x+x**2-2*y+y**2
 print("TASK: " + str(x) + " " + str(y) + " -> " + str(result))
 sys.stdout.flush()

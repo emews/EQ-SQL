@@ -56,13 +56,24 @@ def create_list_of_lists_string(list_of_lists, super_delim=";", sub_delim=","):
     return result
 
 
+def create_json(list_of_lists):
+    # super list elements separated by ;
+    L = []
+    for values in list_of_lists:
+        D = { "values": values }
+        L.append(json.dumps(D))
+    result = ";".join(L)
+    return result
+
+
 def queue_map(obj_func, pops):
     """ Note that the obj_func is a dummy
         pops: data that looks like: [[x1,x2],[x1,x2],...]
     """
     if not pops:
         return []
-    eq.OUT_put(create_list_of_lists_string(pops))
+    # eq.OUT_put(create_list_of_lists_string(pops))
+    eq.OUT_put(create_json(pops))
     result = eq.IN_get()
     # message("result: " + str(result))
     if result is None:
