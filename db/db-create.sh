@@ -1,4 +1,5 @@
 #!/bin/bash
+set -eu
 
 # DB CREATE SH
 # Use createdb to create the DB
