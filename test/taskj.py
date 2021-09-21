@@ -7,9 +7,10 @@ from math import sin
 
 
 def f(params):
-    J = json.loads(params)
-    x = J["x"]
-    y = J["y"]
+    J = json.loads(params)  # E.g. {values: [x,y]}
+    V = J["values"]
+    x = V[0]
+    y = V[1]
     result = sin(4*x)+sin(4*y)+-2*x+x**2-2*y+y**2
     print("TASK: " + str(x) + " " + str(y) + " -> " + str(result))
     sys.stdout.flush()

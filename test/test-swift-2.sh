@@ -7,9 +7,9 @@ THIS=$(   readlink --canonicalize $( dirname $0 ) )
 EQ_SQL=$( readlink --canonicalize $THIS/.. )
 export EQ_SQL
 
-export PYTHONPATH=$EQ_SQL/db:$EQ_SQL/python
+export PYTHONPATH=$EQ_SQL/db:$EQ_SQL/python:$EQ_SQL/test
 
-swift-t -I $EQ_SQL/swift $EQ_SQL/swift/loop.swift &
+swift-t -I $EQ_SQL/swift $EQ_SQL/swift/loopj.swift &
 python $THIS/test-swift-2-me.py
 
 wait
