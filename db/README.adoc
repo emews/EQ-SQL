@@ -79,7 +79,7 @@ $ db-reset.sh
 Delete and re-make all tables.
 
 ----
-$ db-clear.sh
+$ db-drop-all.sh
 $ db-mk-tables.sh
 ----
 
@@ -191,7 +191,7 @@ Delete all tables::
 Provides multiple opportunities to cancel:
 +
 ----
-$ db-clear.sh
+$ db-drop-all.sh
 ----
 
 Destroy the DB::
