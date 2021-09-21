@@ -60,7 +60,10 @@ def create_json(list_of_lists):
     # super list elements separated by ;
     L = []
     for values in list_of_lists:
-        D = { "values": values }
+        # See taskj.py for JSON structure
+        x, y = values
+        V = { "x": x, "y": y }
+        D = { "values": V }
         L.append(json.dumps(D))
     result = ";".join(L)
     return result

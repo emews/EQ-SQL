@@ -11,7 +11,11 @@ import sys;
 
 import EQ;
 
-/** The objective function */
+/**
+   The objective function
+   params: A JSON string
+   See taskj.py for the JSON structure
+ */
 (string result)
 task(string params)
 {
@@ -37,7 +41,7 @@ loop()
     boolean c;
     if (message == "EQ_FINAL")
     {
-      printf("loop.swift: FINAL") =>
+      printf("loopj.swift: FINAL") =>
         v = propagate() =>
         c = false;
       // finals = EQ_get();
@@ -45,7 +49,7 @@ loop()
     }
     else if (message == "EQ_ABORT")
     {
-      printf("loop.swift: got EQ_ABORT: exiting!") =>
+      printf("loopj.swift: got EQ_ABORT: exiting!") =>
         v = propagate() =>
         c = false;
     }
@@ -65,4 +69,4 @@ loop()
 
 }
 
-loop() => printf("loop.swift: normal exit.");
+loop() => printf("loopj.swift: normal exit.");

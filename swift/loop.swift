@@ -12,9 +12,8 @@ import sys;
 import EQ;
 
 /** The objective function */
-/*
 (string result)
-task_string(string params)
+task(string params)
 {
   result = python_persist(
 ----
@@ -28,8 +27,8 @@ sys.stdout.flush()
 "repr(result)"
   );
 }
-*/
 
+/*
 (string result)
 task_json(string params)
 {
@@ -47,6 +46,7 @@ sys.stdout.flush()
 "repr(result)"
   );
 }
+*/
 
 (void v)
 loop()
