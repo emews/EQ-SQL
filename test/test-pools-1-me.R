@@ -25,7 +25,7 @@ for (iteration in 1:iterations) {
       D <- list(values=L)
       J = toJSON(D)
       # cat("R toJSON: ", J, "\n")
-      eq.OUT_put(J)
+      eq.OUT_put(type, J)
     }
   }
 }

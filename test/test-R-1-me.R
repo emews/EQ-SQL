@@ -9,7 +9,7 @@ if (! eq.init()) {
   quit(status=1)
 }
 
-eq.OUT_put(sprintf("message:%i", 42))
+eq.OUT_put(type=0, sprintf("message:%i", 42))
 
 # Local Variables:
 # mode: R;

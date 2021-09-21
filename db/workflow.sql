@@ -15,6 +15,8 @@ create table emews_groups(
        ID serial primary key,
        /* e.g. 'experiment':'X-032' or 'iteration':421 */
        json_label text,
+       /* the task type */
+       eq_type integer,
        /* the parent group ID of this point.  May point nowhere. */
        group_ integer,
        /* creation time */
@@ -29,6 +31,8 @@ create table emews_points(
        group_ integer,
        /* See db_covid.py for valid status codes */
        status integer,
+       /* the task type */
+       eq_type integer,
        /* JSON-formatted input values */
        json_in  text,
        /* JSON-formatted output values */
@@ -45,11 +49,15 @@ create sequence emews_id_generator start 1 no cycle;
 
 create table emews_queue_OUT(
        eq_id integer,
+       /* the task type */
+       eq_type integer,
        json  text,
        claimed integer
 );
 
 create table emews_queue_IN(
        eq_id integer,
+       /* the task type */
+       eq_type integer,
        json  text
 );

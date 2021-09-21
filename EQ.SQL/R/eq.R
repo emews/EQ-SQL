@@ -28,16 +28,15 @@ eq.init <- function() {
 }
 
 #' @export
-eq.OUT_put <- function(msg) {
-  printf("OUT_put(%s)\n", msg)
-  # print(conn)
-  queue_push("emews_queue_OUT", Q(msg))
+eq.OUT_put <- function(type, msg) {
+  printf("OUT_put(type=%i, '%s')\n", type, msg)
+  queue_push("emews_queue_OUT", type, Q(msg))
 }
 
 #' @export
-eq.OUT_get <- function(delay, timeout) {
+eq.OUT_get <- function(type, delay, timeout) {
 
-  result <- queue_pop("emews_queue_OUT", delay, timeout)
+  result <- queue_pop("emews_queue_OUT", type, delay, timeout)
 
   if (result != FALSE) {
     result
@@ -49,7 +48,7 @@ eq.OUT_get <- function(delay, timeout) {
 
 #' @export
 eq.IN_get <- function() {
-  result = queue_pop("emews_queue_IN", 1, 5)
+  result = queue_pop("emews_queue_IN", type, 1, 5)
   if (result == FALSE) {
     print("eq.IN_get(): nothing to pop!")
     quit(status=1)
@@ -58,20 +57,29 @@ eq.IN_get <- function() {
   }
 }
 
-queue_push <- function(table, value) {
-  cat("\n")
+SQL.ID <- function () {
   rs <- dbGetQuery(conn, "select nextval('emews_id_generator');")
   # Convert SQL integer64 to R integer:
   id <- as.integer(rs[1,1])
-  SQL.insert(table, list("eq_id", "json"), list(id, value))
 }
 
-sql_pop_q <- function(table) {
+queue_push <- function(table, type, value) {
+  cat("\n")
+  # rs <- dbGetQuery(conn, "select nextval('emews_id_generator');")
+  # Convert SQL integer64 to R integer:
+  # id <- as.integer(rs[1,1])
+  id <- SQL.ID()
+  SQL.insert(table,
+             list("eq_id", "eq_type", "json"),
+             list(    id,      type ,  value))
+}
+
+sql_pop_q <- function(table, type) {
   # Generate code for a queue pop from given table
   #   From: https://www.2ndquadrant.com/en/blog/what-is-select-skip-locked-for-in-postgresql-9-5
   template <- "
     DELETE FROM %s
-    WHERE eq_id = (
+    WHERE eq_type = %i AND eq_id = (
     SELECT eq_id
     FROM %s
     ORDER BY eq_id
@@ -80,11 +88,11 @@ sql_pop_q <- function(table) {
     )
     RETURNING *;
     "
-  sprintf(template, table, table)
+  sprintf(template, table, type, table)
 }
 
-queue_pop <- function(table, delay, timeout) {
-  sql_pop <- sql_pop_q(table)
+queue_pop <- function(table, type, delay, timeout) {
+  sql_pop <- sql_pop_q(table, type)
   start  <- Sys.time()
   success <- FALSE
   repeat {
@@ -98,7 +106,7 @@ queue_pop <- function(table, delay, timeout) {
     msg <- df[1,2]
     count <- nrow(df)
     dbClearResult(rs)
-    printf("%0.1f queue_pop(%s): '%i'\n", Sys.time(), table, count)
+    printf("%0.1f queue_pop(%s): count=%i\n", Sys.time(), table, count)
     if (count > 0) {
       success <- TRUE
       break
@@ -109,28 +117,30 @@ queue_pop <- function(table, delay, timeout) {
     printf("queue_pop(%s): TIME OUT\n", table)
     FALSE
   } else {
+    printf("queue_pop(%s): got: %s\n", table, msg)
     msg
   }
 }
 
 SQL.insert <- function(table, names, values) {
-  print("insert")
+  # print("insert")
   n <- SQL.tuple(names)
-  cat("SQL.insert: values: ", paste(values), "\n")
+  # cat("SQL.insert: values: ", paste(values), "\n")
   v <- SQL.tuple(values)
-  cat("SQL.insert: v: ", paste(v), "\n")
+  # cat("SQL.insert: v: ", paste(v), "\n")
   cmd <- sprintf("insert into %s %s values %s;", table, n, v)
   rs <- SQL.execute(cmd)
-  cat("result ", rs, "\n")
+  cat("SQL.insert: result=", rs, "\n")
 }
 
 SQL.tuple <- function(L) {
-  cat("SQL.tuple: ", paste(L, collapse=","), "\n")
+  # cat("SQL.tuple: ", paste(L, collapse=","), "\n")
   sprintf("(%s)", paste(L, collapse=","))
 }
 
 SQL.execute <- function(cmd) {
   cat("SQL.execute: ", cmd, "\n")
+  # Returns number of affected rows:
   dbExecute(conn, cmd)
 }
 
