@@ -1,7 +1,7 @@
 #!/bin/bash
 set -eu
 
-# DB CLEAR SH
+# DB DROP ALL SH
 # Deletes all the tables!
 # Set environment variable DB_CONFIRM=0 to skip confirmations
 
@@ -39,4 +39,4 @@ drop table emews_queue_OUT;
 drop table emews_queue_IN;
 EOF
 
-echo "db-clear.sh: OK"
+echo "db-drop-all.sh: OK"
