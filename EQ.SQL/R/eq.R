@@ -28,15 +28,15 @@ eq.init <- function() {
 }
 
 #' @export
-eq.OUT_put <- function(type, msg) {
-  printf("OUT_put(type=%i, '%s')\n", type, msg)
-  queue_push("emews_queue_OUT", type, Q(msg))
+eq.OUT_put <- function(eq_type, msg) {
+  printf("OUT_put(type=%i, '%s')\n", eq_type, msg)
+  queue_push("emews_queue_OUT", eq_type, Q(msg))
 }
 
 #' @export
-eq.OUT_get <- function(type, delay, timeout) {
+eq.OUT_get <- function(eq_type, delay, timeout) {
 
-  result <- queue_pop("emews_queue_OUT", type, delay, timeout)
+  result <- queue_pop("emews_queue_OUT", eq_type, delay, timeout)
 
   if (result != FALSE) {
     result
@@ -48,7 +48,7 @@ eq.OUT_get <- function(type, delay, timeout) {
 
 #' @export
 eq.IN_get <- function() {
-  result = queue_pop("emews_queue_IN", type, 1, 5)
+  result = queue_pop("emews_queue_IN", eq_type, 1, 5)
   if (result == FALSE) {
     print("eq.IN_get(): nothing to pop!")
     quit(status=1)
@@ -63,7 +63,7 @@ SQL.ID <- function () {
   id <- as.integer(rs[1,1])
 }
 
-queue_push <- function(table, type, value) {
+queue_push <- function(table, eq_type, value) {
   cat("\n")
   # rs <- dbGetQuery(conn, "select nextval('emews_id_generator');")
   # Convert SQL integer64 to R integer:
@@ -71,10 +71,10 @@ queue_push <- function(table, type, value) {
   id <- SQL.ID()
   SQL.insert(table,
              list("eq_id", "eq_type", "json"),
-             list(    id,      type ,  value))
+             list(    id,   eq_type ,  value))
 }
 
-sql_pop_q <- function(table, type) {
+sql_pop_q <- function(table, eq_type) {
   # Generate code for a queue pop from given table
   #   From: https://www.2ndquadrant.com/en/blog/what-is-select-skip-locked-for-in-postgresql-9-5
   template <- "
@@ -88,11 +88,11 @@ sql_pop_q <- function(table, type) {
     )
     RETURNING *;
     "
-  sprintf(template, table, type, table)
+  sprintf(template, table, eq_type, table)
 }
 
-queue_pop <- function(table, type, delay, timeout) {
-  sql_pop <- sql_pop_q(table, type)
+queue_pop <- function(table, eq_type, delay, timeout) {
+  sql_pop <- sql_pop_q(table, eq_type)
   start  <- Sys.time()
   success <- FALSE
   repeat {
