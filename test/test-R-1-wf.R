@@ -9,7 +9,7 @@ if (! eq.init()) {
   quit(status=1)
 }
 
-msg <- eq.OUT_get(type=0, delay=1, timeout=3)
+msg <- eq.OUT_get(eq_type=0, delay=1, timeout=3)
 
 cat("msg: ", msg, "\n")
 
