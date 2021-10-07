@@ -29,7 +29,7 @@ eq.init <- function() {
 
 #' @export
 eq.OUT_put <- function(eq_type, msg) {
-  printf("OUT_put(type=%i, '%s')\n", eq_type, msg)
+  printf("OUT_put(eq_type=%i, '%s')\n", eq_type, msg)
   queue_push("emews_queue_OUT", eq_type, Q(msg))
 }
 
@@ -47,7 +47,7 @@ eq.OUT_get <- function(eq_type, delay, timeout) {
 }
 
 #' @export
-eq.IN_get <- function() {
+eq.IN_get <- function(eq_type) {
   result = queue_pop("emews_queue_IN", eq_type, 1, 5)
   if (result == FALSE) {
     print("eq.IN_get(): nothing to pop!")
@@ -103,7 +103,7 @@ queue_pop <- function(table, eq_type, delay, timeout) {
     Sys.sleep(delay)
     rs <- dbSendQuery(conn, sql_pop)
     df <- dbFetch(rs)
-    msg <- df[1,2]
+    msg <- df[1,3]
     count <- nrow(df)
     dbClearResult(rs)
     printf("%0.1f queue_pop(%s): count=%i\n", Sys.time(), table, count)
