@@ -21,13 +21,17 @@ then
   echo
   echo "Deleting all table rows ... Enter to confirm ... Ctrl-C to cancel ..."
   read _
-  echo "Deleting ..."
+  echo "Deleting all table rows ..."
   echo
   # ignore non-zero exit code for no input:
-  read -t 5 _ || true
+  read -t $DB_DELAY _ || true
 else
+  echo "Deleting all table rows ..."
   DB_DELAY=1
+  # ignore non-zero exit code for no input:
+  read -t $DB_DELAY _ || true
 fi
+echo
 
 sql <<EOF
 \set ON_ERROR_STOP on
