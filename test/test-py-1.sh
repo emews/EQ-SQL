@@ -14,4 +14,4 @@ which python3
 python3 $EQ_SQL/test/test-py-1-me.py &
 JOB=${!}
 python3 $EQ_SQL/test/test-py-1-wf.py
-wait ${JOB}
+wait $JOB
