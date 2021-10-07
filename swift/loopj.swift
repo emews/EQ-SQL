@@ -36,7 +36,7 @@ loop()
        b;
        b=c)
   {
-    message = EQ_get();
+    message = EQ_get(1);
     // printf("swift: message: %s", message);
     boolean c;
     if (message == "EQ_FINAL")
@@ -63,7 +63,7 @@ loop()
       }
       result = join(results, ";");
       // printf("swift: result: %s", result);
-      EQ_put(result) => c = true;
+      EQ_put(0, result) => c = true;
     }
   }
 
