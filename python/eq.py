@@ -109,15 +109,16 @@ def sql_pop_q(table, eq_type):
     """
     code = """
     DELETE FROM %s
-    WHERE eq_type = %i AND eq_id = (
+    WHERE  eq_id = (
     SELECT eq_id
     FROM %s
+    WHERE eq_type = %i
     ORDER BY eq_id
     FOR UPDATE SKIP LOCKED
     LIMIT 1
     )
     RETURNING *;
-    """ % (table, eq_type, table)
+    """ % (table, table, eq_type)
     return code
 
 
@@ -176,7 +177,7 @@ def IN_put(eq_type, params):
         sys.stdout.flush()
 
 
-def OUT_get(eq_type, delay=0.1, timeout=5.0):
+def OUT_get(eq_type, delay=0.1, timeout=1.0):
     try:
         result = queue_pop("emews_queue_OUT", eq_type, delay, timeout)
         if result is None:
