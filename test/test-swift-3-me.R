@@ -10,11 +10,11 @@ if (! eq.init()) {
 }
 
 for (i in seq(3)) {
-  eq.OUT_put("0.5,0.5")
-  results <- eq.IN_get()
+  eq.OUT_put(eq_type=0, "0.5,0.5")
+  results <- eq.IN_get(eq_type=0)
   cat("results: ", results, "\n")
 }
 
-eq.OUT_put("EQ_FINAL")
+eq.OUT_put(eq_type=0, "EQ_FINAL")
 
 print("TEST SWIFT 2 ME: STOP")
