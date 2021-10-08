@@ -42,3 +42,8 @@ Workflow with loop.swift with fake R ME; comma-separated messages
 
 test-swift-4.sh::
 Workflow with loopj.swift with fake R ME; JSON messages
+
+=== Worker pools
+
+pools-1.sh::
+Chain of workflow with multiple pools
