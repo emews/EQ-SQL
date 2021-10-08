@@ -6,6 +6,9 @@ set -eu
 THIS=$(   readlink --canonicalize $( dirname $0 ) )
 EQ_SQL=$( readlink --canonicalize $THIS/.. )
 
+source $EQ_SQL/db/db-settings.sh
+$EQ_SQL/test/check-queues.sh
+
 which Rscript
 Rscript $EQ_SQL/test/test-R-1-me.R &
 sleep 1
