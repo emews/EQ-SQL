@@ -17,4 +17,4 @@ for (i in seq(3)) {
 
 eq.OUT_put(eq_type=0, "EQ_FINAL")
 
-print("TEST SWIFT 2 ME: STOP")
+print("TEST SWIFT 3 ME: STOP")
