@@ -12,6 +12,7 @@ $THIS/check-queues.sh
 export PYTHONPATH=$EQ_SQL/db:$EQ_SQL/python
 
 swift-t -I $EQ_SQL/swift $EQ_SQL/swift/loop.swift &
+JOB=${!}
 Rscript $THIS/test-swift-3-me.R
 
-wait
+wait $JOB
