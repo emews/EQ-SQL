@@ -11,7 +11,8 @@ $EQ_SQL/test/check-queues.sh
 
 which Rscript
 Rscript $EQ_SQL/test/test-R-1-me.R &
+JOB=${!}
 sleep 1
 Rscript $EQ_SQL/test/test-R-1-wf.R
 
-wait
+wait $JOB
