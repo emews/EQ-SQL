@@ -16,7 +16,10 @@ if (! eq.init()) {
 }
 
 for (iteration in 1:iterations) {
+  printf("R POOLS 1 ME: ITERATION: %i\n", iteration)
+  print ("R POOLS 1 ME: TYPES START")
   for (type in 1:types) {
+    print("R POOLS 1 ME: SAMPLES START")
     for (sample in 1:samples) {
       note = sprintf("%i:%i:%i", iteration, type, sample)
       x = sample    * 0.10
@@ -27,8 +30,15 @@ for (iteration in 1:iterations) {
       # cat("R toJSON: ", J, "\n")
       eq.OUT_put(type, J)
     }
-  }
-}
+    for (sample in 1:samples) {
+      printf("R POOLS 1 ME: GET: %i\n", type)
+      eq.IN_get(type)
+      printf("R POOLS 1 ME: GOT: %i\n", type)
+    }
+    print("R POOLS 1 ME: SAMPLES DONE")
+  }  # next type
+  print("R POOLS 1 ME: TYPES DONE")
+}   # next iteration
 
 # eq.OUT_put(sprintf("message:%i", 42))
 
