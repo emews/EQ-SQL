@@ -12,7 +12,8 @@ $THIS/check-queues.sh
 
 export PYTHONPATH=$EQ_SQL/db:$EQ_SQL/python:$THIS
 
-swift-t -I $EQ_SQL/swift $EQ_SQL/swift/loopj.swift &
+swift-t -I $EQ_SQL/swift $EQ_SQL/swift/loopj-type.swift &
+JOB=${!}
 Rscript $THIS/test-swift-4-me.R
 
-wait
+wait $JOB
