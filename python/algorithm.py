@@ -76,8 +76,8 @@ def queue_map(obj_func, pops):
     if not pops:
         return []
     # eq.OUT_put(create_list_of_lists_string(pops))
-    eq.OUT_put(create_json(pops))
-    result = eq.IN_get()
+    eq.OUT_put(eq_type=0, params=create_json(pops))
+    result = eq.IN_get(eq_type=0)
     # message("result: " + str(result))
     if result is None:
         message("IN_get() returned None: abort!")
@@ -158,7 +158,7 @@ def run():
 
     fitnesses = [str(p.fitness.values[0]) for p in pop]
 
-    eq.OUT_put("EQ_FINAL")
+    eq.OUT_put(eq_type=0, params="EQ_FINAL")
     # return the final population
     msg = "{0}\n{1}\n{2}".format(create_list_of_lists_string(pop),
                                  ';'.join(fitnesses),
