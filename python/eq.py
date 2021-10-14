@@ -181,7 +181,8 @@ def OUT_get(eq_type, delay=0.1, timeout=5.0):
     try:
         result = queue_pop("emews_queue_OUT", eq_type, delay, timeout)
         if result is None:
-            print("eq.py:OUT_get(): popped None: abort!")
+            print("eq.py:OUT_get(eq_type=%i): popped None: abort!" %
+                  eq_type)
             sys.stdout.flush()
             result = "EQ_ABORT"
     except Exception as e:

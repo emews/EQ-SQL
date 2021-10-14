@@ -114,10 +114,10 @@ queue_pop <- function(table, eq_type, delay, timeout) {
     delay <- delay * 2
   }
   if (! success) {
-    printf("queue_pop(%s): TIME OUT\n", table)
+    printf("queue_pop(eq_type=%i, %s): TIME OUT\n", eq_type, table)
     FALSE
   } else {
-    printf("queue_pop(%s): got: %s\n", table, msg)
+    printf("queue_pop(eq_type=%i, %s): got: %s\n", eq_type, table, msg)
     msg
   }
 }
