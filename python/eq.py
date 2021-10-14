@@ -177,7 +177,7 @@ def IN_put(eq_type, params):
         sys.stdout.flush()
 
 
-def OUT_get(eq_type, delay=0.1, timeout=1.0):
+def OUT_get(eq_type, delay=0.1, timeout=5.0):
     try:
         result = queue_pop("emews_queue_OUT", eq_type, delay, timeout)
         if result is None:
