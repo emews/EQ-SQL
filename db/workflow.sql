@@ -26,17 +26,19 @@ create table emews_groups(
 /* Each row here is a model run
 */
 create table emews_points(
-       ID integer,
+       eq_id integer,
        /* the group ID of this point */
        group_ integer,
        /* See db_covid.py for valid status codes */
        status integer,
        /* the task type */
        eq_type integer,
-       /* JSON-formatted input values */
-       json_in  text,
-       /* JSON-formatted output values */
+       /* Parameters output from the ME (the model input) as
+                     JSON-formatted output values */
        json_out text,
+       /* Parameters input  to   the ME (the model output) as
+                     JSON-formatted output values */
+       json_in  text,
        /* time this point was created (json_in) */
        time_start timestamp,
        /* time this point was finished (json_out) */
@@ -50,14 +52,11 @@ create sequence emews_id_generator start 1 no cycle;
 create table emews_queue_OUT(
        eq_id integer,
        /* the task type */
-       eq_type integer,
-       json  text,
-       claimed integer
+       eq_type integer
 );
 
 create table emews_queue_IN(
        eq_id integer,
        /* the task type */
-       eq_type integer,
-       json  text
+       eq_type integer
 );

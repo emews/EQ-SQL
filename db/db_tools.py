@@ -141,7 +141,7 @@ class workflow_sql:
             self.info(e)
             raise(e)
 
-    def update(self, table, names, values, search):
+    def update(self, table, names, values, where):
         """ Do a SQL update
             return rowid or -1 on SOFT error
         """
@@ -152,7 +152,7 @@ class workflow_sql:
             assign_list.append("%s=%s" % (n, str(v)))
         assigns = ", ".join(assign_list)
         cmd = "update {} set {} where {};" \
-            .format(table, assigns, search)
+            .format(table, assigns, where)
         try:
             self.execute(cmd)
             self.commit()
@@ -248,17 +248,17 @@ def workflow_sql_setup(sql, **kwargs):
     return sql
 
 
-def q(s):
+def Q(s):
     """ Quote the given string """
     return "'" + str(s) + "'"
 
 
-def qL(L):
+def QL(L):
     """ Quote-List: Quote each list entry as a string """
     return map(q, L)
 
 
-def qA(*args):
+def QA(*args):
     """ Quote-Arguments: Quote each argument as a string,
         return list
     """

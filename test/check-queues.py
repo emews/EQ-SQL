@@ -8,7 +8,9 @@ from db_tools import workflow_sql
 sql = workflow_sql(envs=True)
 sql.connect()
 
-tables = [ "emews_queue_IN", "emews_queue_OUT" ]
+success = True
+
+tables = [ "emews_queue_IN", "emews_queue_OUT", "emews_points" ]
 for table in tables:
     sql.select(table=table, what="count(eq_id)")
     rs = sql.get()
@@ -16,4 +18,7 @@ for table in tables:
     if count > 0:
         print("check-queues.py: There are entries in table '%s'" %
               table)
-        exit(1)
+        success = False
+
+if not success:
+    exit(1)

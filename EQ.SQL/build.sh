@@ -3,6 +3,8 @@ set -eu
 
 THIS=$( readlink --canonicalize $( dirname $0 ) )
 
+renice -n 19 $$
+
 cd $THIS
 Rscript -e "devtools::document()"
 cd ..

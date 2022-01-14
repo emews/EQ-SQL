@@ -1,6 +1,8 @@
 
 # PY TEST 2 WF
 
+import json
+
 import eq
 
 
@@ -14,10 +16,13 @@ while True:
         print("queue is empty")
         break
     print("msg: " + str(msg))
-    if eq.done(msg):
+    eq_id, payload = msg
+    if eq.done(payload):
         break
-    tokens = msg.split(":")
-    result = "result:" + tokens[1]
-    eq.IN_put(eq_type=0, params=result)
+    value = json.loads(payload)
+    print("value: %s" % str(value))
+    value = value["params"]
+    result = '{"result":%s}' % value
+    eq.DB_result(eq_id, result)
 
 print("PY TEST 2 WF: STOP")

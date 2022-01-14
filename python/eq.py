@@ -9,17 +9,9 @@ import traceback
 import time
 
 import db_tools
+from db_tools import Q
 
 EQPY_ABORT = "EQPY_ABORT"
-
-try:
-    import queue as q
-except ImportError:
-    # queue is Queue in python 2
-    import Queue as q
-
-input_q = q.Queue()
-output_q = q.Queue()
 
 p = None
 aborted = False
@@ -59,7 +51,7 @@ def init():
     global DB
     if DB is not None:
         return
-    DB = db_tools.setup_db(envs=True)
+    DB = db_tools.setup_db(envs=True, log=True)
     DB.connect()
 
 
@@ -91,7 +83,7 @@ def output_q_get():
             pass
     else:
         # if we haven't yet set the abort flag then
-        # return that, otherwise return the formated exception
+        # return that, otherwise return the formatted exception
         if aborted:
             result = p.exc
         else:
@@ -123,6 +115,7 @@ def sql_pop_q(table, eq_type):
 
 
 def queue_pop(table, eq_type, delay, timeout):
+    """ returns (eq_id, json_out, json_in) or None on timeout """
     global DB
     sql_pop = sql_pop_q(table, eq_type)
     start = time.time()
@@ -142,24 +135,66 @@ def queue_pop(table, eq_type, delay, timeout):
     print("queue_pop(%s): '%s'" % (table, str(rs)))
     sys.stdout.flush()
     if rs is None: return None
-    result = rs[2]
+    # result = rs[2]
+    eq_id = rs[0]
+    selection = "eq_id=%i" % eq_id
+    DB.select("emews_points", "eq_id,json_out,json_in", selection)
+    rs = DB.cursor.fetchone()
+    if rs is None:
+        raise Exception("could not find emews_point: %s\n" %
+                        selection)
+    result = (rs[0], rs[1], rs[2])
     return result
 
 
-def queue_push(table, eq_type, value):
+def queue_push(table, eq_id, eq_type):
+    DB.insert(table, ["eq_id",    "eq_type"],
+                     [str(eq_id),  eq_type])
+
+
+def DB_submit(eq_type, payload):
     global DB
     DB.execute("select nextval('emews_id_generator');")
     rs = DB.get()
-    id = rs[0]
-    # V = db_tools.sql_tuple([str(id), "'M'"])
-    # print("V: " + str(V))
-    DB.insert(table, ["eq_id", "eq_type", "json"],
-                     [str(id),  eq_type, db_tools.q(value)])
+    eq_id = rs[0]
+    DB.insert("emews_points", ["eq_id", "eq_type", "json_out"],
+                              [ eq_id , eq_type,   Q(payload)])
+    OUT_put(eq_id, eq_type)
+    return eq_id
 
 
-def OUT_put(eq_type, params):
+def DB_result(eq_id, payload):
+    global DB
+    DB.update("emews_points", ["json_in"], [Q(payload)],
+                              "eq_id=%i" % eq_id)
+    IN_put(eq_id, 0)
+
+
+def DB_final(eq_type):
+    global DB
+    DB.execute("select nextval('emews_id_generator');")
+    rs = DB.get()
+    eq_id = rs[0]
+    DB.insert("emews_points", ["eq_id", "eq_type", "json_out"],
+                              [ eq_id ,  eq_type,  Q("EQ_FINAL")])
+    OUT_put(eq_id, eq_type)
+    return eq_id
+
+
+def OUT_put(eq_id, eq_type):
     try:
-        queue_push("emews_queue_OUT", eq_type, params)
+        queue_push("emews_queue_OUT", eq_id, eq_type)
+    except Exception as e:
+        info = sys.exc_info()
+        s = traceback.format_tb(info[2])
+        print(str(e) + ' ... \\n' + ''.join(s))
+        sys.stdout.flush()
+    return eq_id
+
+
+def IN_put(eq_id, eq_type):
+    try:
+        queue_push("emews_queue_IN", eq_id, eq_type)
     except Exception as e:
         info = sys.exc_info()
         s = traceback.format_tb(info[2])
@@ -167,17 +202,8 @@ def OUT_put(eq_type, params):
         sys.stdout.flush()
 
 
-def IN_put(eq_type, params):
-    try:
-        queue_push("emews_queue_IN", eq_type, params)
-    except Exception as e:
-        info = sys.exc_info()
-        s = traceback.format_tb(info[2])
-        print(str(e) + ' ... \\n' + ''.join(s))
-        sys.stdout.flush()
-
-
-def OUT_get(eq_type, delay=0.1, timeout=5.0):
+def OUT_get(eq_type, delay=0.5, timeout=2.0):
+    """ returns (eq_id, json_out) """
     try:
         result = queue_pop("emews_queue_OUT", eq_type, delay, timeout)
         if result is None:
@@ -188,13 +214,16 @@ def OUT_get(eq_type, delay=0.1, timeout=5.0):
     except Exception as e:
         info = sys.exc_info()
         s = traceback.format_tb(info[2])
-        print(str(e) + ' ... \\n' + ''.join(s))
+        print(str(e) + ' ... \n' + ''.join(s))
         sys.stdout.flush()
         result = "EQ_ABORT"
-    return result
+    if done(result):
+        return result
+    return (result[0], result[1])
 
 
-def IN_get(eq_type, delay=0.1, timeout=5.0):
+def IN_get(eq_type, delay=0.5, timeout=2.0):
+    """ returns (eq_id, json_out, json_in) or None on timeout """
     try:
         result = queue_pop("emews_queue_IN", eq_type, delay, timeout)
     except Exception as e:
