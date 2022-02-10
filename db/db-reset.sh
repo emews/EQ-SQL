@@ -4,7 +4,10 @@ set -eu
 # DB RESET SH
 # Deletes all the table data!
 #         and resets the sequence to its start value.
-# Set environment variable DB_CONFIRM=0 to skip confirmations
+# Environment variables:
+# Set DB_CONFIRM=1   to retain    confirmations (default)
+# Set DB_CONFIRM=0   to shorten   confirmations
+# Set DB_CONFIRM=OFF to eliminate confirmations
 
 if (( ${#} != 0 ))
 then
@@ -16,7 +19,7 @@ THIS=$( readlink --canonicalize $( dirname $0 ) )
 source $THIS/db-settings.sh -v $*
 
 DB_DELAY=5
-if (( ${DB_CONFIRM:-1} ))
+if [[ ${DB_CONFIRM:-1} == 1 ]]
 then
   echo
   echo "Deleting all table rows ... Enter to confirm ... Ctrl-C to cancel ..."
@@ -27,7 +30,12 @@ then
   read -t $DB_DELAY _ || true
 else
   echo "Deleting all table rows ..."
-  DB_DELAY=1
+  if [[ ${DB_CONFIRM} == "OFF" ]]
+  then
+    DB_DELAY=0
+  else
+    DB_DELAY=1
+  fi
   # ignore non-zero exit code for no input:
   read -t $DB_DELAY _ || true
 fi
