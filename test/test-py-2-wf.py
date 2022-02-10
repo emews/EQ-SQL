@@ -11,15 +11,16 @@ print("PY TEST 2 WF: START")
 eq.init()
 
 while True:
-    msg = eq.OUT_get(eq_type=0)
-    if msg is None:
+    tpl = eq.OUT_get(eq_type=0)
+    print("tpl: " + str(tpl))
+    if tpl is None:
         print("queue is empty")
         break
-    print("msg: " + str(msg))
-    eq_id, payload = msg
-    if eq.done(payload):
+    eq_id, eq_type, msg = tpl
+    if eq.done(msg):
         break
-    value = json.loads(payload)
+    print("msg: " + str(msg))
+    value = json.loads(msg)
     print("value: %s" % str(value))
     value = value["params"]
     result = '{"result":%s}' % value

@@ -138,7 +138,6 @@ def queue_pop(table, eq_type, delay, timeout):
     print("queue_pop(%s): '%s'" % (table, str(rs)))
     sys.stdout.flush()
     if rs is None: return None
-    # result = rs[2]
     eq_id = rs[0]
     selection = "eq_id=%i" % eq_id
     DB.select("emews_points", "eq_id,eq_type,json_out,json_in", selection)
@@ -146,7 +145,7 @@ def queue_pop(table, eq_type, delay, timeout):
     if rs is None:
         raise Exception("could not find emews_point: %s\n" %
                         selection)
-    result = (rs[0], rs[1], rs[2])
+    result = (rs[0], rs[1], rs[2], rs[3])
     return result
 
 
@@ -208,12 +207,14 @@ def IN_put(eq_id, eq_type):
 def OUT_get(eq_type, delay=0.5, timeout=2.0):
     """ returns tuple: (eq_id, eq_type, json_out) """
     try:
-        result = queue_pop("emews_queue_OUT", eq_type, delay, timeout)
-        if result is None:
+        tpl = queue_pop("emews_queue_OUT", eq_type, delay, timeout)
+        if tpl is None:
             print("eq.py:OUT_get(eq_type=%i): popped None: abort!" %
                   eq_type)
             sys.stdout.flush()
             result = (0, 0, "EQ_ABORT")
+        else:
+            result = (tpl[0], tpl[1], tpl[2])
     except Exception as e:
         info = sys.exc_info()
         s = traceback.format_tb(info[2])
@@ -226,12 +227,21 @@ def OUT_get(eq_type, delay=0.5, timeout=2.0):
 def IN_get(eq_type, delay=0.5, timeout=2.0):
     """ returns (eq_id, json_out, json_in) or None on timeout """
     try:
-        result = queue_pop("emews_queue_IN", eq_type, delay, timeout)
+        tpl = queue_pop("emews_queue_IN", eq_type, delay, timeout)
+        result = (tpl[0], tpl[2], tpl[3])
     except Exception as e:
         info = sys.exc_info()
         s = traceback.format_tb(info[2])
         print(str(e) + ' ... \\n' + ''.join(s))
         sys.stdout.flush()
-        result = "EQ_ABORT"
+        result = (0, None, "EQ_ABORT")
     return result
 
+
+def done(msg):
+    if msg == "EQ_FINAL":
+        return True
+    if msg == "EQ_ABORT":
+        print("eq.done(): WARNING: EQ_ABORT")
+        return True
+    return False
