@@ -1,6 +1,7 @@
 
 # EQ-SQL eq.py
 
+import queue
 import random
 import sys
 import threading
@@ -79,7 +80,7 @@ def output_q_get():
         try:
             result = output_q.get(True, wait)
             break
-        except q.Empty:
+        except queue.Empty:
             pass
     else:
         # if we haven't yet set the abort flag then
