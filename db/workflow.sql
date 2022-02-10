@@ -8,7 +8,7 @@
 /* For SQLite: */
 /* PRAGMA foreign_keys = ON; */
 
-/* Each group here is a collection of other groups or points
+/* Each group here is a metadata collection of other groups or points
 */
 create table emews_groups(
        /* auto-generated integer */
@@ -17,7 +17,7 @@ create table emews_groups(
        json_label text,
        /* the task type */
        eq_type integer,
-       /* the parent group ID of this point.  May point nowhere. */
+       /* the parent group ID of this point.  May point nowhere (0). */
        group_ integer,
        /* creation time */
        time timestamp
@@ -39,9 +39,9 @@ create table emews_points(
        /* Parameters input  to   the ME (the model output) as
                      JSON-formatted output values */
        json_in  text,
-       /* time this point was created (json_in) */
+       /* time this point was created (json_out) */
        time_start timestamp,
-       /* time this point was finished (json_out) */
+       /* time this point was finished (json_in) */
        time_stop  timestamp,
        foreign key (group_) references emews_groups(ID)
 );
