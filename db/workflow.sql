@@ -26,12 +26,13 @@ create table emews_groups(
 /* Each row here is a model run
 */
 create table emews_points(
+       /* the point ID; eq_id==0 is the dummy null point */
        eq_id integer,
        /* the group ID of this point */
        group_ integer,
        /* See db_covid.py for valid status codes */
        status integer,
-       /* the task type */
+       /* the task type, eq_type==0 means "any type" */
        eq_type integer,
        /* Parameters output from the ME (the model input) as
                      JSON-formatted output values */
