@@ -1,11 +1,9 @@
 
 # EQ-SQL eq.py
 
-import queue
 import random
 import sys
 import threading
-# import importlib
 import traceback
 import time
 
