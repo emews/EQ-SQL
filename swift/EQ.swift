@@ -19,7 +19,7 @@ string code_get = """
 import eq
 eq.init()
 try:
-    result = eq.OUT_get(%i)
+    result = eq.out_get_payload(%i)
 except Exception as e:
     import sys, traceback
     info = sys.exc_info()

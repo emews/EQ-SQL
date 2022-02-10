@@ -70,31 +70,6 @@ def validate():
     return "EQ-SQL:OK"
 
 
-def output_q_get():
-    global output_q, aborted
-    wait = wait_info.getWait()
-    # thread's runnable might put work on queue
-    # and finish, so it would not longer be alive
-    # but something remains on the queue to be pulled
-    while p.is_alive() or not output_q.empty():
-        try:
-            result = output_q.get(True, wait)
-            break
-        except queue.Empty:
-            pass
-    else:
-        # if we haven't yet set the abort flag then
-        # return that, otherwise return the formatted exception
-        if aborted:
-            result = p.exc
-        else:
-            result = EQPY_ABORT
-        print("EXCEPTION: " + str(p.exc))
-        aborted = True
-
-    return result
-
-
 def sql_pop_q(table, eq_type):
     """
     Generate code for a queue pop from given table
@@ -221,6 +196,14 @@ def OUT_get(eq_type, delay=0.5, timeout=2.0):
         print(str(e) + ' ... \n' + ''.join(s))
         sys.stdout.flush()
         result = (0, 0, "EQ_ABORT")
+    return result
+
+
+def out_get_payload():
+    """ WIP Simplified wrapper for Swift/T """
+    tpl = OUT_get(0)
+    result = str(tpl[2])
+    print("out_get_payload(): result: " + result)
     return result
 
 
