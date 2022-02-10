@@ -170,14 +170,14 @@ def DB_result(eq_id, payload):
     IN_put(eq_id, 0)
 
 
-def DB_final(eq_type):
+def DB_final():
     global DB
     DB.execute("select nextval('emews_id_generator');")
     rs = DB.get()
     eq_id = rs[0]
     DB.insert("emews_points", ["eq_id", "eq_type", "json_out"],
-                              [ eq_id ,  eq_type,  Q("EQ_FINAL")])
-    OUT_put(eq_id, eq_type)
+                              [ eq_id ,         0, Q("EQ_FINAL")])
+    OUT_put(eq_id, 0)
     return eq_id
 
 
@@ -203,7 +203,7 @@ def IN_put(eq_id, eq_type):
 
 
 def OUT_get(eq_type, delay=0.5, timeout=2.0):
-    """ returns (eq_id, json_out) """
+    """ returns pair: (eq_id, json_out) """
     try:
         result = queue_pop("emews_queue_OUT", eq_type, delay, timeout)
         if result is None:

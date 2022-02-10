@@ -12,6 +12,6 @@ eq.init()
 
 for i in range(0, 3):
     eq.DB_submit(0, "{message:%i}" % i)
-eq.DB_stop()
+eq.DB_final()
 
 print("PY TEST 1 ME: STOP")
