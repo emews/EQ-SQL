@@ -51,13 +51,15 @@ create table emews_points(
 create sequence emews_id_generator start 1 no cycle;
 
 create table emews_queue_OUT(
-       eq_id integer,
        /* the task type */
-       eq_type integer
+       eq_type integer,
+       /* semicolon-separated eq_ids */
+       eq_ids text
 );
 
 create table emews_queue_IN(
-       eq_id integer,
        /* the task type */
-       eq_type integer
+       eq_type integer,
+       /* semicolon-separated eq_ids */
+       eq_ids text
 );

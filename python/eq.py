@@ -52,6 +52,7 @@ def init():
         return
     DB = db_tools.setup_db(envs=True, log=True)
     DB.connect()
+    return DB
 
 
 def validate():
@@ -71,15 +72,19 @@ def validate():
 def sql_pop_q(table, eq_type):
     """
     Generate code for a queue pop from given table
-    From: https://www.2ndquadrant.com/en/blog/what-is-select-skip-locked-for-in-postgresql-9-5
+    From:
+    https://www.2ndquadrant.com/en/blog/what-is-select-skip-locked-for-in-postgresql-9-5
+    Can only select 1 column from the subquery,
+    but we return * from the deleted row.
+    See workflow.sql for the returned queue row
     """
     code = """
     DELETE FROM %s
-    WHERE  eq_id = (
-    SELECT eq_id
+    WHERE  eq_ids = (
+    SELECT eq_ids
     FROM %s
     WHERE eq_type = %i
-    ORDER BY eq_id
+    ORDER BY eq_ids
     FOR UPDATE SKIP LOCKED
     LIMIT 1
     )
@@ -90,7 +95,8 @@ def sql_pop_q(table, eq_type):
 
 def queue_pop(table, eq_type, delay, timeout):
     """
-    returns (eq_id, eq_type, json_out, json_in) or None on timeout
+    returns eq_ids, e.g.: '1;2;3'
+    or None on timeout
     """
     global DB
     sql_pop = sql_pop_q(table, eq_type)
@@ -110,21 +116,14 @@ def queue_pop(table, eq_type, delay, timeout):
 
     print("queue_pop(%s): '%s'" % (table, str(rs)))
     sys.stdout.flush()
-    if rs is None: return None
-    eq_id = rs[0]
-    selection = "eq_id=%i" % eq_id
-    DB.select("emews_points", "eq_id,eq_type,json_out,json_in", selection)
-    rs = DB.cursor.fetchone()
-    if rs is None:
-        raise Exception("could not find emews_point: %s\n" %
-                        selection)
-    result = (rs[0], rs[1], rs[2], rs[3])
-    return result
+    if rs is None: return None  # timeout
+    return rs[1]
 
 
-def queue_push(table, eq_id, eq_type):
-    DB.insert(table, ["eq_id",    "eq_type"],
-                     [str(eq_id),  eq_type])
+def queue_push(table, eq_type, eq_ids):
+    """ eq_ids: semicolon-separated string e.g.: '1;2;3' """
+    DB.insert(table, ["eq_type",  "eq_ids"],
+                     [ eq_type,  Q(eq_ids)])
 
 
 def DB_submit(eq_type, payload):
@@ -133,16 +132,38 @@ def DB_submit(eq_type, payload):
     rs = DB.get()
     eq_id = rs[0]
     DB.insert("emews_points", ["eq_id", "eq_type", "json_out"],
-                              [ eq_id , eq_type,   Q(payload)])
-    OUT_put(eq_id, eq_type)
+                              [ eq_id ,  eq_type,   Q(payload)])
     return eq_id
+
+
+def DB_json_out(eq_id):
+    """ return the json_out for the eq_id """
+    global DB
+    print("DB_json_out")
+    sys.stdout.flush()
+    DB.select("emews_points", "json_out", "eq_id=%i"%eq_id)
+    rs = DB.get()
+    result = rs[0]
+    return result
+
+
+def DB_json_in(eq_id):
+    """ return the json_in for the eq_id """
+    global DB
+    print("DB_json_out")
+    sys.stdout.flush()
+    DB.select("emews_points", "json_in", "eq_id=%i"%eq_id)
+    rs = DB.get()
+    result = rs[0]
+    return result
 
 
 def DB_result(eq_id, payload):
     global DB
+    print("DB_result:")
+    sys.stdout.flush()
     DB.update("emews_points", ["json_in"], [Q(payload)],
-                              "eq_id=%i" % eq_id)
-    IN_put(eq_id, 0)
+                              where="eq_id=%i"%eq_id)
 
 
 def DB_final():
@@ -152,24 +173,26 @@ def DB_final():
     eq_id = rs[0]
     DB.insert("emews_points", ["eq_id", "eq_type", "json_out"],
                               [ eq_id ,         0, Q("EQ_FINAL")])
-    OUT_put(eq_id, 0)
+    OUT_put(0, "EQ_FINAL")
     return eq_id
 
 
-def OUT_put(eq_id, eq_type):
+def OUT_put(eq_type, eq_ids):
+    """ eq_ids: semicolon-separated string e.g.: '1;2;3' """
     try:
-        queue_push("emews_queue_OUT", eq_id, eq_type)
+        queue_push("emews_queue_OUT", eq_type, eq_ids)
     except Exception as e:
         info = sys.exc_info()
         s = traceback.format_tb(info[2])
         print(str(e) + ' ... \\n' + ''.join(s))
         sys.stdout.flush()
-    return eq_id
+    return eq_ids
 
 
-def IN_put(eq_id, eq_type):
+def IN_put(eq_type, eq_ids):
+    """ eq_ids: semicolon-separated string, e.g.: '1;2;3' """
     try:
-        queue_push("emews_queue_IN", eq_id, eq_type)
+        queue_push("emews_queue_IN", eq_type, eq_ids)
     except Exception as e:
         info = sys.exc_info()
         s = traceback.format_tb(info[2])
@@ -178,44 +201,54 @@ def IN_put(eq_id, eq_type):
 
 
 def OUT_get(eq_type, delay=0.5, timeout=2.0):
-    """ returns tuple: (eq_id, eq_type, json_out) """
+    """
+    returns eq_ids, e.g.: '1;2;3'
+    on timeout or error: returns 'EQ_ABORT'
+    """
     try:
-        tpl = queue_pop("emews_queue_OUT", eq_type, delay, timeout)
-        if tpl is None:
+        print("OUT_get():")
+        sys.stdout.flush()
+        result = queue_pop("emews_queue_OUT", eq_type, delay, timeout)
+        if result is None:
             print("eq.py:OUT_get(eq_type=%i): popped None: abort!" %
                   eq_type)
             sys.stdout.flush()
-            result = (0, 0, "EQ_ABORT")
-        else:
-            result = (tpl[0], tpl[1], tpl[2])
+            result = "EQ_ABORT"
     except Exception as e:
         info = sys.exc_info()
         s = traceback.format_tb(info[2])
         print(str(e) + ' ... \n' + ''.join(s))
         sys.stdout.flush()
-        result = (0, 0, "EQ_ABORT")
+        result = "EQ_ABORT"
     return result
 
 
-def out_get_payload():
-    """ WIP Simplified wrapper for Swift/T """
-    tpl = OUT_get(0)
-    result = str(tpl[2])
-    print("out_get_payload(): result: " + result)
-    return result
+# def out_get_payload(eq_type):
+#     """ WIP Simplified wrapper for Swift/T """
+#     tpl = OUT_get(eq_type)
+#     result = str(tpl[0])
+#     print("out_get_payload(): result: " + result)
+#     return result
 
 
 def IN_get(eq_type, delay=0.5, timeout=2.0):
-    """ returns (eq_id, json_out, json_in) or None on timeout """
+    """
+    returns: eq_ids e.g.: (0, '1;2;3')
+    on timeout or error: returns EQ_ABORT
+    """
     try:
-        tpl = queue_pop("emews_queue_IN", eq_type, delay, timeout)
-        result = (tpl[0], tpl[2], tpl[3])
+        result = queue_pop("emews_queue_IN", eq_type, delay, timeout)
+        if result is None:
+            print("eq.py:IN_get(eq_type=%i): popped None: abort!" %
+                  eq_type)
+            sys.stdout.flush()
+            result = "EQ_ABORT"
     except Exception as e:
         info = sys.exc_info()
         s = traceback.format_tb(info[2])
         print(str(e) + ' ... \\n' + ''.join(s))
         sys.stdout.flush()
-        result = (0, None, "EQ_ABORT")
+        result = "EQ_ABORT"
     return result
 
 

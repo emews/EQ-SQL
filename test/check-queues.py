@@ -10,7 +10,17 @@ sql.connect()
 
 success = True
 
-tables = [ "emews_queue_IN", "emews_queue_OUT", "emews_points" ]
+tables = [ "emews_queue_IN", "emews_queue_OUT" ]
+for table in tables:
+    sql.select(table=table, what="count(eq_ids)")
+    rs = sql.get()
+    count = rs[0]
+    if count > 0:
+        print("check-queues.py: There are entries in table '%s'" %
+              table)
+        success = False
+
+tables = [ "emews_points" ]
 for table in tables:
     sql.select(table=table, what="count(eq_id)")
     rs = sql.get()

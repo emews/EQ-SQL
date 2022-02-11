@@ -56,16 +56,14 @@ def create_list_of_lists_string(list_of_lists, super_delim=";", sub_delim=","):
     return result
 
 
-def create_json(list_of_lists):
+def create_json(P):
     # super list elements separated by ;
-    L = []
-    for values in list_of_lists:
-        # See taskj.py for JSON structure
-        x, y = values
-        V = { "x": x, "y": y }
-        D = { "values": V }
-        L.append(json.dumps(D))
-    result = ";".join(L)
+    print("create_json: " + str(P))
+    # See taskj.py for JSON structure
+    x, y = P
+    V = { "x": x, "y": y }
+    D = { "values": V }
+    result = json.dumps(D)
     return result
 
 
@@ -76,15 +74,29 @@ def queue_map(obj_func, pops):
     if not pops:
         return []
     # eq.OUT_put(create_list_of_lists_string(pops))
-    eq.OUT_put(eq_type=0, params=create_json(pops))
-    result = eq.IN_get(eq_type=0)
-    # message("result: " + str(result))
-    if result is None:
-        message("IN_get() returned None: abort!")
+    eq_ids = []
+    for point in pops:
+        eq_id = eq.DB_submit(eq_type=0, payload=create_json(point))
+        eq_ids.append(eq_id)
+    eq_ids_bunch = ";".join([ str(x) for x in eq_ids ])
+    eq.OUT_put(0, eq_ids_bunch)
+    eq_ids_bunch = eq.IN_get(eq_type=0)
+    message("IN_get(): tpl: " + str(eq_ids_bunch))
+    if eq.done(eq_ids_bunch):
+        message("exiting: payload=" + eq_ids_bunch)
         # DEAP has no early stopping: Cf. issue #271
         exit(1)
-    split_result = result.split(';')
-    return [(float(x),) for x in split_result]
+    # Split results string on semicolon
+    tokens = eq_ids_bunch.split(';')
+    # Get the JSON for each eq_id
+    strings = [ eq.DB_json_in(int(token)) for token in tokens ]
+    # Parse each JSON fragment:
+    Js = [ json.loads(s) for s in strings ]
+    # Extract results from JSON and convert to floats in mono-tuples
+    values = [ (float(x["result"]),) for x in Js ]
+    # return [(float(x["result"]),) for x in split_result]
+    print("algorithm: values: " + str(values))
+    return values
 
 
 def mutate_Gaussian_float(x):
@@ -158,7 +170,8 @@ def run():
 
     fitnesses = [str(p.fitness.values[0]) for p in pop]
 
-    eq.OUT_put(eq_type=0, params="EQ_FINAL")
+    # eq.OUT_put(eq_type=0, params="EQ_FINAL")
+    eq.DB_final()
     # return the final population
     msg = "{0}\n{1}\n{2}".format(create_list_of_lists_string(pop),
                                  ';'.join(fitnesses),

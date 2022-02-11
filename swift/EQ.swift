@@ -7,19 +7,16 @@
     result = python_persist("import eq ; eq.init()", "eq.validate()");
 }
 
-// (void v) EQ_init_package(location loc, string packageName) {
-//     v = propagate();
-// }
-
-// EQ_stop(location loc) {
-//     // do nothing
-// }
-
 string code_get = """
+import sys
 import eq
 eq.init()
 try:
-    result = eq.out_get_payload(%i)
+    print('swift out_get')
+    sys.stdout.flush()
+    result = eq.OUT_get(%i)
+    print('swift out_get done')
+    sys.stdout.flush()
 except Exception as e:
     import sys, traceback
     info = sys.exc_info()
@@ -33,12 +30,13 @@ except Exception as e:
     result = python_persist(code_get % eq_type, "result");
 }
 
-// string code_put = "import eq ; eq.init() ; eq.IN_put('%s')";
-
 string code_put = """
+import sys
 import eq
 eq.init()
 try:
+    print('swift in_put')
+    sys.stdout.flush()
     result = eq.IN_put(%i, '%s')
 except Exception as e:
     import sys, traceback
@@ -49,8 +47,11 @@ except Exception as e:
     result = 'EQ_ABORT'
 """;
 
-(void v) EQ_put(int eq_type, string data) {
-    python_persist(code_put % (eq_type, data)) => v = propagate();
+(void v) EQ_put(int eq_type, string eq_ids) {
+    // trace("code: " + code_put % (eq_type, eq_ids));
+    python_persist(code_put % (eq_type, eq_ids)) =>
+        v = propagate();
+
 }
 
 // Local Variables:

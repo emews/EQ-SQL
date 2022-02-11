@@ -15,7 +15,7 @@ THIS=$( readlink --canonicalize $( dirname $0 ) )
 source $THIS/db-settings.sh -v $*
 
 DB_DELAY=5
-if (( ${DB_CONFIRM:-1} ))
+if [[ ${DB_CONFIRM:-1} == 1 ]]
 then
   echo
   echo "Deleting all tables ... Enter to confirm ... Ctrl-C to cancel ..."

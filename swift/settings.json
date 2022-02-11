@@ -1,6 +1,6 @@
 {
     "seed":         42,
-    "num_iter":     30,
+    "num_iter":     3,
     "num_pop":      8,
     "sigma":        0.1,
     "mate_pb":      0.5,
