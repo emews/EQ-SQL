@@ -28,7 +28,7 @@ for table in tables:
     if count > 0:
         print("check-queues.py: There are entries in table '%s'" %
               table)
-        success = False
+        success = True
 
 if not success:
     exit(1)
