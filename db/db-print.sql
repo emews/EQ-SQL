@@ -7,10 +7,10 @@
 
 \dt
 
-\echo == EMEWS GROUPS ==
-select * from emews_groups;
-\echo == EMEWS POINTS ==
-select * from emews_points;
+\echo == EMEWS EXPID TASKS ==
+select * from eq_exp_id_tasks;
+\echo == EMEWS TASKS ==
+select * from eq_tasks;
 
 \echo == EMEWS QUEUE IN ==
 select * from emews_queue_IN;

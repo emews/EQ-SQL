@@ -45,8 +45,8 @@ sql <<EOF
 \set ON_ERROR_STOP on
 \dt
 select pg_sleep($DB_DELAY);
-delete from emews_groups;
-delete from emews_points;
+delete from eq_exp_id_tasks;
+delete from eq_tasks;
 delete from emews_queue_OUT;
 delete from emews_queue_IN;
 alter sequence emews_id_generator restart;

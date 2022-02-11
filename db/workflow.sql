@@ -10,41 +10,32 @@
 
 /* Each group here is a metadata collection of other groups or points
 */
-create table emews_groups(
-       /* auto-generated integer */
-       ID serial primary key,
+create table eq_exp_id_tasks (
        /* e.g. 'experiment':'X-032' or 'iteration':421 */
-       json_label text,
-       /* the task type */
-       eq_type integer,
-       /* the parent group ID of this point.  May point nowhere (0). */
-       group_ integer,
-       /* creation time */
-       time timestamp
+       exp_id text,
+       eq_task_id integer
 );
+
 
 /* Each row here is a model run
 */
-create table emews_points(
-       /* the point ID; eq_id==0 is the dummy null point */
-       eq_id integer,
-       /* the group ID of this point */
-       group_ integer,
+create table eq_tasks (
+       /* the task id; eq_id==0 is the dummy null point */
+       eq_task_id integer PRIMARY KEY,
        /* See db_covid.py for valid status codes */
-       status integer,
+       eq_status integer,
        /* the task type, eq_type==0 means "any type" */
-       eq_type integer,
-       /* Parameters output from the ME (the model input) as
-                     JSON-formatted output values */
+       eq_task_type integer,
+       /* JSON-formatted payload from the OUT queue or status message, e.g., "EQ_FINAL" */
        json_out text,
-       /* Parameters input  to   the ME (the model output) as
-                     JSON-formatted output values */
+       /* JSON-formatted payload for the IN queue */
        json_in  text,
-       /* time this point was created (json_out) */
+       /* time this task was created (json_out) */
+       time_created timestamp,
+       /* time this task started (json_out) */
        time_start timestamp,
-       /* time this point was finished (json_in) */
-       time_stop  timestamp,
-       foreign key (group_) references emews_groups(ID)
+       /* time this task finished (json_in) */
+       time_stop  timestamp
 );
 
 /* This generator is just for the queues */
@@ -53,13 +44,15 @@ create sequence emews_id_generator start 1 no cycle;
 create table emews_queue_OUT(
        /* the task type */
        eq_type integer,
-       /* semicolon-separated eq_ids */
-       eq_ids text
+       /* eq_id */
+       eq_task_id integer,
+       eq_priority integer
 );
 
 create table emews_queue_IN(
        /* the task type */
        eq_type integer,
-       /* semicolon-separated eq_ids */
-       eq_ids text
+       /*  eq_id */
+       eq_task_id integer,
+       eq_priority integer
 );

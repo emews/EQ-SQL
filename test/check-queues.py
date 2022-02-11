@@ -12,7 +12,7 @@ success = True
 
 tables = [ "emews_queue_IN", "emews_queue_OUT" ]
 for table in tables:
-    sql.select(table=table, what="count(eq_ids)")
+    sql.select(table=table, what="count(eq_task_id)")
     rs = sql.get()
     count = rs[0]
     if count > 0:
@@ -20,9 +20,9 @@ for table in tables:
               table)
         success = False
 
-tables = [ "emews_points" ]
+tables = [ "eq_tasks" ]
 for table in tables:
-    sql.select(table=table, what="count(eq_id)")
+    sql.select(table=table, what="count(eq_task_id)")
     rs = sql.get()
     count = rs[0]
     if count > 0:

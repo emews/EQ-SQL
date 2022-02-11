@@ -32,8 +32,8 @@ sql <<EOF
 \set ON_ERROR_STOP on
 \dt
 select pg_sleep($DB_DELAY);
-drop table emews_points;
-drop table emews_groups;
+drop table eq_tasks;
+drop table eq_exp_id_tasks;
 drop sequence emews_id_generator;
 drop table emews_queue_OUT;
 drop table emews_queue_IN;

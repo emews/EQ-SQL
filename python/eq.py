@@ -6,6 +6,7 @@ import sys
 import threading
 import traceback
 import time
+from datetime import datetime
 
 import db_tools
 from db_tools import Q
@@ -80,11 +81,11 @@ def sql_pop_q(table, eq_type):
     """
     code = """
     DELETE FROM %s
-    WHERE  eq_ids = (
-    SELECT eq_ids
+    WHERE  eq_task_id = (
+    SELECT eq_task_id
     FROM %s
     WHERE eq_type = %i
-    ORDER BY eq_ids
+    ORDER BY eq_task_id
     FOR UPDATE SKIP LOCKED
     LIMIT 1
     )
@@ -95,7 +96,7 @@ def sql_pop_q(table, eq_type):
 
 def queue_pop(table, eq_type, delay, timeout):
     """
-    returns eq_ids, e.g.: '1;2;3'
+    returns eq_task_id
     or None on timeout
     """
     global DB
@@ -120,79 +121,85 @@ def queue_pop(table, eq_type, delay, timeout):
     return rs[1]
 
 
-def queue_push(table, eq_type, eq_ids):
-    """ eq_ids: semicolon-separated string e.g.: '1;2;3' """
-    DB.insert(table, ["eq_type",  "eq_ids"],
-                     [ eq_type,  Q(eq_ids)])
+# def queue_push(table, eq_type, eq_task_id, priority):
+#     DB.insert(table, ["eq_type",  "eq_task_id", "eq_priority"],
+#                      [ eq_type, eq_task_id, priority])
 
 
-def DB_submit(eq_type, payload):
+def DB_submit(exp_id, eq_type, payload):
     global DB
     DB.execute("select nextval('emews_id_generator');")
     rs = DB.get()
-    eq_id = rs[0]
-    DB.insert("emews_points", ["eq_id", "eq_type", "json_out"],
-                              [ eq_id ,  eq_type,   Q(payload)])
-    return eq_id
+    eq_task_id = rs[0]
+    DB.insert("eq_tasks", ["eq_task_id", "eq_type", "json_out", "time_created"],
+              [ eq_task_id , eq_type, Q(payload), Q(str(datetime.now()))])
+    DB.insert("eq_exp_id_tasks", ["exp_id", "eq_task_id"],
+              [Q(exp_id),  eq_task_id])
+    return eq_task_id
 
 
-def DB_json_out(eq_id):
-    """ return the json_out for the int eq_id """
+def DB_json_out(eq_task_id):
+    """ return the json_out for the int eq_task_id """
     global DB
     print("DB_json_out")
     sys.stdout.flush()
-    DB.select("emews_points", "json_out", "eq_id=%i"%eq_id)
+    DB.select("eq_tasks", "json_out", f'eq_task_id={eq_task_id}')
     rs = DB.get()
     result = rs[0]
     return result
 
 
-def DB_json_in(eq_id):
-    """ return the json_in for the int eq_id """
+def DB_json_in(eq_task_id):
+    """ return the json_in for the int eq_task_id """
     global DB
     print("DB_json_out")
     sys.stdout.flush()
-    DB.select("emews_points", "json_in", "eq_id=%i"%eq_id)
+    DB.select("eq_tasks", "json_in", f'eq_task_id={eq_task_id}')
     rs = DB.get()
     result = rs[0]
     return result
 
 
-def DB_result(eq_id, payload):
+def DB_result(eq_task_id, payload):
     global DB
     print("DB_result:")
     sys.stdout.flush()
-    DB.update("emews_points", ["json_in"], [Q(payload)],
-                              where="eq_id=%i"%eq_id)
+    DB.update("eq_tasks", ["json_in"], [Q(payload)],
+                              where=f'eq_task_id={eq_task_id}')
 
 
 def DB_final():
     global DB
     DB.execute("select nextval('emews_id_generator');")
     rs = DB.get()
-    eq_id = rs[0]
-    DB.insert("emews_points", ["eq_id", "eq_type", "json_out"],
-                              [ eq_id ,         0, Q("EQ_FINAL")])
-    OUT_put(0, "EQ_FINAL")
-    return eq_id
+    eq_task_id = rs[0]
+    DB.insert("eq_tasks", ["eq_task_id", "eq_type", "json_out"],
+                              [ eq_task_id , 0, Q("EQ_FINAL")])
+    OUT_put(0, eq_task_id)
+    return eq_task_id
 
 
-def OUT_put(eq_type, eq_ids):
-    """ eq_ids: semicolon-separated string e.g.: '1;2;3' """
+def OUT_put(eq_type, eq_task_id, priority=0):
+    """"""
     try:
-        queue_push("emews_queue_OUT", eq_type, eq_ids)
+        # queue_push("emews_queue_OUT", eq_type, eq_task_id, priority)
+        DB.insert('emews_queue_OUT', ["eq_type",  "eq_task_id", "eq_priority"],
+                     [ eq_type, eq_task_id, priority])
+
     except Exception as e:
         info = sys.exc_info()
         s = traceback.format_tb(info[2])
         print(str(e) + ' ... \\n' + ''.join(s))
         sys.stdout.flush()
-    return eq_ids
+    return eq_task_id
 
 
-def IN_put(eq_type, eq_ids):
-    """ eq_ids: semicolon-separated string, e.g.: '1;2;3' """
+def IN_put(eq_type, eq_task_id):
     try:
-        queue_push("emews_queue_IN", eq_type, eq_ids)
+        DB.insert('emews_queue_IN', ["eq_type",  "eq_task_id"],
+                     [ eq_type, eq_task_id])
+
+        #queue_push("emews_queue_IN", eq_type, eq_task_id)
     except Exception as e:
         info = sys.exc_info()
         s = traceback.format_tb(info[2])
@@ -202,7 +209,7 @@ def IN_put(eq_type, eq_ids):
 
 def OUT_get(eq_type, delay=0.5, timeout=2.0):
     """
-    returns eq_ids, e.g.: '1;2;3'
+    returns eq_task_id
     on timeout or error: returns 'EQ_ABORT'
     """
     try:
@@ -230,10 +237,10 @@ def OUT_get(eq_type, delay=0.5, timeout=2.0):
 #     print("out_get_payload(): result: " + result)
 #     return result
 
-
-def IN_get(eq_type, delay=0.5, timeout=2.0):
+# TODO: Updated to work with eq_task_id NOT eq_type
+def IN_get(eq_task_id, delay=0.5, timeout=2.0):
     """
-    returns: eq_ids e.g.: (0, '1;2;3')
+    returns: eq_task_id
     on timeout or error: returns EQ_ABORT
     """
     try:
