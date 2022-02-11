@@ -137,7 +137,7 @@ def DB_submit(eq_type, payload):
 
 
 def DB_json_out(eq_id):
-    """ return the json_out for the eq_id """
+    """ return the json_out for the int eq_id """
     global DB
     print("DB_json_out")
     sys.stdout.flush()
@@ -148,7 +148,7 @@ def DB_json_out(eq_id):
 
 
 def DB_json_in(eq_id):
-    """ return the json_in for the eq_id """
+    """ return the json_in for the int eq_id """
     global DB
     print("DB_json_out")
     sys.stdout.flush()
