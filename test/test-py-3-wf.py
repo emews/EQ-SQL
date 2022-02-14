@@ -10,19 +10,9 @@ print("PY TEST 3 WF: START")
 
 eq.init()
 
-def recv(eq_type):
-    msg = eq.OUT_get(eq_type)
-    try:
-        eq_id = int(msg)
-    except:
-        return 'EQ_ABORT'
-    print("eq_id=%i" % eq_id)
-    params = eq.DB_json_out(eq_id)
-    print(params)
-    return (eq_id, params)
 
 while True:
-    eq_task_id, payload_str = recv(0)
+    eq_task_id, payload_str = eq.query_work(0)
     if eq.done(payload_str):
         break
     payload = json.loads(payload_str)

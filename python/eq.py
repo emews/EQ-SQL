@@ -11,15 +11,14 @@ from datetime import datetime
 import db_tools
 from db_tools import Q
 
+
 EQPY_ABORT = "EQPY_ABORT"
 
 p = None
 aborted = False
 wait_info = None
-
 # The psycopg2 handle:
 DB = None
-
 
 class WaitInfo:
 
@@ -70,9 +69,9 @@ def validate():
     return "EQ-SQL:OK"
 
 
-def sql_pop_q(table, eq_type):
+def sql_pop_out_q(eq_type):
     """
-    Generate code for a queue pop from given table
+    Generate code for a queue pop from emews_queue_out
     From:
     https://www.2ndquadrant.com/en/blog/what-is-select-skip-locked-for-in-postgresql-9-5
     Can only select 1 column from the subquery,
@@ -80,27 +79,64 @@ def sql_pop_q(table, eq_type):
     See workflow.sql for the returned queue row
     """
     code = """
-    DELETE FROM %s
+    DELETE FROM emews_queue_OUT
     WHERE  eq_task_id = (
     SELECT eq_task_id
-    FROM %s
-    WHERE eq_type = %i
+    FROM emews_queue_OUT
+    WHERE eq_task_type = {}
     ORDER BY eq_task_id
     FOR UPDATE SKIP LOCKED
     LIMIT 1
     )
     RETURNING *;
-    """ % (table, table, eq_type)
+    """.format(eq_type)
     return code
 
 
-def queue_pop(table, eq_type, delay, timeout):
+def sql_pop_in_q(eq_task_id):
+    """
+    Generate code for a queue pop from emewws_queue_in
+    From:
+    https://www.2ndquadrant.com/en/blog/what-is-select-skip-locked-for-in-postgresql-9-5
+    Can only select 1 column from the subquery,
+    but we return * from the deleted row.
+    See workflow.sql for the returned queue row
+    """
+    code = """
+    DELETE FROM emews_queue_IN
+    WHERE  eq_task_id = (
+    SELECT eq_task_id
+    FROM emews_queue_IN
+    WHERE eq_task_id = {}
+    ORDER BY eq_task_id
+    FOR UPDATE SKIP LOCKED
+    LIMIT 1
+    )
+    RETURNING *;
+    """.format(eq_task_id)
+    return code
+
+
+def pop_out_queue(eq_type: int, delay, timeout):
+    sql_pop = sql_pop_out_q(eq_type)
+    res = queue_pop(sql_pop, delay, timeout)
+    print(f'pop_out_queue: {str(res)}', flush=True)
+    return res
+
+
+def pop_in_queue(eq_task_id: int, delay, timeout):
+    sql_pop = sql_pop_in_q(eq_task_id)
+    res = queue_pop(sql_pop, delay, timeout)
+    print(f'pop_in_queue: {str(res)}', flush=True)
+    return res
+
+
+def queue_pop(sql_pop: str, delay, timeout):
     """
     returns eq_task_id
     or None on timeout
     """
     global DB
-    sql_pop = sql_pop_q(table, eq_type)
     start = time.time()
     while True:
         DB.execute(sql_pop)
@@ -115,8 +151,6 @@ def queue_pop(table, eq_type, delay, timeout):
         sys.stdout.flush()
         delay = delay * 2
 
-    print("queue_pop(%s): '%s'" % (table, str(rs)))
-    sys.stdout.flush()
     if rs is None: return None  # timeout
     return rs[1]
 
@@ -131,7 +165,7 @@ def DB_submit(exp_id, eq_type, payload):
     DB.execute("select nextval('emews_id_generator');")
     rs = DB.get()
     eq_task_id = rs[0]
-    DB.insert("eq_tasks", ["eq_task_id", "eq_type", "json_out", "time_created"],
+    DB.insert("eq_tasks", ["eq_task_id", "eq_task_type", "json_out", "time_created"],
               [ eq_task_id , eq_type, Q(payload), Q(str(datetime.now()))])
     DB.insert("eq_exp_id_tasks", ["exp_id", "eq_task_id"],
               [Q(exp_id),  eq_task_id])
@@ -173,7 +207,7 @@ def DB_final():
     DB.execute("select nextval('emews_id_generator');")
     rs = DB.get()
     eq_task_id = rs[0]
-    DB.insert("eq_tasks", ["eq_task_id", "eq_type", "json_out"],
+    DB.insert("eq_tasks", ["eq_task_id", "eq_task_type", "json_out"],
                               [ eq_task_id , 0, Q("EQ_FINAL")])
     OUT_put(0, eq_task_id)
     return eq_task_id
@@ -183,7 +217,7 @@ def OUT_put(eq_type, eq_task_id, priority=0):
     """"""
     try:
         # queue_push("emews_queue_OUT", eq_type, eq_task_id, priority)
-        DB.insert('emews_queue_OUT', ["eq_type",  "eq_task_id", "eq_priority"],
+        DB.insert('emews_queue_OUT', ["eq_task_type",  "eq_task_id", "eq_priority"],
                      [ eq_type, eq_task_id, priority])
 
     except Exception as e:
@@ -196,7 +230,7 @@ def OUT_put(eq_type, eq_task_id, priority=0):
 
 def IN_put(eq_type, eq_task_id):
     try:
-        DB.insert('emews_queue_IN', ["eq_type",  "eq_task_id"],
+        DB.insert('emews_queue_IN', ["eq_task_type",  "eq_task_id"],
                      [ eq_type, eq_task_id])
 
         #queue_push("emews_queue_IN", eq_type, eq_task_id)
@@ -215,11 +249,9 @@ def OUT_get(eq_type, delay=0.5, timeout=2.0):
     try:
         print("OUT_get():")
         sys.stdout.flush()
-        result = queue_pop("emews_queue_OUT", eq_type, delay, timeout)
+        result = pop_out_queue(eq_type, delay, timeout)
         if result is None:
-            print("eq.py:OUT_get(eq_type=%i): popped None: abort!" %
-                  eq_type)
-            sys.stdout.flush()
+            print(f'eq.py:OUT_get(eq_type={eq_type}): popped None: abort!', flush=True)
             result = "EQ_ABORT"
     except Exception as e:
         info = sys.exc_info()
@@ -237,18 +269,16 @@ def OUT_get(eq_type, delay=0.5, timeout=2.0):
 #     print("out_get_payload(): result: " + result)
 #     return result
 
-# TODO: Updated to work with eq_task_id NOT eq_type
+
 def IN_get(eq_task_id, delay=0.5, timeout=2.0):
     """
     returns: eq_task_id
     on timeout or error: returns EQ_ABORT
     """
     try:
-        result = queue_pop("emews_queue_IN", eq_type, delay, timeout)
+        result = pop_in_queue(eq_task_id, delay, timeout)
         if result is None:
-            print("eq.py:IN_get(eq_type=%i): popped None: abort!" %
-                  eq_type)
-            sys.stdout.flush()
+            print(f'eq.py:IN_get(eq_task_id={eq_task_id}): popped None: abort!', flush=True)
             result = "EQ_ABORT"
     except Exception as e:
         info = sys.exc_info()
@@ -266,3 +296,44 @@ def done(msg):
         print("eq.done(): WARNING: EQ_ABORT")
         return True
     return False
+
+
+def query_work(eq_type: int):
+    """
+    Queries the database for work of the specified type. 
+
+    Args:
+        eq_type: the id of the work type
+    
+    Returns:
+        A tuple containing the eq_task_id for the work, and any parameters
+        for it. If there is an issue when querying for work of that type,
+        (the query times out, example), the tuple will be (-1, 'EQ_ABORT')
+    """
+    # TODO: check if this uses priority
+    msg = OUT_get(eq_type)
+    try:
+        eq_task_id = int(msg)
+    except:
+        return (-1, 'EQ_ABORT')
+    params = DB_json_out(eq_task_id)
+    return (eq_task_id, params)
+
+
+def submit_work(exp_id: str, eq_type, payload: str, priority=0) -> int:
+    """Submits work to the database of the specified type and priority with the specified
+    payload, returning the task id for that work.
+
+    Args:
+        exp_id: the id of the experiment of which the work is part.
+        eq_type: the type of work
+        payload: the work payload
+        priority: the priority of this work
+    
+    Returns:
+        task_id: the task id for the work
+    
+    """
+    eq_task_id = DB_submit(exp_id, eq_type, payload)
+    OUT_put(eq_type, eq_task_id, priority)
+    return eq_task_id

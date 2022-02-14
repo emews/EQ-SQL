@@ -43,7 +43,7 @@ create sequence emews_id_generator start 1 no cycle;
 
 create table emews_queue_OUT(
        /* the task type */
-       eq_type integer,
+       eq_task_type integer,
        /* eq_id */
        eq_task_id integer,
        eq_priority integer
@@ -51,8 +51,7 @@ create table emews_queue_OUT(
 
 create table emews_queue_IN(
        /* the task type */
-       eq_type integer,
+       eq_task_type integer,
        /*  eq_id */
-       eq_task_id integer,
-       eq_priority integer
+       eq_task_id integer
 );
