@@ -50,7 +50,7 @@ def init():
     global DB
     if DB is not None:
         return
-    DB = db_tools.setup_db(envs=True, log=True)
+    DB = db_tools.setup_db(envs=True, log=False)
     DB.connect()
     return DB
 
@@ -306,18 +306,18 @@ def query_work(eq_type: int):
         eq_type: the id of the work type
     
     Returns:
-        A tuple containing the eq_task_id for the work, and any parameters
+        A tuple containing the eq_task_id for the work, and the payload
         for it. If there is an issue when querying for work of that type,
         (the query times out, example), the tuple will be (-1, 'EQ_ABORT')
     """
-    # TODO: check if this uses priority
+    # TODO: Add priority to OUT_get
     msg = OUT_get(eq_type)
     try:
         eq_task_id = int(msg)
     except:
         return (-1, 'EQ_ABORT')
-    params = DB_json_out(eq_task_id)
-    return (eq_task_id, params)
+    payload = DB_json_out(eq_task_id)
+    return (eq_task_id, payload)
 
 
 def submit_work(exp_id: str, eq_type, payload: str, priority=0) -> int:

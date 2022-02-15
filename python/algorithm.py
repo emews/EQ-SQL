@@ -6,6 +6,7 @@ import numpy as np
 import os
 import random
 import sys
+import math
 
 from deap import base
 from deap import creator
@@ -25,8 +26,7 @@ num_pop   = None
 
 
 def message(s):
-    print("algorithm.py: " + s)
-    sys.stdout.flush()
+    print("algorithm.py: " + s, flush=True)
 
 
 def i2s(i):
@@ -47,13 +47,19 @@ def make_random_params():
     return [x1, x2]
 
 
-def create_list_of_lists_string(list_of_lists, super_delim=";", sub_delim=","):
-    # super list elements separated by ;
-    L = []
-    for x in list_of_lists:
-        L.append(sub_delim.join(str(n) for n in x))
-    result = super_delim.join(L)
-    return result
+def create_list_of_json_strings(list_of_lists, super_delim=";"):
+    # create string of ; separated jsonified maps
+    res = []
+    global ga_params
+    for l in list_of_lists:
+        jmap = {}
+        for i,p in enumerate(['x', 'y']):
+            jmap[p] = l[i]
+
+        jstring = json.dumps(jmap)
+        res.append(jstring)
+
+    return (super_delim.join(res))
 
 
 def create_json(P):
@@ -74,29 +80,42 @@ def queue_map(obj_func, pops):
     if not pops:
         return []
     # eq.OUT_put(create_list_of_lists_string(pops))
-    eq_ids = []
-    for point in pops:
-        eq_id = eq.DB_submit(eq_type=0, payload=create_json(point))
-        eq_ids.append(eq_id)
-    eq_ids_bunch = ";".join([ str(x) for x in eq_ids ])
-    eq.OUT_put(0, eq_ids_bunch)
-    eq_ids_bunch = eq.IN_get(eq_type=0)
-    message("IN_get(): tpl: " + str(eq_ids_bunch))
-    if eq.done(eq_ids_bunch):
-        message("exiting: payload=" + eq_ids_bunch)
-        # DEAP has no early stopping: Cf. issue #271
-        exit(1)
-    # Split results string on semicolon
-    tokens = eq_ids_bunch.split(';')
-    # Get the JSON for each eq_id
-    strings = [ eq.DB_json_in(int(token)) for token in tokens ]
-    # Parse each JSON fragment:
-    Js = [ json.loads(s) for s in strings ]
-    # Extract results from JSON and convert to floats in mono-tuples
-    values = [ (float(x["result"]),) for x in Js ]
-    # return [(float(x["result"]),) for x in split_result]
-    print("algorithm: values: " + str(values))
-    return values
+    payload = create_list_of_json_strings(pops)
+    eq_task_id = eq.submit_work('test-swift-2', 0, payload)
+    result_status = eq.IN_get(eq_task_id)
+    if eq.done(result_status):
+        # For production this should be more robust,
+        # results status can an be an abort or in future a timeout
+        return []
+    result_str = eq.DB_json_in(eq_task_id)
+    # print("RESULT_STR: ", result_str, flush=True)
+    result = json.loads(result_str)
+    # if max'ing or min'ing and use -9999999 or 99999999
+    return [(x,) if not math.isnan(x) else (float(99999999),) for x in result]
+
+    # eq_ids = []
+    # for point in pops:
+    #     eq_id = eq.DB_submit(eq_type=0, payload=create_json(point))
+    #     eq_ids.append(eq_id)
+    # eq_ids_bunch = ";".join([ str(x) for x in eq_ids ])
+    # eq.OUT_put(0, eq_ids_bunch)
+    # eq_ids_bunch = eq.IN_get(eq_type=0)
+    # message("IN_get(): tpl: " + str(eq_ids_bunch))
+    # if eq.done(eq_ids_bunch):
+    #     message("exiting: payload=" + eq_ids_bunch)
+    #     # DEAP has no early stopping: Cf. issue #271
+    #     exit(1)
+    # # Split results string on semicolon
+    # tokens = eq_ids_bunch.split(';')
+    # # Get the JSON for each eq_id
+    # strings = [ eq.DB_json_in(int(token)) for token in tokens ]
+    # # Parse each JSON fragment:
+    # Js = [ json.loads(s) for s in strings ]
+    # # Extract results from JSON and convert to floats in mono-tuples
+    # values = [ (float(x["result"]),) for x in Js ]
+    # # return [(float(x["result"]),) for x in split_result]
+    # print("algorithm: values: " + str(values))
+    # return values
 
 
 def mutate_Gaussian_float(x):
@@ -137,6 +156,7 @@ def run():
     # load_settings(settings_filename)
 
     # parse settings # num_iter, num_pop, seed,
+    eq.init()
 
     creator.create("FitnessMin", base.Fitness, weights=(-1.0,))
     creator.create("Individual", list, fitness=creator.FitnessMin)
@@ -173,7 +193,7 @@ def run():
     # eq.OUT_put(eq_type=0, params="EQ_FINAL")
     eq.DB_final()
     # return the final population
-    msg = "{0}\n{1}\n{2}".format(create_list_of_lists_string(pop),
+    msg = "{0}\n{1}\n{2}".format(create_list_of_json_strings(pop),
                                  ';'.join(fitnesses),
                                  log)
     # eq.OUT_put(format(msg))

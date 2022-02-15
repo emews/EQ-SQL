@@ -2,9 +2,7 @@
 # TEST SWIFT 2 ME PY
 
 import os
-
 import eq
-
 import algorithm
 
 print("TEST SWIFT 2 ME: START")

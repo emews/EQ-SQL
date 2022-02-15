@@ -18,14 +18,24 @@ task(string params)
   result = python_persist(
 ----
 import sys
+import json
 from math import sin,cos
-x,y=%s
+
+val_map = json.loads('%s')
+x = val_map['x']
+y = val_map['y']
 result = sin(4*x)+sin(4*y)+-2*x+x**2-2*y+y**2
-print("TASK: " + str(x) + " " + str(y) + " -> " + str(result))
-sys.stdout.flush()
----- % params,
-"repr(result)"
-  );
+print("TASK: " + str(x) + " " + str(y) + " -> " + str(result), flush=True)
+---- % params, "repr(result)");
+}
+
+(string result)result_to_json(string vals) {
+  result = python_persist(
+----
+import json
+l = [%s]
+result = json.dumps(l)
+---- % vals, "result");
 }
 
 /*
@@ -56,9 +66,9 @@ loop()
        b=c)
   {
     message = EQ_get(0);
-    // printf("swift: message: %s", message);
+    string msg_parts[] = split(message, "|");
     boolean c;
-    if (message == "EQ_FINAL")
+    if (msg_parts[1] == "EQ_FINAL")
     {
       printf("loop.swift: FINAL") =>
         v = propagate() =>
@@ -66,7 +76,7 @@ loop()
       // finals = EQ_get();
       // printf("Swift: finals: %s", finals);
     }
-    else if (message == "EQ_ABORT")
+    else if (msg_parts[1] == "EQ_ABORT")
     {
       printf("loop.swift: got EQ_ABORT: exiting!") =>
         v = propagate() =>
@@ -74,15 +84,19 @@ loop()
     }
     else
     {
-      string params[] = split(message, ";");
+      
+      int eq_task_id = string2int(msg_parts[0]);
+      string params[] = split(msg_parts[1], ";");
       string results[];
       foreach p,i in params
       {
         results[i] = task(p);
       }
-      result = join(results, ";");
-      // printf("swift: result: %s", result);
-      EQ_put(0, result) => c = true;
+      result = join(results, ",");
+      printf("RESULT: %s", result);
+      json_result = result_to_json(result);
+      // printf("JSON RESULT: %s", json_result);
+      EQ_put(eq_task_id, json_result) => c = true;
     }
   }
 
