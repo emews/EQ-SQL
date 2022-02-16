@@ -84,7 +84,7 @@ def sql_pop_out_q(eq_type):
     SELECT eq_task_id
     FROM emews_queue_OUT
     WHERE eq_task_type = {}
-    ORDER BY eq_task_id
+    ORDER BY eq_priority DESC, eq_task_id ASC
     FOR UPDATE SKIP LOCKED
     LIMIT 1
     )
