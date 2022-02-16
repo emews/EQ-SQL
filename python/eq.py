@@ -6,7 +6,7 @@ import sys
 import threading
 import traceback
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 
 import db_tools
 from db_tools import Q
@@ -165,8 +165,9 @@ def DB_submit(exp_id, eq_type, payload):
     DB.execute("select nextval('emews_id_generator');")
     rs = DB.get()
     eq_task_id = rs[0]
+    ts = datetime.now(timezone.utc).astimezone().isoformat()
     DB.insert("eq_tasks", ["eq_task_id", "eq_task_type", "json_out", "time_created"],
-              [ eq_task_id , eq_type, Q(payload), Q(str(datetime.now()))])
+              [ eq_task_id , eq_type, Q(payload), Q(ts)])
     DB.insert("eq_exp_id_tasks", ["exp_id", "eq_task_id"],
               [Q(exp_id),  eq_task_id])
     return eq_task_id
@@ -175,10 +176,11 @@ def DB_submit(exp_id, eq_type, payload):
 def DB_json_out(eq_task_id):
     """ return the json_out for the int eq_task_id """
     global DB
-    print("DB_json_out")
-    sys.stdout.flush()
+    print("DB_json_out", flush=True)
     DB.select("eq_tasks", "json_out", f'eq_task_id={eq_task_id}')
     rs = DB.get()
+    ts = datetime.now(timezone.utc).astimezone().isoformat()
+    DB.update("eq_tasks", ['time_start'], [Q(ts)], where=f'eq_task_id={eq_task_id}')
     result = rs[0]
     return result
 
@@ -196,20 +198,20 @@ def DB_json_in(eq_task_id):
 
 def DB_result(eq_task_id, payload):
     global DB
-    print("DB_result:")
-    sys.stdout.flush()
-    DB.update("eq_tasks", ["json_in"], [Q(payload)],
+    print("DB_result:", flush=True)
+    ts = datetime.now(timezone.utc).astimezone().isoformat()
+    DB.update("eq_tasks", ["json_in", 'time_stop'], [Q(payload), Q(ts)],
                               where=f'eq_task_id={eq_task_id}')
 
 
-def DB_final():
+def DB_final(eq_type: int=0):
     global DB
     DB.execute("select nextval('emews_id_generator');")
     rs = DB.get()
     eq_task_id = rs[0]
     DB.insert("eq_tasks", ["eq_task_id", "eq_task_type", "json_out"],
-                              [ eq_task_id , 0, Q("EQ_FINAL")])
-    OUT_put(0, eq_task_id)
+                              [ eq_task_id , eq_type, Q("EQ_FINAL")])
+    OUT_put(eq_type, eq_task_id)
     return eq_task_id
 
 
@@ -251,7 +253,7 @@ def OUT_get(eq_type, delay=0.5, timeout=2.0):
         sys.stdout.flush()
         result = pop_out_queue(eq_type, delay, timeout)
         if result is None:
-            print(f'eq.py:OUT_get(eq_type={eq_type}): popped None: abort!', flush=True)
+            print(f'eq.py:OUT_get(eq_task_type={eq_type}): popped None: abort!', flush=True)
             result = "EQ_ABORT"
     except Exception as e:
         info = sys.exc_info()
@@ -298,7 +300,7 @@ def done(msg):
     return False
 
 
-def query_work(eq_type: int):
+def query_task(eq_type: int):
     """
     Queries the database for work of the specified type. 
 
@@ -312,6 +314,7 @@ def query_work(eq_type: int):
     """
     # TODO: Add priority to OUT_get
     msg = OUT_get(eq_type)
+    print('MSG:', msg, flush=True)
     try:
         eq_task_id = int(msg)
     except:
@@ -320,7 +323,7 @@ def query_work(eq_type: int):
     return (eq_task_id, payload)
 
 
-def submit_work(exp_id: str, eq_type, payload: str, priority=0) -> int:
+def sumbit_task(exp_id: str, eq_type, payload: str, priority=0) -> int:
     """Submits work to the database of the specified type and priority with the specified
     payload, returning the task id for that work.
 
@@ -337,3 +340,9 @@ def submit_work(exp_id: str, eq_type, payload: str, priority=0) -> int:
     eq_task_id = DB_submit(exp_id, eq_type, payload)
     OUT_put(eq_type, eq_task_id, priority)
     return eq_task_id
+
+
+def report_task(eq_type: int, eq_task_id: int, result):
+    """Reports the result of the specified task of the specified type"""
+    DB_result(eq_task_id, result)
+    IN_put(eq_type, eq_task_id)

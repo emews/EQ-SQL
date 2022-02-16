@@ -24,6 +24,8 @@ mutate_pb = None
 num_iter  = None
 num_pop   = None
 
+SIM_WORK_TYPE = 1
+
 
 def message(s):
     print("algorithm.py: " + s, flush=True)
@@ -81,7 +83,7 @@ def queue_map(obj_func, pops):
         return []
     # eq.OUT_put(create_list_of_lists_string(pops))
     payload = create_list_of_json_strings(pops)
-    eq_task_id = eq.submit_work('test-swift-2', 0, payload)
+    eq_task_id = eq.sumbit_task('test-swift-2', SIM_WORK_TYPE, payload)
     result_status = eq.IN_get(eq_task_id)
     if eq.done(result_status):
         # For production this should be more robust,
@@ -191,7 +193,7 @@ def run():
     fitnesses = [str(p.fitness.values[0]) for p in pop]
 
     # eq.OUT_put(eq_type=0, params="EQ_FINAL")
-    eq.DB_final()
+    eq.DB_final(SIM_WORK_TYPE)
     # return the final population
     msg = "{0}\n{1}\n{2}".format(create_list_of_json_strings(pop),
                                  ';'.join(fitnesses),

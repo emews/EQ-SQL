@@ -38,6 +38,8 @@ result = json.dumps(l)
 ---- % vals, "result");
 }
 
+int SIM_WORK_TYPE = 1;
+
 /*
 (string result)
 task_json(string params)
@@ -65,7 +67,7 @@ loop()
        b;
        b=c)
   {
-    message = EQ_get(0);
+    message = eq_task_querier(SIM_WORK_TYPE);
     string msg_parts[] = split(message, "|");
     boolean c;
     if (msg_parts[1] == "EQ_FINAL")
@@ -96,7 +98,7 @@ loop()
       printf("RESULT: %s", result);
       json_result = result_to_json(result);
       // printf("JSON RESULT: %s", json_result);
-      EQ_put(eq_task_id, json_result) => c = true;
+      eq_task_reporter(eq_task_id, SIM_WORK_TYPE, json_result) => c = true;
     }
   }
 

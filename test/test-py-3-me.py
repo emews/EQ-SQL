@@ -10,7 +10,7 @@ eq.init()
 
 for i in range(0, 3):
     payload = [{'param': i} for i in range(3)]
-    eq_task_id = eq.submit_work('py_test_3', eq_type=0, payload=json.dumps(payload))
+    eq_task_id = eq.sumbit_task('py_test_3', eq_type=0, payload=json.dumps(payload))
     msg = eq.IN_get(eq_task_id)
     print("ME: msg=%s" % str(msg))
     # TODO - msg should inclue an EQ_TIMEOUT as well as EQ_ABORT
