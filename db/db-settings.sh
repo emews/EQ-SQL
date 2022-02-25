@@ -50,7 +50,7 @@ export DB_MODE=${DB_MODE:-SOFT} # Choices: ON, SOFT, OFF
 export DB_DATA
 
 # PATH=/projects/Swift-T/public/sfw/theta/postgres-12.2/bin:$PATH
-PATH=/usr/lib/postgresql/12/bin:$PATH
+# PATH=/usr/lib/postgresql/12/bin:$PATH
 
 db-settings()
 # Can use this in an interactive shell too
