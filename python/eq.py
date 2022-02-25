@@ -300,7 +300,7 @@ def done(msg):
     return False
 
 
-def query_task(eq_type: int):
+def query_task(eq_type: int, timeout=2.0):
     """
     Queries the database for work of the specified type. 
 
@@ -312,8 +312,7 @@ def query_task(eq_type: int):
         for it. If there is an issue when querying for work of that type,
         (the query times out, example), the tuple will be (-1, 'EQ_ABORT')
     """
-    # TODO: Add priority to OUT_get
-    msg = OUT_get(eq_type)
+    msg = OUT_get(eq_type, timeout=timeout)
     print('MSG:', msg, flush=True)
     try:
         eq_task_id = int(msg)

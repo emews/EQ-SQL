@@ -14,7 +14,7 @@ eq.init()
 try:
     print('swift out_get', flush=True)
     # result is a tuple of task_id, payload
-    eq_task_id, payload = eq.query_task(%i)
+    eq_task_id, payload = eq.query_task(%i, timeout=120.0)
     result_str = '{}|{}'.format(eq_task_id, payload)
     print('swift out_get done', flush=True)
 except Exception as e:

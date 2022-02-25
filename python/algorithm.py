@@ -84,7 +84,7 @@ def queue_map(obj_func, pops):
     # eq.OUT_put(create_list_of_lists_string(pops))
     payload = create_list_of_json_strings(pops)
     eq_task_id = eq.sumbit_task('test-swift-2', SIM_WORK_TYPE, payload)
-    result_status = eq.IN_get(eq_task_id)
+    result_status = eq.IN_get(eq_task_id, timeout=120.0)
     if eq.done(result_status):
         # For production this should be more robust,
         # results status can an be an abort or in future a timeout
