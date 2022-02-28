@@ -49,6 +49,7 @@ class workflow_sql:
         self.port   = port
         self.mode   = mode  # a DB_Mode
         self.dbname = dbname
+        self.user = os.environ['USER']
         if envs:
             self.configure_envs()
         self.autoclose = True
@@ -80,6 +81,8 @@ class workflow_sql:
 
         if env_has("DB_HOST"):
             self.host = os.getenv("DB_HOST")
+        if env_has('DB_USER'):
+            self.user = os.getenv('DB_USER')
         if env_has("DB_PORT"):
             try:
                 port_string = os.getenv("DB_PORT")
@@ -101,12 +104,12 @@ class workflow_sql:
         import psycopg2
         if self.conn is None:
             if self.mode >= DB_Mode.SOFT:
-                self.info("connect(): connecting to %s %i ..." %
-                          (self.host, self.port))
+                self.info("connect(): connecting to {} {} as {} ...".format(self.host, self.port, self.user))
                 try:
                     self.conn = psycopg2.connect("dbname="+self.dbname,
                                                  host=self.host,
-                                                 port=self.port)
+                                                 port=self.port,
+                                                 user=self.user)
                 except psycopg2.OperationalError as e:
                     self.info("connect(): could not connect!")
                     raise ConnectionException(e)
