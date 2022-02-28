@@ -18,7 +18,8 @@ terminal or machine (via ssh tunnel)
 
 ```
 $ cd test
-# Edit DB_HOST, LD_LIBRARY_PATH, etc. in run_deap_me.sh as necessary.
+$ export DB_HOST=<host>
+# Edit LD_LIBRARY_PATH in run_deap_me.sh if necessary.
 $ ./run_deap_me.sh
 ```
 
