@@ -7,12 +7,22 @@ import threading
 import traceback
 import time
 from datetime import datetime, timezone
+from enum import IntEnum
+from typing import Tuple
 
 import db_tools
 from db_tools import Q
 
 
-EQPY_ABORT = "EQPY_ABORT"
+class ResultStatus(IntEnum):
+    SUCCESS = 0
+    FAILURE = 1
+
+
+EQ_ABORT = 'EQ_ABORT'
+EQ_TIMEOUT = 'EQ_TIMEOUT'
+EQ_FINAL = 'EQ_FINAL'
+
 
 p = None
 aborted = False
@@ -117,7 +127,14 @@ def sql_pop_in_q(eq_task_id):
     return code
 
 
-def pop_out_queue(eq_type: int, delay, timeout):
+def pop_out_queue(eq_type: int, delay, timeout) -> Tuple:
+    """
+    Returns: A two element tuple where the first elements is one of 
+        ResultStatus.SUCCESS or ResultStatus.FAILURE. On success the
+        second element will be the popped data. On failure, the second
+        element will be one of EQ_ABORT or EQ_TIMEOUT depending on the
+        cause of the failure.
+    """
     sql_pop = sql_pop_out_q(eq_type)
     res = queue_pop(sql_pop, delay, timeout)
     print(f'pop_out_queue: {str(res)}', flush=True)
@@ -125,6 +142,13 @@ def pop_out_queue(eq_type: int, delay, timeout):
 
 
 def pop_in_queue(eq_task_id: int, delay, timeout):
+    """
+    Returns: A two element tuple where the first elements is one of 
+        ResultStatus.SUCCESS or ResultStatus.FAILURE. On success the
+        second element will be the popped data. On failure, the second
+        element will be one of EQ_ABORT or EQ_TIMEOUT depending on the
+        cause of the failure.
+    """
     sql_pop = sql_pop_in_q(eq_task_id)
     res = queue_pop(sql_pop, delay, timeout)
     print(f'pop_in_queue: {str(res)}', flush=True)
@@ -138,21 +162,25 @@ def queue_pop(sql_pop: str, delay, timeout):
     """
     global DB
     start = time.time()
-    while True:
-        DB.execute(sql_pop)
-        rs = DB.get()
-        if rs is not None:
-            break  # got good data
-        if time.time() - start > timeout:
-            break  # timeout
-        delay = delay * random.random() * 2
-        time.sleep(delay)
-        # print("OUT_get(): " + str(delay))
-        sys.stdout.flush()
-        delay = delay * 2
+    try:
+        while True:
+            DB.execute(sql_pop)
+            rs = DB.get()
+            if rs is not None:
+                break  # got good data
+            if time.time() - start > timeout:
+                return (ResultStatus.FAILURE, EQ_TIMEOUT)
+                break  # timeout
+            delay = delay * random.random() * 2
+            time.sleep(delay)
+            delay = delay * 2
+    except Exception as e:
+        info = sys.exc_info()
+        s = traceback.format_tb(info[2])
+        print('{} ...\\n{}'.format(e, ''.joins(s)), flush=True)
+        return (ResultStatus.FAILURE, EQ_ABORT)
 
-    if rs is None: return None  # timeout
-    return rs[1]
+    return (ResultStatus.SUCCESS, rs[1])
 
 
 # def queue_push(table, eq_type, eq_task_id, priority):
@@ -245,50 +273,34 @@ def IN_put(eq_type, eq_task_id):
 
 def OUT_get(eq_type, delay=0.5, timeout=2.0):
     """
-    returns eq_task_id
-    on timeout or error: returns 'EQ_ABORT'
+    Returns: A two element tuple where the first elements is one of 
+        ResultStatus.SUCCESS or ResultStatus.FAILURE. On success the
+        second element will be the queued data of the specified type.
+        On failure, the second element will be one of EQ_ABORT or EQ_TIMEOUT
+        depending on the cause of the failure.
     """
-    try:
-        print("OUT_get():")
-        sys.stdout.flush()
-        result = pop_out_queue(eq_type, delay, timeout)
-        if result is None:
-            print(f'eq.py:OUT_get(eq_task_type={eq_type}): popped None: abort!', flush=True)
-            result = "EQ_ABORT"
-    except Exception as e:
-        info = sys.exc_info()
-        s = traceback.format_tb(info[2])
-        print(str(e) + ' ... \n' + ''.join(s))
-        sys.stdout.flush()
-        result = "EQ_ABORT"
-    return result
-
-
-# def out_get_payload(eq_type):
-#     """ WIP Simplified wrapper for Swift/T """
-#     tpl = OUT_get(eq_type)
-#     result = str(tpl[0])
-#     print("out_get_payload(): result: " + result)
-#     return result
+    print("OUT_get():", flush=True)
+    pop_result = pop_out_queue(eq_type, delay, timeout)
+    if pop_result[0] != ResultStatus.SUCCESS:
+        print(f'eq.py:OUT_get(eq_task_type={eq_type}): {pop_result[1]}!', flush=True)
+    
+    return pop_result
 
 
 def IN_get(eq_task_id, delay=0.5, timeout=2.0):
     """
-    returns: eq_task_id
-    on timeout or error: returns EQ_ABORT
+    Returns: A two element tuple where the first elements is one of 
+        ResultStatus.SUCCESS or ResultStatus.FAILURE. On success the
+        second element will be the queued data for the specified task id.
+        On failure, the second element will be one of EQ_ABORT or EQ_TIMEOUT
+        depending on the cause of the failure.
     """
-    try:
-        result = pop_in_queue(eq_task_id, delay, timeout)
-        if result is None:
-            print(f'eq.py:IN_get(eq_task_id={eq_task_id}): popped None: abort!', flush=True)
-            result = "EQ_ABORT"
-    except Exception as e:
-        info = sys.exc_info()
-        s = traceback.format_tb(info[2])
-        print(str(e) + ' ... \\n' + ''.join(s))
-        sys.stdout.flush()
-        result = "EQ_ABORT"
-    return result
+    
+    pop_result = pop_in_queue(eq_task_id, delay, timeout)
+    if pop_result[0] != ResultStatus.SUCCESS:
+        print(f'eq.py:IN_get(eq_task_id={eq_task_id}): {pop_result[1]}!', flush=True)
+    
+    return pop_result
 
 
 def done(msg):
@@ -314,14 +326,15 @@ def query_task(eq_type: int, timeout: float=2.0):
         for it. If there is an issue when querying for work of that type,
         (the query times out, example), the tuple will be (-1, 'EQ_ABORT')
     """
-    msg = OUT_get(eq_type, timeout=timeout)
-    print('MSG:', msg, flush=True)
-    try:
-        eq_task_id = int(msg)
-    except:
-        return (-1, 'EQ_ABORT')
-    payload = DB_json_out(eq_task_id)
-    return (eq_task_id, payload)
+    status, result = OUT_get(eq_type, timeout=timeout)
+    print('MSG:', status, result, flush=True)
+    if status == ResultStatus.SUCCESS:
+        eq_task_id = result
+        payload = DB_json_out(eq_task_id)
+        return (eq_task_id, payload)
+    else:
+        # result will be one of EQ_ABORT or EQ_TIMEOUT
+        return (-1, result)
 
 
 def sumbit_task(exp_id: str, eq_type, payload: str, priority=0) -> int:

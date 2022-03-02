@@ -68,10 +68,11 @@ def queue_map(obj_func, pop: List[List]):
     # eq.OUT_put(create_list_of_lists_string(pops))
     payload = pop_to_json(pop, ('x', 'y'))
     eq_task_id = eq.sumbit_task('test-swift-2', SIM_WORK_TYPE, payload)
-    result_status = eq.IN_get(eq_task_id, timeout=2.0)
-    if eq.done(result_status):
+    status, ig_result = eq.IN_get(eq_task_id, timeout=2.0)
+    if status != eq.ResultStatus.SUCCESS:
         # For production this should be more robust,
         # results status can an be an abort or in future a timeout
+        print(f'Aborting ME: {ig_result}')
         return []
     result_str = eq.DB_json_in(eq_task_id)
     # print("RESULT_STR: ", result_str, flush=True)
