@@ -68,28 +68,23 @@ loop()
        b;
        b=c)
   {
-    message = eq_task_querier(SIM_WORK_TYPE);
-    string msg_parts[] = split(message, "|");
+    message msg = eq_task_querier(SIM_WORK_TYPE);
     boolean c;
-    if (msg_parts[1] == "EQ_FINAL")
-    {
-      printf("loop.swift: FINAL") =>
+    if (msg.msg_type == "status") {
+      if (msg.payload == "EQ_FINAL") {
+        printf("loop.swift: FINAL") =>
+          v = propagate() =>
+          c = false;
+        // finals = EQ_get();
+        // printf("Swift: finals: %s", finals);
+      } else {
+        printf("loop.swift: got %s: exiting!", msg.payload) =>
         v = propagate() =>
         c = false;
-      // finals = EQ_get();
-      // printf("Swift: finals: %s", finals);
-    }
-    else if (msg_parts[1] == "EQ_ABORT")
-    {
-      printf("loop.swift: got EQ_ABORT: exiting!") =>
-        v = propagate() =>
-        c = false;
-    }
-    else
-    {
-      
-      int eq_task_id = string2int(msg_parts[0]);
-      string params[] = parse_json_list(msg_parts[1]);
+      }
+    } else {
+      int eq_task_id = msg.eq_task_id;
+      string params[] = parse_json_list(msg.payload);
       string results[];
       foreach p,i in params
       {

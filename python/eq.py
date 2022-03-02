@@ -6,9 +6,10 @@ import sys
 import threading
 import traceback
 import time
+import json
 from datetime import datetime, timezone
 from enum import IntEnum
-from typing import Tuple
+from typing import Tuple, Dict
 
 import db_tools
 from db_tools import Q
@@ -23,6 +24,7 @@ EQ_ABORT = 'EQ_ABORT'
 EQ_TIMEOUT = 'EQ_TIMEOUT'
 EQ_FINAL = 'EQ_FINAL'
 
+ABORT_JSON_MSG = json.dumps({'type': 'status', 'payload': EQ_ABORT})
 
 p = None
 aborted = False
@@ -312,29 +314,37 @@ def done(msg):
     return False
 
 
-def query_task(eq_type: int, timeout: float=2.0):
+def query_task(eq_type: int, timeout: float=2.0) -> Dict:
     """
     Queries the database for work of the specified type. 
 
     Args:
         eq_type: the id of the work type
         timeout: how long to wait for a response before timing out
-        and returning (-1, EQ_ABORT)
+        and returning {'type': 'status', 'payload': EQ_TIMEOUT}
     
     Returns:
-        A tuple containing the eq_task_id for the work, and the payload
-        for it. If there is an issue when querying for work of that type,
-        (the query times out, example), the tuple will be (-1, 'EQ_ABORT')
+        A dictionary formatted message. If the query results in a
+        status update, the dictionary will have the following format:
+        {'type': 'status', 'payload': P} where P is one of 'EQ_FINAL',
+        'EQ_ABORT', or 'EQ_TIMEOUT'. If the query specifies work to be done
+        then the dictionary will be:  {'type': 'work', 'eq_task_id': eq_task_id, 
+        'payload': P} where P is the parameters for the work to be done.
+        
     """
     status, result = OUT_get(eq_type, timeout=timeout)
     print('MSG:', status, result, flush=True)
     if status == ResultStatus.SUCCESS:
         eq_task_id = result
         payload = DB_json_out(eq_task_id)
-        return (eq_task_id, payload)
+        if payload == EQ_FINAL:
+            return {'type': 'status', 'payload': EQ_FINAL}
+        else:
+            return {'type': 'work', 'eq_task_id': eq_task_id, 'payload': payload}
+        # return (eq_task_id, payload)
     else:
-        # result will be one of EQ_ABORT or EQ_TIMEOUT
-        return (-1, result)
+        return {'type': 'status', 'payload': result}
+        # return (-1, result)
 
 
 def sumbit_task(exp_id: str, eq_type, payload: str, priority=0) -> int:
