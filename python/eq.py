@@ -300,12 +300,14 @@ def done(msg):
     return False
 
 
-def query_task(eq_type: int, timeout=2.0):
+def query_task(eq_type: int, timeout: float=2.0):
     """
     Queries the database for work of the specified type. 
 
     Args:
         eq_type: the id of the work type
+        timeout: how long to wait for a response before timing out
+        and returning (-1, EQ_ABORT)
     
     Returns:
         A tuple containing the eq_task_id for the work, and the payload

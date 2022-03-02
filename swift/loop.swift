@@ -8,6 +8,7 @@ import io;
 import python;
 import string;
 import sys;
+import emews;
 
 import EQ;
 
@@ -69,6 +70,7 @@ loop()
   {
     message = eq_task_querier(SIM_WORK_TYPE);
     string msg_parts[] = split(message, "|");
+    printf(msg_parts[1]);
     boolean c;
     if (msg_parts[1] == "EQ_FINAL")
     {
@@ -88,7 +90,7 @@ loop()
     {
       
       int eq_task_id = string2int(msg_parts[0]);
-      string params[] = split(msg_parts[1], ";");
+      string params[] = parse_json_list(msg_parts[1]);
       string results[];
       foreach p,i in params
       {

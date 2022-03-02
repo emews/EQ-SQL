@@ -1,12 +1,14 @@
 
 # GA0 DEAP_GA
 
+import enum
 import json
 import numpy as np
 import os
 import random
 import sys
 import math
+from typing import Iterable, List
 
 from deap import base
 from deap import creator
@@ -49,42 +51,24 @@ def make_random_params():
     return [x1, x2]
 
 
-def create_list_of_json_strings(list_of_lists, super_delim=";"):
-    # create string of ; separated jsonified maps
+def pop_to_json(pop: List[List], param_names: Iterable[str]) -> str:
     res = []
-    global ga_params
-    for l in list_of_lists:
-        jmap = {}
-        for i,p in enumerate(['x', 'y']):
-            jmap[p] = l[i]
+    for individual in pop:
+        jmap = {name: individual[i] for i, name in enumerate(param_names)}
+        res.append(jmap)
 
-        jstring = json.dumps(jmap)
-        res.append(jstring)
+    return json.dumps(res)
 
-    return (super_delim.join(res))
-
-
-def create_json(P):
-    # super list elements separated by ;
-    print("create_json: " + str(P))
-    # See taskj.py for JSON structure
-    x, y = P
-    V = { "x": x, "y": y }
-    D = { "values": V }
-    result = json.dumps(D)
-    return result
-
-
-def queue_map(obj_func, pops):
+def queue_map(obj_func, pop: List[List]):
     """ Note that the obj_func is a dummy
         pops: data that looks like: [[x1,x2],[x1,x2],...]
     """
-    if not pops:
+    if not pop:
         return []
     # eq.OUT_put(create_list_of_lists_string(pops))
-    payload = create_list_of_json_strings(pops)
+    payload = pop_to_json(pop, ('x', 'y'))
     eq_task_id = eq.sumbit_task('test-swift-2', SIM_WORK_TYPE, payload)
-    result_status = eq.IN_get(eq_task_id, timeout=120.0)
+    result_status = eq.IN_get(eq_task_id, timeout=2.0)
     if eq.done(result_status):
         # For production this should be more robust,
         # results status can an be an abort or in future a timeout
@@ -195,9 +179,7 @@ def run():
     # eq.OUT_put(eq_type=0, params="EQ_FINAL")
     eq.DB_final(SIM_WORK_TYPE)
     # return the final population
-    msg = "{0}\n{1}\n{2}".format(create_list_of_json_strings(pop),
-                                 ';'.join(fitnesses),
-                                 log)
+    msg = "{0}\n{1}\n{2}".format(pop_to_json(pop, ('x', 'y')), ';'.join(fitnesses), log)
     # eq.OUT_put(format(msg))
     message(msg)
 
