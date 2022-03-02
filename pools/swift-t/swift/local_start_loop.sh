@@ -54,24 +54,14 @@ export DB_PORT=$CFG_DB_PORT
 # export PYTHONPATH
 # echo "PYTHONPATH: $PYTHONPATH"
 EQ_SQL=$( readlink --canonicalize $EMEWS_PROJECT_ROOT/../.. )
-PYTHONPATH=$EQ_SQL/db:$EQ_SQL/python
+export PYTHONPATH=$EQ_SQL/db:$EQ_SQL/python
 echo "PYTHONPATH: $PYTHONPATH"
 
-# export SITE=bebop
-
-# Resident task workers and ranks
-# export TURBINE_RESIDENT_WORK_WORKERS=1
-# export RESIDENT_WORK_RANKS=$(( PROCS - 2 ))
-
-# EQ/R location
-# EQR=/lcrc/project/EMEWS/bebop/repos/spack/opt/spack/linux-centos7-broadwell/gcc-7.1.0/eqr-1.0-5hb4aszbbtezlifks6fz4g24zldnkdbx
+# swift extension locations
 EQ=$EMEWS_PROJECT_ROOT/../../swift
 EMEWS_EXT=$EMEWS_PROJECT_ROOT/ext/emews
 
-
-# set machine to your schedule type (e.g. pbs, slurm, cobalt etc.),
-# or empty for an immediate non-queued unscheduled run
-MACHINE="slurm"
+MACHINE=""
 
 if [ -n "$MACHINE" ]; then
   MACHINE="-m $MACHINE"
@@ -96,14 +86,7 @@ USER_VARS=("MODEL_DIR" "STOP_AT" "MODEL_PROPS" \
  "STOP_AT")
 # log variables and script to to TURBINE_OUTPUT directory
 
-export TURBINE_LAUNCHER=srun
-# export TURBINE_SBATCH_ARGS="-c 18"
-
-PG_LIB=/lcrc/project/EMEWS/bebop/sfw/gcc-7.1.0/postgres-14.2/lib
-MKL=/lcrc/project/EMEWS/bebop/repos/spack/opt/spack/linux-centos7-broadwell/gcc-7.1.0/intel-mkl-2020.1.217-dqzfemzfucvgn2wdx7efg4swwp6zs7ww
-MKL_LIB=$MKL/mkl/lib/intel64
-MKL_OMP_LIB=$MKL/lib/intel64
-LDP=$MKL_LIB/libmkl_def.so:$MKL_LIB/libmkl_avx2.so:$MKL_LIB/libmkl_core.so:$MKL_LIB/libmkl_intel_lp64.so:$MKL_LIB/libmkl_intel_thread.so:$MKL_OMP_LIB/libiomp5.so
+# PG_LIB=/usr/lib/postgresql/12/lib
 log_script
 
 # echo's anything following this standard out
@@ -117,12 +100,9 @@ swift-t -n $PROCS $MACHINE -p \
     -e TURBINE_LOG \
     -e TURBINE_DEBUG \
     -e ADLB_DEBUG \
-    -e LD_LIBRARY_PATH=$MKL_LIB:$PG_LIB:$LD_LIBRARY_PATH \
-    -e LD_PRELOAD=$LDP \
     -e DB_HOST \
     -e DB_USER \
     -e DB_PORT \
     -e PYTHONPATH \
     $EMEWS_PROJECT_ROOT/swift/loop.swift $CMD_LINE_ARGS
 
-chmod g+rw $TURBINE_OUTPUT/*.tic

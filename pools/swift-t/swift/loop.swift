@@ -10,6 +10,7 @@ import string;
 import sys;
 
 import EQ;
+import emews;
 
 int TASK_TYPE = string2int(argv("task_type", "1"));
 
@@ -88,7 +89,7 @@ loop()
     {
       
       int eq_task_id = string2int(msg_parts[0]);
-      string params[] = split(msg_parts[1], ";");
+      string params[] = parse_json_list(msg_parts[1]);
       string results[];
       foreach p,i in params
       {

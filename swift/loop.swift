@@ -70,7 +70,6 @@ loop()
   {
     message = eq_task_querier(SIM_WORK_TYPE);
     string msg_parts[] = split(message, "|");
-    printf(msg_parts[1]);
     boolean c;
     if (msg_parts[1] == "EQ_FINAL")
     {
