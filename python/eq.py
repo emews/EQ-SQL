@@ -129,7 +129,7 @@ def sql_pop_in_q(eq_task_id):
     return code
 
 
-def pop_out_queue(eq_type: int, delay, timeout) -> Tuple:
+def pop_out_queue(eq_type: int, delay, timeout) -> Tuple[ResultStatus, str]:
     """
     Returns: A two element tuple where the first elements is one of 
         ResultStatus.SUCCESS or ResultStatus.FAILURE. On success the
@@ -157,10 +157,13 @@ def pop_in_queue(eq_task_id: int, delay, timeout):
     return res
 
 
-def queue_pop(sql_pop: str, delay, timeout):
+def queue_pop(sql_pop: str, delay, timeout) -> Tuple[ResultStatus, str]:
     """
-    returns eq_task_id
-    or None on timeout
+    Returns: A two element tuple where the first elements is one of 
+        ResultStatus.SUCCESS or ResultStatus.FAILURE. On success the
+        second element will be the popped eq_task_id. On failure, the second
+        element will be one of EQ_ABORT or EQ_TIMEOUT depending on the
+        cause of the failure.
     """
     global DB
     start = time.time()
@@ -347,8 +350,8 @@ def query_task(eq_type: int, timeout: float=2.0) -> Dict:
         # return (-1, result)
 
 
-def sumbit_task(exp_id: str, eq_type, payload: str, priority=0) -> int:
-    """Submits work to the database of the specified type and priority with the specified
+def sumbit_task(exp_id: str, eq_type: int, payload: str, priority: int=0) -> int:
+    """Submits work of the specified type and priority with the specified
     payload, returning the task id for that work.
 
     Args:
@@ -366,7 +369,7 @@ def sumbit_task(exp_id: str, eq_type, payload: str, priority=0) -> int:
     return eq_task_id
 
 
-def report_task(eq_type: int, eq_task_id: int, result):
+def report_task(eq_type: int, eq_task_id: int, result: str):
     """Reports the result of the specified task of the specified type"""
     DB_result(eq_task_id, result)
     IN_put(eq_type, eq_task_id)
