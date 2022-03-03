@@ -12,7 +12,8 @@ eq.init()
 
 
 while True:
-    eq_task_id, payload_str = eq.query_task(eq_type=0)
+    msg_map = eq.query_task(eq_type=0)
+    payload_str = msg_map['payload']
     if eq.done(payload_str):
         break
     payload = json.loads(payload_str)
@@ -24,6 +25,6 @@ while True:
         result.append(value)
         # result = '{"result":%s}' % value
 
-    eq.report_task(0, eq_task_id, json.dumps(result))
+    eq.report_task(0, msg_map['eq_task_id'], json.dumps(result))
 
 print("PY TEST 3 WF: STOP")

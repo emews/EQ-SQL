@@ -9,7 +9,8 @@ print("PY TEST 1 WF: START")
 eq.init()
 
 while True:
-    eq_task_id, params = eq.query_task(eq_type=0)
+    msg_map = eq.query_task(eq_type=0)
+    params = msg_map['payload']
     if params == "EQ_FINAL":
         break
     if params == "EQ_ABORT":
