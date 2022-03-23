@@ -9,7 +9,10 @@ if (! eq.init()) {
   quit(status=1)
 }
 
-eq.OUT_put(eq_type=0, sprintf('{"params":%i}', 42))
+task_id <- eq.submit.task('test_py_1', 0, "{params: 42)")
+print(paste0('task_id: ', task_id))
+
+print("R TEST 1 ME: STOP")
 
 # Local Variables:
 # mode: R;

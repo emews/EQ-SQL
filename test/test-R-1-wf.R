@@ -9,9 +9,9 @@ if (! eq.init()) {
   quit(status=1)
 }
 
-msg <- eq.OUT_get(eq_type=0, delay=1, timeout=3)
 
-cat("msg: ", msg, "\n")
+msg <- eq.query.task(eq_type=0)
+print(msg)
 
 print("R TEST 1 WF: STOP")
 

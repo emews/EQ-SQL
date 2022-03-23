@@ -14,7 +14,8 @@ options(repos = r)
 PKGS <- list(
     "R.utils"
     "devtools"
-    "RPostgres"
+    "RPostgres",
+    "logger"
 )
 
 for (pkg in PKGS) {
