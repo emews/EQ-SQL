@@ -209,7 +209,6 @@ def DB_submit(exp_id, eq_type, payload):
 def DB_json_out(eq_task_id):
     """ return the json_out for the int eq_task_id """
     global DB
-    print("DB_json_out", flush=True)
     DB.select("eq_tasks", "json_out", f'eq_task_id={eq_task_id}')
     rs = DB.get()
     ts = datetime.now(timezone.utc).astimezone().isoformat()
@@ -221,8 +220,6 @@ def DB_json_out(eq_task_id):
 def DB_json_in(eq_task_id):
     """ return the json_in for the int eq_task_id """
     global DB
-    print("DB_json_out")
-    sys.stdout.flush()
     DB.select("eq_tasks", "json_in", f'eq_task_id={eq_task_id}')
     rs = DB.get()
     result = rs[0]
@@ -237,7 +234,7 @@ def DB_result(eq_task_id, payload):
                               where=f'eq_task_id={eq_task_id}')
 
 
-def DB_final(eq_type: int=0):
+def DB_final(eq_type: int):
     global DB
     DB.execute("select nextval('emews_id_generator');")
     rs = DB.get()
@@ -311,8 +308,8 @@ def IN_get(eq_task_id, delay=0.5, timeout=2.0):
 def done(msg):
     if msg == "EQ_FINAL":
         return True
-    if msg == "EQ_ABORT":
-        print("eq.done(): WARNING: EQ_ABORT")
+    if msg == "EQ_ABORT" or msg == "EQ_TIMEOUT":
+        print(f"eq.done(): WARNING: {msg}")
         return True
     return False
 
