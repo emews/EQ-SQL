@@ -71,7 +71,7 @@ loop()
     message msg = eq_task_querier(TASK_TYPE);
     boolean c;
     if (msg.msg_type == "status") {
-      if (msg.payload == "EQ_FINAL") {
+      if (msg.payload == "EQ_STOP") {
         printf("loop.swift: FINAL") =>
           v = propagate() =>
           c = false;

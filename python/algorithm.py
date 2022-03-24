@@ -153,8 +153,8 @@ def run():
 
     fitnesses = [str(p.fitness.values[0]) for p in pop]
 
-    # eq.OUT_put(eq_type=0, params="EQ_FINAL")
-    eq.DB_final(SIM_WORK_TYPE)
+    # eq.OUT_put(eq_type=0, params="EQ_STOP")
+    eq.stop_worker_pool(SIM_WORK_TYPE)
     # return the final population
     msg = "{0}\n{1}\n{2}".format(pop_to_json(pop, ('x', 'y')), ';'.join(fitnesses), log)
     # eq.OUT_put(format(msg))

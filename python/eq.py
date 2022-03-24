@@ -22,7 +22,7 @@ class ResultStatus(IntEnum):
 
 EQ_ABORT = 'EQ_ABORT'
 EQ_TIMEOUT = 'EQ_TIMEOUT'
-EQ_FINAL = 'EQ_FINAL'
+EQ_STOP = 'EQ_STOP'
 
 ABORT_JSON_MSG = json.dumps({'type': 'status', 'payload': EQ_ABORT})
 
@@ -235,13 +235,13 @@ def DB_result(eq_task_id, payload):
               where=f'eq_task_id={eq_task_id}')
 
 
-def DB_final(eq_type: int):
+def stop_worker_pool(eq_type: int):
     global DB
     DB.execute("select nextval('emews_id_generator');")
     rs = DB.get()
     eq_task_id = rs[0]
     DB.insert("eq_tasks", ["eq_task_id", "eq_task_type", "json_out"],
-              [eq_task_id, eq_type, Q("EQ_FINAL")])
+              [eq_task_id, eq_type, Q("EQ_STOP")])
     OUT_put(eq_type, eq_task_id)
     return eq_task_id
 
@@ -305,7 +305,7 @@ def IN_get(eq_task_id, delay=0.5, timeout=2.0):
 
 
 def done(msg):
-    if msg == "EQ_FINAL":
+    if msg == "EQ_STOP":
         return True
     if msg == "EQ_ABORT" or msg == "EQ_TIMEOUT":
         print(f"eq.done(): WARNING: {msg}")
@@ -325,7 +325,7 @@ def query_task(eq_type: int, timeout: float=2.0) -> Dict:
     Returns:
         A dictionary formatted message. If the query results in a
         status update, the dictionary will have the following format:
-        {'type': 'status', 'payload': P} where P is one of 'EQ_FINAL',
+        {'type': 'status', 'payload': P} where P is one of 'EQ_STOP',
         'EQ_ABORT', or 'EQ_TIMEOUT'. If the query specifies work to be done
         then the dictionary will be:  {'type': 'work', 'eq_task_id': eq_task_id,
         'payload': P} where P is the parameters for the work to be done.
@@ -336,8 +336,8 @@ def query_task(eq_type: int, timeout: float=2.0) -> Dict:
     if status == ResultStatus.SUCCESS:
         eq_task_id = result
         payload = DB_json_out(eq_task_id)
-        if payload == EQ_FINAL:
-            return {'type': 'status', 'payload': EQ_FINAL}
+        if payload == EQ_STOP:
+            return {'type': 'status', 'payload': EQ_STOP}
         else:
             return {'type': 'work', 'eq_task_id': eq_task_id, 'payload': payload}
         # return (eq_task_id, payload)

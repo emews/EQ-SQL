@@ -19,6 +19,6 @@ for i in range(0, 3):
     assert result[1] == json.dumps([0, 1, 2])
     print(f'VALUE: {result[1]}')
 
-eq.DB_final(0)
+eq.stop_worker_pool(0)
 
 print("PY TEST 3 ME: STOP")

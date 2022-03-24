@@ -6,7 +6,7 @@ ResultStatus <- list(SUCCESS=0, FAILURE=1)
 
 EQ_ABORT <- 'EQ_ABORT'
 EQ_TIMEOUT <- 'EQ_TIMEOUT'
-EQ_FINAL <- 'EQ_FINAL'
+EQ_STOP <- 'EQ_STOP'
 
 
 #' @export
@@ -60,7 +60,7 @@ eq.submit.task <- function(exp_id, eq_type, payload, priority=0) {
 # Queries the database for work of the specified type. 
 # A named list formatted message. If the query results in a
 # status update, the dictionary will have the following format:
-# ('type': 'status', 'payload': P} where P is one of 'EQ_FINAL',
+# ('type': 'status', 'payload': P} where P is one of 'EQ_STOP',
 # 'EQ_ABORT', or 'EQ_TIMEOUT'. If the query specifies work to be done
 # then the dictionary will be:  {'type': 'work', 'eq_task_id': eq_task_id, 
 # 'payload': P} where P is the parameters for the work to be done.
@@ -73,8 +73,8 @@ eq.query.task <- function(eq_type, timeout=2.0) {
         # print(paste0("eq_task_id ", eq_task_id))
         payload = DB.json.out(eq_task_id)
         # print(paste0('Payload: ', payload))
-        if (payload == EQ_FINAL) {
-            return(list(type='status', payload='EQ_FINAL'))
+        if (payload == EQ_STOP) {
+            return(list(type='status', payload='EQ_STOP'))
         } else {
             return(list(type='work', eq_task_id=eq_task_id, payload=payload))
         }
@@ -124,7 +124,7 @@ eq.query.result <- function(eq_task_id, delay, timeout) {
 #     """
 #' @export
 eq.done <- function(msg) {
-    if (msg == EQ_FINAL) {
+    if (msg == EQ_STOP) {
         return(TRUE)
     }
 
@@ -190,10 +190,10 @@ eq.IN_get <- function(eq_task_id, delay=0.5, timeout=2.0) {
 }
 
 #' @export
-eq.DB.final <- function(eq_type) {
+eq.stop.worker.pool <- function(eq_type) {
     eq_task_id <- SQL.ID()
     SQL.insert('eq_tasks', list("eq_task_id", "eq_task_type", "json_out"),
-               list(eq_task_id , eq_type, Q(EQ_FINAL)))
+               list(eq_task_id , eq_type, Q(EQ_STOP)))
     eq.OUT_put(eq_type, eq_task_id)
     eq_task_id
 }

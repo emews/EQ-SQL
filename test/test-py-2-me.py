@@ -18,6 +18,6 @@ for i in range(0, 3):
         break
 
     assert result[1] == '{"result":%i}' % i, "msg='%s'" % str(result)
-eq.DB_final(0)
+eq.stop_worker_pool(0)
 
 print("PY TEST 2 ME: STOP")

@@ -23,6 +23,6 @@ for (i in seq(3)) {
   cat("results: ", results, "\n")
 }
 
-eq.OUT_put(eq_type=0, "EQ_FINAL")
+eq.OUT_put(eq_type=0, "EQ_STOP")
 
 print("TEST SWIFT 4 ME: STOP")

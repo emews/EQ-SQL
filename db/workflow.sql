@@ -26,7 +26,7 @@ create table eq_tasks (
        eq_status integer,
        /* the task type, eq_type==0 means "any type" */
        eq_task_type integer,
-       /* JSON-formatted payload from the OUT queue or status message, e.g., "EQ_FINAL" */
+       /* JSON-formatted payload from the OUT queue or status message, e.g., "EQ_STOP" */
        json_out text,
        /* JSON-formatted payload for the IN queue */
        json_in  text,

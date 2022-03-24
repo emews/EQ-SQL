@@ -11,7 +11,7 @@ eq.init()
 while True:
     msg_map = eq.query_task(eq_type=0)
     params = msg_map['payload']
-    if params == "EQ_FINAL":
+    if params == "EQ_STOP":
         break
     if params == "EQ_ABORT":
         break

@@ -39,7 +39,7 @@ loop()
     message = EQ_get(1);
     // printf("swift: message: %s", message);
     boolean c;
-    if (message == "EQ_FINAL")
+    if (message == "EQ_STOP")
     {
       printf("loopj.swift: FINAL") =>
         v = propagate() =>

@@ -23,5 +23,5 @@ for (i in seq(3)) {
   cat("results: ", result[[2]], "\n")
 }
 
-eq.DB.final(1)
+eq.stop.worker.pool(1)
 print("TEST SWIFT 2 ME R: STOP")

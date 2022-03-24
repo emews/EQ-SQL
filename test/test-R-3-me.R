@@ -20,5 +20,5 @@ for (i in seq(3)) {
     stopifnot(all(r_list == c(0, 1, 2)))
 }
 
-f_task_id <- eq.DB.final(0)
+f_task_id <- eq.stop.worker.pool(0)
 print("R TEST 3 ME: STOP")
