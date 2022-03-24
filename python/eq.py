@@ -32,6 +32,7 @@ wait_info = None
 # The psycopg2 handle:
 DB = None
 
+
 class WaitInfo:
 
     def __init__(self):
@@ -131,7 +132,7 @@ def sql_pop_in_q(eq_task_id):
 
 def pop_out_queue(eq_type: int, delay, timeout) -> Tuple[ResultStatus, str]:
     """
-    Returns: A two element tuple where the first elements is one of 
+    Returns: A two element tuple where the first elements is one of
         ResultStatus.SUCCESS or ResultStatus.FAILURE. On success the
         second element will be the popped data. On failure, the second
         element will be one of EQ_ABORT or EQ_TIMEOUT depending on the
@@ -145,7 +146,7 @@ def pop_out_queue(eq_type: int, delay, timeout) -> Tuple[ResultStatus, str]:
 
 def pop_in_queue(eq_task_id: int, delay, timeout):
     """
-    Returns: A two element tuple where the first elements is one of 
+    Returns: A two element tuple where the first elements is one of
         ResultStatus.SUCCESS or ResultStatus.FAILURE. On success the
         second element will be the popped data. On failure, the second
         element will be one of EQ_ABORT or EQ_TIMEOUT depending on the
@@ -159,7 +160,7 @@ def pop_in_queue(eq_task_id: int, delay, timeout):
 
 def queue_pop(sql_pop: str, delay, timeout) -> Tuple[ResultStatus, str]:
     """
-    Returns: A two element tuple where the first elements is one of 
+    Returns: A two element tuple where the first elements is one of
         ResultStatus.SUCCESS or ResultStatus.FAILURE. On success the
         second element will be the popped eq_task_id. On failure, the second
         element will be one of EQ_ABORT or EQ_TIMEOUT depending on the
@@ -200,9 +201,9 @@ def DB_submit(exp_id, eq_type, payload):
     eq_task_id = rs[0]
     ts = datetime.now(timezone.utc).astimezone().isoformat()
     DB.insert("eq_tasks", ["eq_task_id", "eq_task_type", "json_out", "time_created"],
-              [ eq_task_id , eq_type, Q(payload), Q(ts)])
+              [eq_task_id, eq_type, Q(payload), Q(ts)])
     DB.insert("eq_exp_id_tasks", ["exp_id", "eq_task_id"],
-              [Q(exp_id),  eq_task_id])
+              [Q(exp_id), eq_task_id])
     return eq_task_id
 
 
@@ -231,7 +232,7 @@ def DB_result(eq_task_id, payload):
     print("DB_result:", flush=True)
     ts = datetime.now(timezone.utc).astimezone().isoformat()
     DB.update("eq_tasks", ["json_in", 'time_stop'], [Q(payload), Q(ts)],
-                              where=f'eq_task_id={eq_task_id}')
+              where=f'eq_task_id={eq_task_id}')
 
 
 def DB_final(eq_type: int):
@@ -240,7 +241,7 @@ def DB_final(eq_type: int):
     rs = DB.get()
     eq_task_id = rs[0]
     DB.insert("eq_tasks", ["eq_task_id", "eq_task_type", "json_out"],
-                              [ eq_task_id , eq_type, Q("EQ_FINAL")])
+              [eq_task_id, eq_type, Q("EQ_FINAL")])
     OUT_put(eq_type, eq_task_id)
     return eq_task_id
 
@@ -249,8 +250,8 @@ def OUT_put(eq_type, eq_task_id, priority=0):
     """"""
     try:
         # queue_push("emews_queue_OUT", eq_type, eq_task_id, priority)
-        DB.insert('emews_queue_OUT', ["eq_task_type",  "eq_task_id", "eq_priority"],
-                     [ eq_type, eq_task_id, priority])
+        DB.insert('emews_queue_OUT', ["eq_task_type", "eq_task_id", "eq_priority"],
+                  [eq_type, eq_task_id, priority])
 
     except Exception as e:
         info = sys.exc_info()
@@ -262,10 +263,8 @@ def OUT_put(eq_type, eq_task_id, priority=0):
 
 def IN_put(eq_type, eq_task_id):
     try:
-        DB.insert('emews_queue_IN', ["eq_task_type",  "eq_task_id"],
-                     [ eq_type, eq_task_id])
-
-        #queue_push("emews_queue_IN", eq_type, eq_task_id)
+        DB.insert('emews_queue_IN', ["eq_task_type", "eq_task_id"],
+                  [eq_type, eq_task_id])
     except Exception as e:
         info = sys.exc_info()
         s = traceback.format_tb(info[2])
@@ -275,7 +274,7 @@ def IN_put(eq_type, eq_task_id):
 
 def OUT_get(eq_type, delay=0.5, timeout=2.0):
     """
-    Returns: A two element tuple where the first elements is one of 
+    Returns: A two element tuple where the first elements is one of
         ResultStatus.SUCCESS or ResultStatus.FAILURE. On success the
         second element will be the queued data of the specified type.
         On failure, the second element will be one of EQ_ABORT or EQ_TIMEOUT
@@ -285,23 +284,23 @@ def OUT_get(eq_type, delay=0.5, timeout=2.0):
     pop_result = pop_out_queue(eq_type, delay, timeout)
     if pop_result[0] != ResultStatus.SUCCESS:
         print(f'eq.py:OUT_get(eq_task_type={eq_type}): {pop_result[1]}!', flush=True)
-    
+
     return pop_result
 
 
 def IN_get(eq_task_id, delay=0.5, timeout=2.0):
     """
-    Returns: A two element tuple where the first elements is one of 
+    Returns: A two element tuple where the first elements is one of
         ResultStatus.SUCCESS or ResultStatus.FAILURE. On success the
         second element will be the queued data for the specified task id.
         On failure, the second element will be one of EQ_ABORT or EQ_TIMEOUT
         depending on the cause of the failure.
     """
-    
+
     pop_result = pop_in_queue(eq_task_id, delay, timeout)
     if pop_result[0] != ResultStatus.SUCCESS:
         print(f'eq.py:IN_get(eq_task_id={eq_task_id}): {pop_result[1]}!', flush=True)
-    
+
     return pop_result
 
 
@@ -316,21 +315,21 @@ def done(msg):
 
 def query_task(eq_type: int, timeout: float=2.0) -> Dict:
     """
-    Queries the database for work of the specified type. 
+    Queries the database for work of the specified type.
 
     Args:
         eq_type: the id of the work type
         timeout: how long to wait for a response before timing out
         and returning {'type': 'status', 'payload': EQ_TIMEOUT}
-    
+
     Returns:
         A dictionary formatted message. If the query results in a
         status update, the dictionary will have the following format:
         {'type': 'status', 'payload': P} where P is one of 'EQ_FINAL',
         'EQ_ABORT', or 'EQ_TIMEOUT'. If the query specifies work to be done
-        then the dictionary will be:  {'type': 'work', 'eq_task_id': eq_task_id, 
+        then the dictionary will be:  {'type': 'work', 'eq_task_id': eq_task_id,
         'payload': P} where P is the parameters for the work to be done.
-        
+
     """
     status, result = OUT_get(eq_type, timeout=timeout)
     print('MSG:', status, result, flush=True)
@@ -356,10 +355,9 @@ def sumbit_task(exp_id: str, eq_type: int, payload: str, priority: int=0) -> int
         eq_type: the type of work
         payload: the work payload
         priority: the priority of this work
-    
+
     Returns:
         task_id: the task id for the work
-    
     """
     eq_task_id = DB_submit(exp_id, eq_type, payload)
     OUT_put(eq_type, eq_task_id, priority)
