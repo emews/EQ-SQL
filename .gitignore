@@ -2,6 +2,7 @@
 *.out
 *.pyc
 *.tic
+.vscode
 
 # R-generated package
 *.tar.gz
