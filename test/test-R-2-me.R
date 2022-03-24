@@ -11,14 +11,16 @@ for (i in seq(1,3)) {
     payload <- sprintf('{"p": %i}', i)
     # print(paste0('Payload: ', payload))
     eq_task_id <- eq.submit.task('r_test_2', eq_type=0, payload=payload)
-    res <- eq.IN_get(eq_task_id, timeout=5.0)
-    if (eq.done(res[[2]])) break
-    result_str <- DB.json.in(eq_task_id)
-    r_list = fromJSON(result_str)
+    result <- eq.query.result(eq_task_id)
+    if (result[[1]] != ResultStatus$SUCCESS) {
+        print(result)
+        break
+    }
+    r_list = fromJSON(result[[2]])
     # print(result)
     stopifnot(r_list$result == i)
 }
 
-f_task_id <- eq.DB.final()
+f_task_id <- eq.DB.final(0)
 
 print("R TEST 2 ME: STOP")

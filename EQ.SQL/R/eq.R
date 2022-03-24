@@ -1,7 +1,9 @@
 library(logger)
 library(glue)
 
+#' @export
 ResultStatus <- list(SUCCESS=0, FAILURE=1)
+
 EQ_ABORT <- 'EQ_ABORT'
 EQ_TIMEOUT <- 'EQ_TIMEOUT'
 EQ_FINAL <- 'EQ_FINAL'
@@ -90,6 +92,36 @@ eq.report.task <- function(eq_type, eq_task_id, result) {
 }
 
 
+#' @export
+eq.query.result <- function(eq_task_id, delay, timeout) {
+    msg <- eq.IN_get(eq_task_id)
+    if (msg[[1]] != ResultStatus$SUCCESS) {
+        return(msg)
+    }
+    result <- DB.json.in(eq_task_id)    
+    list(ResultStatus$SUCCESS, result)
+}
+
+# Python doc:
+# """Queries for the result of the specified task.
+
+#     The query repeated polls for a result. The polling interval is specified by
+#     the delay such that the first interval is defined by the initial delay value
+#     which is increased exponentionally after the first poll. The polling will
+#     timeout after the amount of time specified by the timout value is has elapsed.
+
+#     Args:
+#         eq_task_id: the id of the task to query
+#         delay: the initial polling delay value
+#         timeout: the duration after which the query will timeout
+
+#     Returns:
+#         A tuple whose first element indicates the status of the query:
+#         ResultStatus.SUCCESS or ResultStatus.FAILURE, and whose second element
+#         is either result of the task, or in the case of failure the reason
+#         for the failure (EQ_TIMEOUT, or EQ_ABORT)
+
+#     """
 #' @export
 eq.done <- function(msg) {
     if (msg == EQ_FINAL) {

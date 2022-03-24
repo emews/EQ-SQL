@@ -80,6 +80,7 @@ def queue_map(obj_func, pop: List[List]):
     # if max'ing or min'ing and use -9999999 or 99999999
     return [(x,) if not math.isnan(x) else (float(99999999),) for x in result]
 
+
 def mutate_Gaussian_float(x):
     global sigma
     x += random.gauss(0, sigma)

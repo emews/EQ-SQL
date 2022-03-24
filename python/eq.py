@@ -371,6 +371,25 @@ def report_task(eq_type: int, eq_task_id: int, result: str):
 
 
 def query_result(eq_task_id: int, delay: float=0.5, timeout: float=2.0) -> Tuple:
+    """Queries for the result of the specified task.
+
+    The query repeated polls for a result. The polling interval is specified by
+    the delay such that the first interval is defined by the initial delay value
+    which is increased exponentionally after the first poll. The polling will
+    timeout after the amount of time specified by the timout value is has elapsed.
+
+    Args:
+        eq_task_id: the id of the task to query
+        delay: the initial polling delay value
+        timeout: the duration after which the query will timeout
+
+    Returns:
+        A tuple whose first element indicates the status of the query:
+        ResultStatus.SUCCESS or ResultStatus.FAILURE, and whose second element
+        is either result of the task, or in the case of failure the reason
+        for the failure (EQ_TIMEOUT, or EQ_ABORT)
+
+    """
     msg = IN_get(eq_task_id, delay, timeout)
     if msg[0] != ResultStatus.SUCCESS:
         return msg
