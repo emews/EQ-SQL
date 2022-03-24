@@ -59,6 +59,7 @@ def pop_to_json(pop: List[List], param_names: Iterable[str]) -> str:
 
     return json.dumps(res)
 
+
 def queue_map(obj_func, pop: List[List]):
     """ Note that the obj_func is a dummy
         pops: data that looks like: [[x1,x2],[x1,x2],...]
@@ -67,43 +68,17 @@ def queue_map(obj_func, pop: List[List]):
         return []
     # eq.OUT_put(create_list_of_lists_string(pops))
     payload = pop_to_json(pop, ('x', 'y'))
-    eq_task_id = eq.sumbit_task('test-swift-2', SIM_WORK_TYPE, payload)
-    status, ig_result = eq.IN_get(eq_task_id, timeout=2.0)
+    eq_task_id = eq.submit_task('test-swift-2', SIM_WORK_TYPE, payload)
+    status, result_str = eq.query_result(eq_task_id, timeout=4.0)
     if status != eq.ResultStatus.SUCCESS:
         # For production this should be more robust,
         # results status can an be an abort or in future a timeout
-        print(f'Aborting ME: {ig_result}')
+        print(f'Aborting ME: {result_str}')
         return []
-    result_str = eq.DB_json_in(eq_task_id)
     # print("RESULT_STR: ", result_str, flush=True)
     result = json.loads(result_str)
     # if max'ing or min'ing and use -9999999 or 99999999
     return [(x,) if not math.isnan(x) else (float(99999999),) for x in result]
-
-    # eq_ids = []
-    # for point in pops:
-    #     eq_id = eq.DB_submit(eq_type=0, payload=create_json(point))
-    #     eq_ids.append(eq_id)
-    # eq_ids_bunch = ";".join([ str(x) for x in eq_ids ])
-    # eq.OUT_put(0, eq_ids_bunch)
-    # eq_ids_bunch = eq.IN_get(eq_type=0)
-    # message("IN_get(): tpl: " + str(eq_ids_bunch))
-    # if eq.done(eq_ids_bunch):
-    #     message("exiting: payload=" + eq_ids_bunch)
-    #     # DEAP has no early stopping: Cf. issue #271
-    #     exit(1)
-    # # Split results string on semicolon
-    # tokens = eq_ids_bunch.split(';')
-    # # Get the JSON for each eq_id
-    # strings = [ eq.DB_json_in(int(token)) for token in tokens ]
-    # # Parse each JSON fragment:
-    # Js = [ json.loads(s) for s in strings ]
-    # # Extract results from JSON and convert to floats in mono-tuples
-    # values = [ (float(x["result"]),) for x in Js ]
-    # # return [(float(x["result"]),) for x in split_result]
-    # print("algorithm: values: " + str(values))
-    # return values
-
 
 def mutate_Gaussian_float(x):
     global sigma

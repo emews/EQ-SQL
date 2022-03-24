@@ -346,7 +346,7 @@ def query_task(eq_type: int, timeout: float=2.0) -> Dict:
         # return (-1, result)
 
 
-def sumbit_task(exp_id: str, eq_type: int, payload: str, priority: int=0) -> int:
+def submit_task(exp_id: str, eq_type: int, payload: str, priority: int=0) -> int:
     """Submits work of the specified type and priority with the specified
     payload, returning the task id for that work.
 
@@ -368,3 +368,12 @@ def report_task(eq_type: int, eq_task_id: int, result: str):
     """Reports the result of the specified task of the specified type"""
     DB_result(eq_task_id, result)
     IN_put(eq_type, eq_task_id)
+
+
+def query_result(eq_task_id: int, delay: float=0.5, timeout: float=2.0) -> Tuple:
+    msg = IN_get(eq_task_id, delay, timeout)
+    if msg[0] != ResultStatus.SUCCESS:
+        return msg
+
+    result = DB_json_in(eq_task_id)
+    return (ResultStatus.SUCCESS, result)
