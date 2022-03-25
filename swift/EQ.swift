@@ -61,7 +61,7 @@ try:
     print('swift in_put', flush=True)
     eq_task_id = %i
     eq_type = %i
-    eq.report_task(eq_type, eq_task_id, '%s')
+    eq.report_task(eq_task_id, eq_type, '%s')
 except Exception as e:
     import sys, traceback
     info = sys.exc_info()
