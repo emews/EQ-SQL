@@ -18,11 +18,11 @@ for (i in seq(3)) {
   D <- list(values=L)
   J = toJSON(D)
   cat("R toJSON: ", J, "\n")
-  eq.OUT_put(eq_type=0, J)
+  eq_push_out_queue(eq_type=0, J)
   results <- eq.IN_get(eq_type=0)
   cat("results: ", results, "\n")
 }
 
-eq.OUT_put(eq_type=0, "EQ_STOP")
+eq_push_out_queue(eq_type=0, "EQ_STOP")
 
 print("TEST SWIFT 4 ME: STOP")

@@ -5,11 +5,11 @@ library(EQ.SQL)
 
 print("R TEST 1 ME: START")
 
-if (! eq.init()) {
+if (! eq_init()) {
   quit(status=1)
 }
 
-task_id <- eq.submit.task('test_py_1', 0, "{params: 42)")
+task_id <- eq_submit_task('test_py_1', 0, "{params: 42)")
 print(paste0('task_id: ', task_id))
 
 print("R TEST 1 ME: STOP")

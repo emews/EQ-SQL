@@ -28,7 +28,7 @@ for (iteration in 1:iterations) {
       D <- list(values=L)
       J = toJSON(D)
       # cat("R toJSON: ", J, "\n")
-      eq.OUT_put(type, J)
+      eq_push_out_queue(type, J)
     }
     for (sample in 1:samples) {
       printf("R POOLS 1 ME: GET: %i\n", type)
@@ -40,7 +40,7 @@ for (iteration in 1:iterations) {
   print("R POOLS 1 ME: TYPES DONE")
 }   # next iteration
 
-# eq.OUT_put(sprintf("message:%i", 42))
+# eq_push_out_queue(sprintf("message:%i", 42))
 
 print("R POOLS 1 ME: STOP")
 

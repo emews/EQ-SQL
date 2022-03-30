@@ -13,12 +13,12 @@ eq.init()
 while True:
     msg_map = eq.query_task(0)
     payload = msg_map['payload']
-    if eq.done(payload):
+    if msg_map['type'] != 'work':
         break
     J = json.loads(payload)
     print("J: %s" % str(J))
     value = J["params"]
     result = '{"result":%s}' % value
-    eq.report_task(0, msg_map['eq_task_id'], result)
+    eq.report_task(msg_map['eq_task_id'], 0, result)
 
 print("PY TEST 2 WF: STOP")

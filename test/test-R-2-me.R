@@ -3,15 +3,15 @@ library(jsonlite)
 
 print("R TEST 2 ME: START")
 
-if (! eq.init()) {
+if (! eq_init()) {
   quit(status=1)
 }
 
 for (i in seq(1,3)) {
     payload <- sprintf('{"p": %i}', i)
     # print(paste0('Payload: ', payload))
-    eq_task_id <- eq.submit.task('r_test_2', eq_type=0, payload=payload)
-    result <- eq.query.result(eq_task_id)
+    eq_task_id <- eq_submit_task('r_test_2', eq_type=0, payload=payload)
+    result <- eq_query_result(eq_task_id)
     if (result[[1]] != ResultStatus$SUCCESS) {
         print(result)
         break
@@ -21,6 +21,6 @@ for (i in seq(1,3)) {
     stopifnot(r_list$result == i)
 }
 
-f_task_id <- eq.stop.worker.pool(0)
+f_task_id <- eq_stop_worker_pool(0)
 
 print("R TEST 2 ME: STOP")

@@ -1,7 +1,5 @@
 
 # GA0 DEAP_GA
-
-import enum
 import json
 import numpy as np
 import os
@@ -71,8 +69,6 @@ def queue_map(obj_func, pop: List[List]):
     eq_task_id = eq.submit_task('test-swift-2', SIM_WORK_TYPE, payload)
     status, result_str = eq.query_result(eq_task_id, timeout=4.0)
     if status != eq.ResultStatus.SUCCESS:
-        # For production this should be more robust,
-        # results status can an be an abort or in future a timeout
         print(f'Aborting ME: {result_str}')
         return []
     # print("RESULT_STR: ", result_str, flush=True)
