@@ -140,7 +140,7 @@ def _sql_pop_in_q(eq_task_id) -> str:
     return code
 
 
-def pop_out_queue(eq_type: int, delay, timeout) -> Tuple[ResultStatus, int]:
+def pop_out_queue(eq_type: int, delay, timeout) -> Tuple:
     """Pops the highest priority task of the specified work type off
     of the db out queue.
 
@@ -168,7 +168,7 @@ def pop_out_queue(eq_type: int, delay, timeout) -> Tuple[ResultStatus, int]:
     return res
 
 
-def pop_in_queue(eq_task_id: int, delay, timeout):
+def pop_in_queue(eq_task_id: int, delay, timeout) -> Tuple:
     """Pops the specified task off of the db in queue.
 
     This call repeatedly polls for a task with specified id. The polling
@@ -261,7 +261,7 @@ def push_out_queue(eq_task_id, eq_type, priority=0) -> ResultStatus:
         return ResultStatus.FAILURE
 
 
-def push_in_queue(eq_task_id, eq_type):
+def push_in_queue(eq_task_id, eq_type) -> ResultStatus:
     """Pushes the specified task onto the input queue.
 
     Args:
@@ -281,7 +281,7 @@ def push_in_queue(eq_task_id, eq_type):
         return ResultStatus.FAILURE
 
 
-def insert_task(exp_id: str, eq_type: int, payload: str) -> int:
+def insert_task(exp_id: str, eq_type: int, payload: str) -> Tuple:
     """Inserts the specified payload to the database, creating
     a task entry for it and returning its assigned task id
 
@@ -293,7 +293,7 @@ def insert_task(exp_id: str, eq_type: int, payload: str) -> int:
     Returns:
         A tuple whose first element is the ResultStatus of the insert, and
         whose second element is the task id assigned to this task if the insert
-        was successfull, otherwise -1.
+        was successfull, otherwise EQ_ABORT.
     """
     try:
         global DB
@@ -308,12 +308,12 @@ def insert_task(exp_id: str, eq_type: int, payload: str) -> int:
     except Exception as e:
         logger.error(f'insert_task error: {e}')
         logger.error(f'insert_task error {traceback.format_exc()}')
-        return (ResultStatus.FAILURE, -1)
+        return (ResultStatus.FAILURE, EQ_ABORT)
 
     return (ResultStatus.SUCCESS, eq_task_id)
 
 
-def select_task_payload(eq_task_id: int) -> str:
+def select_task_payload(eq_task_id: int) -> Tuple[ResultStatus, str]:
     """Selects the 'json_out' payload associated with the specified task id in
     the eq_tasks table, setting the start time of the task to
     the current time.
@@ -333,14 +333,14 @@ def select_task_payload(eq_task_id: int) -> str:
         DB.update("eq_tasks", ['time_start'], [Q(ts)], where=f'eq_task_id={eq_task_id}')
         result = rs[0]
     except Exception as e:
-        logger.error(f'select task payload error: {e}')
-        logger.error(f'select task payload error {traceback.format_exc()}')
+        logger.error(f'select_task_payload error: {e}')
+        logger.error(f'select_task_payload error {traceback.format_exc()}')
         return (ResultStatus.FAILURE, EQ_ABORT)
 
     return (ResultStatus.SUCCESS, result)
 
 
-def select_task_result(eq_task_id: int) -> str:
+def select_task_result(eq_task_id: int) -> Tuple[ResultStatus, str]:
     """Selects the result ('json_in') payload associated with the specified task id in
     the eq_tasks table.
 
@@ -364,7 +364,7 @@ def select_task_result(eq_task_id: int) -> str:
     return (ResultStatus.SUCCESS, result)
 
 
-def update_task(eq_task_id: int, payload: str):
+def update_task(eq_task_id: int, payload: str) -> ResultStatus:
     """Updates the specified task in the eq_tasks table with the specified
     result ('json_in') payload. This also updates the 'time_stop'
     to the time when the update occurred.
@@ -388,7 +388,7 @@ def update_task(eq_task_id: int, payload: str):
         return ResultStatus.FAILURE
 
 
-def stop_worker_pool(eq_type: int):
+def stop_worker_pool(eq_type: int) -> ResultStatus:
     """Stops any workers pools associated with the specified work type by
     pusing EQ_STOP into the queue.
 
@@ -451,7 +451,7 @@ def query_task(eq_type: int, delay: float = 0.5, timeout: float = 2.0) -> Dict:
         return {'type': 'status', 'payload': result}
 
 
-def submit_task(exp_id: str, eq_type: int, payload: str, priority: int = 0) -> int:
+def submit_task(exp_id: str, eq_type: int, payload: str, priority: int = 0) -> Tuple:
     """Submits work of the specified type and priority with the specified
     payload, returning the task id assigned to that task.
 
@@ -462,7 +462,9 @@ def submit_task(exp_id: str, eq_type: int, payload: str, priority: int = 0) -> i
         priority: the priority of this work
 
     Returns:
-        the task id for the work
+        A tuple whose first element is the ResultStatus of the submission, and
+        whose second element is the task id assigned to this task if the submission
+        was successfull, otherwise EQ_ABORT.
     """
     status, eq_task_id = insert_task(exp_id, eq_type, payload)
     if status == ResultStatus.SUCCESS:
@@ -470,10 +472,10 @@ def submit_task(exp_id: str, eq_type: int, payload: str, priority: int = 0) -> i
         if status == ResultStatus.SUCCESS:
             return (status, eq_task_id)
 
-    return (ResultStatus.FAILURE, eq_task_id)
+    return (ResultStatus.FAILURE, EQ_ABORT)
 
 
-def report_task(eq_task_id: int, eq_type: int, result: str):
+def report_task(eq_task_id: int, eq_type: int, result: str) -> ResultStatus:
     """Reports the result of the specified task of the specified type
 
     Args:
