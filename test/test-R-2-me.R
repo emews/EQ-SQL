@@ -16,7 +16,7 @@ for (i in seq(1,3)) {
         print(result)
         break
     }
-    r_list = fromJSON(result[[2]])
+    r_list <- fromJSON(result[[2]])
     # print(result)
     stopifnot(r_list$result == i)
 }

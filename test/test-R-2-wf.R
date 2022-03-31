@@ -3,7 +3,7 @@ library(jsonlite)
 
 print("R TEST 2 WF: START")
 
-if (! eq_init()) {
+if (! eq_init(log_level = logger::DEBUG)) {
   quit(status=1)
 }
 

@@ -8,7 +8,8 @@ eq_init(
   db_port = Sys.getenv("DB_PORT"),
   db_name = Sys.getenv("DB_NAME"),
   db_host = "localhost",
-  db_user = Sys.getenv("USER")
+  db_user = Sys.getenv("USER"),
+  log_level = logger::WARN
 )
 }
 \arguments{
