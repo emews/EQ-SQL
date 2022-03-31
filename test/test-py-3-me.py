@@ -10,7 +10,7 @@ eq.init()
 
 for i in range(0, 3):
     payload = [{'param': i} for i in range(3)]
-    eq_task_id = eq.submit_task('py_test_3', eq_type=0, payload=json.dumps(payload))
+    status, eq_task_id = eq.submit_task('py_test_3', eq_type=0, payload=json.dumps(payload))
     result = eq.query_result(eq_task_id)
     if result[0] != eq.ResultStatus.SUCCESS:
         print(result, flush=True)

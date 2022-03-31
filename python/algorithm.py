@@ -66,7 +66,7 @@ def queue_map(obj_func, pop: List[List]):
         return []
     # eq.OUT_put(create_list_of_lists_string(pops))
     payload = pop_to_json(pop, ('x', 'y'))
-    eq_task_id = eq.submit_task('test-swift-2', SIM_WORK_TYPE, payload)
+    status, eq_task_id = eq.submit_task('test-swift-2', SIM_WORK_TYPE, payload)
     status, result_str = eq.query_result(eq_task_id, timeout=4.0)
     if status != eq.ResultStatus.SUCCESS:
         print(f'Aborting ME: {result_str}')
