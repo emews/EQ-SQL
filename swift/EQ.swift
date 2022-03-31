@@ -24,7 +24,7 @@ try:
     # result is a msg map
     msg_map = eq.query_task(%i, timeout=120.0)
     items = [msg_map['type'], msg_map['payload']]
-    if 'eq_task_id' in msg_map:
+    if msg_map['type'] == 'work':
         items.append(str(msg_map['eq_task_id']))
     result_str = '|'.join(items)
     # result_str = json.dumps(result)
@@ -57,17 +57,10 @@ string code_put = """
 import sys
 import eq
 eq.init()
-try:
-    print('swift in_put', flush=True)
-    eq_task_id = %i
-    eq_type = %i
-    eq.report_task(eq_task_id, eq_type, '%s')
-except Exception as e:
-    import sys, traceback
-    info = sys.exc_info()
-    s = traceback.format_tb(info[2])
-    print(str(e) + ' ... \\n' + ''.join(s))
-    sys.stdout.flush()
+eq_task_id = %i
+eq_type = %i
+# TODO this returns a ResultStatus, add FAILURE handling
+eq.report_task(eq_task_id, eq_type, '%s')
 """;
 
 (void v) eq_task_reporter(int eq_task_id, int eq_type, string result_payload) {
