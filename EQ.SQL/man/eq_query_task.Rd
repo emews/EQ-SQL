@@ -4,21 +4,21 @@
 \alias{eq_query_task}
 \title{Queries for the highest priority task of the specified type}
 \usage{
-eq_query_task(eq_type, timeout = 2)
+eq_query_task(eq_type, delay = 0.5, timeout = 2)
 }
 \arguments{
 \item{eq_type}{Integer. The type of the task to query for.}
 
-\item{timeout}{Numeric. The duration after which the query will timeout.}
-
 \item{delay}{Numeric. The initial polling delay value.}
+
+\item{timeout}{Numeric. The duration after which the query will timeout.}
 }
 \value{
 A named list formatted message. If the query results in a
 status update, the list will have the following format:
-list(type='status', payload=P) where P is one of 'EQ_STOP',
-'EQ_ABORT', or 'EQ_TIMEOUT'. If the query finds work to be done
-then the list will be: list(type='work', eq_task_id=eq_task_id,
+list(type="status", payload=P) where P is one of "EQ_STOP",
+"EQ_ABORT", or "EQ_TIMEOUT". If the query finds work to be done
+then the list will be: list(type="work", eq_task_id=eq_task_id,
 payload=P) where P is the parameters for the work to be done.
 }
 \description{

@@ -1,7 +1,7 @@
 
 # R TEST 1 ME
 
-library(EQ.SQL)
+suppressMessages(library(EQ.SQL))
 
 print("R TEST 1 ME: START")
 
@@ -9,8 +9,10 @@ if (! eq_init()) {
   quit(status=1)
 }
 
-task_id <- eq_submit_task('test_py_1', 0, "{params: 42)")
-print(paste0('task_id: ', task_id))
+for (i in seq(1:3)) {
+  result <- eq_submit_task('test_r_1', 0, paste("{params:", i, "}"))
+}
+res <- eq_stop_worker_pool(0)
 
 print("R TEST 1 ME: STOP")
 

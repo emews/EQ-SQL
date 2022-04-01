@@ -1,17 +1,21 @@
 
 # R TEST 1 WF
 
-library(EQ.SQL)
+suppressMessages(library(EQ.SQL))
 
 print("R TEST 1 WF: START")
 
 if (! eq_init()) {
-  quit(status=1)
+  quit(status = 1)
 }
 
-
-msg <- eq_query_task(eq_type=0)
-print(msg)
+while (TRUE) {
+  msg <- eq_query_task(eq_type = 0)
+  params <- msg$payload
+  if (params == EQ_STOP | params == EQ_ABORT) {
+    break
+  }
+}
 
 print("R TEST 1 WF: STOP")
 

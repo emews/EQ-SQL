@@ -3,7 +3,7 @@
 \name{update_task}
 \alias{update_task}
 \title{Updates the specified task in the eq_tasks table with the specified
-result ('json_in') payload}
+result ("json_in") payload}
 \usage{
 update_task(eq_task_id, payload)
 }
@@ -12,6 +12,10 @@ update_task(eq_task_id, payload)
 
 \item{payload}{String. The payload to update the task with}
 }
+\value{
+ResultStatus$SUCCESS if the task was successfully updated,
+otherwise ResultStatus$FAILURE.
+}
 \description{
-This also updates the 'time_stop' to the time when the update occurred.
+This also updates the "time_stop" to the time when the update occurred.
 }

@@ -15,7 +15,9 @@ insert_task(exp_id, eq_type, payload)
 \item{payload}{String. The task payload}
 }
 \value{
-The task id assigned to this task.
+A list whose first element is the ResultStatus of the insert,
+and whose second element is the task id assigned to this task if the
+insert was successfull, otherwise EQ_ABORT.
 }
 \description{
 Inserts the specified payload to the database, creating

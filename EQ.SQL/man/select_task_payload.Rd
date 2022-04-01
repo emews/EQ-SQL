@@ -2,7 +2,7 @@
 % Please edit documentation in R/eq.R
 \name{select_task_payload}
 \alias{select_task_payload}
-\title{Selects the 'json_out' payload associated with the specified task id}
+\title{Selects the "json_out" payload associated with the specified task id}
 \usage{
 select_task_payload(eq_task_id)
 }
@@ -10,10 +10,13 @@ select_task_payload(eq_task_id)
 \item{eq_task_id}{Integer. The id of the task to get the json_out for}
 }
 \value{
-The json_out payload for the specified task id.
+A list containing the ResultStatus as its first element,
+and if successful the json_out payload
+for the specified task id as its second, otherwise the second element will
+be EQ_ABORT.
 }
 \description{
-Selects the 'json_out' payload for the specified task id from
+Selects the "json_out" payload for the specified task id from
 the eq_tasks table, and also setting the start time of the task to the
 current time
 }

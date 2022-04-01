@@ -10,8 +10,8 @@ if (! eq_init()) {
 for (i in seq(3)) {
     params <- list(list(param=0), list(param=1), list(param=2))
     payload <- toJSON(params, auto_unbox=T)
-    eq_task_id <- eq_submit_task('r-test-3', eq_type=0, payload=payload)
-    result <- eq_query_result(eq_task_id)
+    res <- eq_submit_task('r-test-3', eq_type=0, payload=payload)
+    result <- eq_query_result(res$eq_task_id)
     if (result[[1]] != ResultStatus$SUCCESS) {
         print(result)
         break

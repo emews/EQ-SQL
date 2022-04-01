@@ -14,18 +14,20 @@ eq_init(
 }
 \arguments{
 \item{db_port}{The port of the database to connect to. Defaults to the
-environment variable 'DB_PORT'.}
+environment variable "DB_PORT".}
 
 \item{db_name}{The name of the database to connect to. Defaults to the
-environment variable 'DB_NAME'.}
+environment variable "DB_NAME".}
 
 \item{db_host}{The host of the database to connect to. Defaults to the
-'localhost'. If the 'DB_HOST' environment variable is set then that
+"localhost". If the "DB_HOST" environment variable is set then that
 will be used.}
 
 \item{db_user}{The user name to connect to the database with. Defaults to
-the current user name. If the 'DB_USER' environment variable is set
+the current user name. If the "DB_USER" environment variable is set
 then that will be used.}
+
+\item{log_level}{the logging threshold level. Defaults to logger::WARN.}
 }
 \value{
 TRUE on a successful initialization otherwise FALSE.

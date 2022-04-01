@@ -24,7 +24,7 @@ and return.}
 A two element list where the first elements is one of
 ResultStatus$SUCCESS or ResultStatus$FAILURE. On success the
 second element will be the popped eq_task_id. On failure, the second
-element will be one of 'EQ_ABORT' or 'EQ_TIMEOUT' depending on the
+element will be one of "EQ_ABORT" or "EQ_TIMEOUT" depending on the
 cause of the failure.
 }
 \description{

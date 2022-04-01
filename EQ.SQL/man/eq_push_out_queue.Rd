@@ -14,6 +14,10 @@ eq_push_out_queue(eq_task_id, eq_type, priority = 0)
 
 \item{priority}{Integer the priority of the task}
 }
+\value{
+ResultStatus$SUCCESS if the task was successfully pushed
+onto the output queue, otherwise ResultStatus$FAILURE.
+}
 \description{
 Pushes the specified task onto the output queue with
 the specified priority.

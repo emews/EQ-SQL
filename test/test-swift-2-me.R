@@ -14,8 +14,8 @@ SIM_WORK_TYPE <- 1
 for (i in seq(3)) {
   params <- list(list(x=c(1.1 + i), y=4.0), list(x=2.1 + i, y=3.5))
   payload <- toJSON(params, auto_unbox=T)
-  eq_task_id <- eq_submit_task('r-swift-2', eq_type=SIM_WORK_TYPE, payload=payload)
-  result <- eq_query_result(eq_task_id)
+  res <- eq_submit_task('r-swift-2', eq_type=SIM_WORK_TYPE, payload=payload)
+  result <- eq_query_result(res$eq_task_id)
   if (result[[1]] != ResultStatus$SUCCESS) {
     print(result)
     break

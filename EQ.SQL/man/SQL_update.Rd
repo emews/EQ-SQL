@@ -14,7 +14,7 @@ SQL_update(table, col_names, values, where)
 
 \item{values}{List. A list of values to update the columns with}
 
-\item{where}{String. A SQL where clause, NOT including the 'where'}
+\item{where}{String. A SQL where clause, NOT including the "where"}
 }
 \value{
 The number of rows effected by the update

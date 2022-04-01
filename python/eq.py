@@ -322,8 +322,10 @@ def select_task_payload(eq_task_id: int) -> Tuple[ResultStatus, str]:
         eq_task_id: the id of the task to get the json_out for
 
     Returns:
-        A tuple containing the ResultStatus, and if successful the json_out payload
-        for the specified task id, otherwise EQ_ABORT.
+        A tuple containing the ResultStatus as its first element,
+        and if successful the json_out payload
+        for the specified task id as its second, otherwise the second element will
+        be EQ_ABORT.
     """
     try:
         global DB
@@ -464,7 +466,7 @@ def submit_task(exp_id: str, eq_type: int, payload: str, priority: int = 0) -> T
     Returns:
         A tuple whose first element is the ResultStatus of the submission, and
         whose second element is the task id assigned to this task if the submission
-        was successfull, otherwise EQ_ABORT.
+        was successfull, otherwise -1.
     """
     status, eq_task_id = insert_task(exp_id, eq_type, payload)
     if status == ResultStatus.SUCCESS:
@@ -472,7 +474,7 @@ def submit_task(exp_id: str, eq_type: int, payload: str, priority: int = 0) -> T
         if status == ResultStatus.SUCCESS:
             return (status, eq_task_id)
 
-    return (ResultStatus.FAILURE, EQ_ABORT)
+    return (ResultStatus.FAILURE, -1)
 
 
 def report_task(eq_task_id: int, eq_type: int, result: str) -> ResultStatus:

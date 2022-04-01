@@ -2,7 +2,7 @@
 % Please edit documentation in R/eq.R
 \name{select_task_result}
 \alias{select_task_result}
-\title{Selects the result ('json_in') payload associated with the specified
+\title{Selects the result ("json_in") payload associated with the specified
 task id in the eq_tasks table.}
 \usage{
 select_task_result(eq_task_id)
@@ -11,9 +11,12 @@ select_task_result(eq_task_id)
 \item{eq_task_id}{Integer. The id of the task to get the json_in for.}
 }
 \value{
-The result payload for the specified task id.
+A list containing the ResultStatus as its first element,
+and if successful the json_in result payload
+for the specified task id as its second, otherwise the second element will
+be EQ_ABORT.
 }
 \description{
-Selects the result ('json_in') payload associated with the specified
+Selects the result ("json_in") payload associated with the specified
 task id in the eq_tasks table.
 }
