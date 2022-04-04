@@ -1,0 +1,88 @@
+# Run the following commands on local WSL to setup EQ-SQL database.
+# Assumes that swift-t is built with python and already on path.
+# Assumes that postgressql installed via apt-get
+# Do not checkout with Windows git apps as they will insert DOS-style linefeed chars
+#   and this will break the swift code (or make sure to use dos2unix).
+#   Better just to checkout with command line git in WSL.  Push/Pull works OK
+#   with Windows git apps as long as checkout is done in linux/WSL.
+
+# Set path from EQ-SQL root
+PATH=$PWD/db:$PATH
+PATH=$PATH:/usr/lib/postgresql/12/bin
+export DB_DATA=~/sfw/DB
+export DB_TMP=~/tmp
+./db-init.sh  
+
+# To set the postgresql lock file location, in the db-start.sh update 
+# the -o argument as follows: -o "-F -p $DB_PORT -k $DB_TMP", where 
+# DB_TMP is an env variable for the lock file location and is a 
+# user-writable folder.
+
+# Might throw an error if write perms not set
+
+mkdir /var/run/postgresql
+sudo chown -R eric:eric /var/run/postgresql
+
+eric@NR200:/mnt/e/ANL/Projects/emews/EQ-SQL/db$ ./db-start.sh
+DB SETTINGS:
+DB_HOST=localhost
+DB_PORT=11219
+DB_NAME=EQ_SQL
+DB_MODE=SOFT
+DB_USER=default:eric
+DB_DATA=/home/eric/sfw/DB
+
++ nice -n 19 pg_ctl -D /home/eric/sfw/DB -l /home/eric/sfw/DB/db.log -o '-F -p 11219' start
+waiting for server to start.... done
+server started
+2022-02-24 16:57:13 eric     START DB on NR200 11219
+2022-02-24 16:57:13 eric     START PID 18035
+
+./db-create.sh
+
+eric@NR200:/mnt/e/ANL/Projects/emews/EQ-SQL/db$ ./db-mk-tables.sh
+DB SETTINGS:
+DB_HOST=localhost
+DB_PORT=11219
+DB_NAME=EQ_SQL
+DB_MODE=SOFT
+DB_USER=default:eric
+DB_DATA=/home/eric/sfw/DB
+
+CREATE TABLE
+CREATE TABLE
+CREATE SEQUENCE
+CREATE TABLE
+CREATE TABLE
+
+db-mk-tables.sh: OK
+
+eric@NR200:/mnt/e/ANL/Projects/emews/EQ-SQL/db$ ./db-print.sh
+            List of relations
+ Schema |      Name       | Type  | Owner
+--------+-----------------+-------+-------
+ public | emews_queue_in  | table | eric
+ public | emews_queue_out | table | eric
+ public | eq_exp_id_tasks | table | eric
+ public | eq_tasks        | table | eric
+(4 rows)
+
+== EMEWS EXPID TASKS ==
+ exp_id | eq_task_id
+--------+------------
+(0 rows)
+
+== EMEWS TASKS ==
+ eq_task_id | eq_status | eq_task_type | json_out | json_in | time_created | time_start | time_stop
+------------+-----------+--------------+----------+---------+--------------+------------+-----------
+(0 rows)
+
+== EMEWS QUEUE IN ==
+ eq_task_type | eq_task_id
+--------------+------------
+(0 rows)
+
+== EMEWS QUEUE OUT ==
+ eq_task_type | eq_task_id | eq_priority
+--------------+------------+-------------
+(0 rows)
