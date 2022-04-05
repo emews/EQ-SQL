@@ -54,7 +54,7 @@ eq_init <- function(db_port=Sys.getenv("DB_PORT"),
     }
 
     if (nchar(Sys.getenv("DB_USER")) != 0) {
-        db_host <- Sys.getenv("DB_USER")
+        db_user <- Sys.getenv("DB_USER")
     }
 
     if (! success) {
@@ -173,7 +173,7 @@ eq_report_task <- function(eq_task_id, eq_type, result) {
 #'   failure the reason for the failure ("EQ_TIMEOUT", or "EQ_ABORT")
 #' @export
 eq_query_result <- function(eq_task_id, delay, timeout) {
-    msg <- eq_pop_in_queue(eq_task_id)
+    msg <- eq_pop_in_queue(eq_task_id, delay, timeout)
     if (msg[[1]] != ResultStatus$SUCCESS) {
         return(msg)
     }
