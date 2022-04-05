@@ -12,14 +12,26 @@ import logging
 import os
 
 
-def setup_db(log=False, envs=False):
+def setup_db(log_level=logging.WARN, envs=False):
     """ Convenience function to use from Swift/T """
     if 'DB' not in globals():
         rank = os.getenv('PMIX_RANK')
         print('rank %s Connecting to DB...' % rank)
         global DB
-        DB = workflow_sql(log=log, envs=envs)
+        DB = workflow_sql(log_level=log_level, envs=envs)
     return DB
+
+
+def setup_log(log_name, log_level, procname=""):
+    logger = logging.getLogger(log_name)
+    handlr = logging.StreamHandler()
+    formtr = logging.Formatter("%(asctime)s " + procname +
+                               " %(name)-9s %(message)s",
+                               datefmt="%Y-%m-%d %H:%M:%S")
+    handlr.setFormatter(formtr)
+    logger.addHandler(handlr)
+    logger.setLevel(log_level)
+    return logger
 
 
 @unique
@@ -33,10 +45,11 @@ class DB_Mode(IntEnum):
 class workflow_sql:
 
     def __init__(self, host="127.0.0.1", port=5432,
+                 user=os.environ['USER'],
                  mode=DB_Mode.ON,
                  dbname="EQ_SQL",
                  envs=False,
-                 log=False,
+                 log_level=logging.WARN,
                  procname=""):
         """
         Sets up a wrapper around the SQL connection and cursor objects
@@ -49,26 +62,13 @@ class workflow_sql:
         self.port   = port
         self.mode   = mode  # a DB_Mode
         self.dbname = dbname
-        self.user = os.environ['USER']
+        self.user = user
         if envs:
             self.configure_envs()
         self.autoclose = True
         self.procname = procname  # a unique process name
-        self.setup_log(log)
+        self.logger = setup_log(__name__, log_level, self.procname)
         self.info("Initialized.")
-
-    def setup_log(self, log):
-        if not log:
-            self.logger = None
-            return
-        self.logger = logging.getLogger("SQL:")
-        handlr = logging.StreamHandler()
-        formtr = logging.Formatter("%(asctime)s " + self.procname +
-                                   " %(name)-9s %(message)s",
-                                   datefmt="%Y-%m-%d %H:%M:%S")
-        handlr.setFormatter(formtr)
-        self.logger.addHandler(handlr)
-        self.logger.setLevel(logging.INFO)
 
     def configure_envs(self):
         def env_has(k):

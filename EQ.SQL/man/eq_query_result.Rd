@@ -17,7 +17,7 @@ eq_query_result(eq_task_id, delay, timeout)
 A two element list whose first element indicates the status of
 the query: ResultStatus$SUCCESS or ResultStatus$FAILURE, and whose
 second element is either the result of the task, or in the case of
-failure the reason for the failure ('EQ_TIMEOUT', or 'EQ_ABORT')
+failure the reason for the failure ("EQ_TIMEOUT", or "EQ_ABORT")
 }
 \description{
 The query repeatedly polls for a result. The polling interval is specified by

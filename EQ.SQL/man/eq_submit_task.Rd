@@ -18,7 +18,9 @@ part.}
 \item{priority}{integer. The priority of this work}
 }
 \value{
-the integer task id for the work
+A list whose first element is the ResultStatus of the submission, and
+whose second element is the task id assigned to this task if the submission
+was successfull, otherwise EQ_ABORT.
 }
 \description{
 Submits work of the specified type and priority with the specified

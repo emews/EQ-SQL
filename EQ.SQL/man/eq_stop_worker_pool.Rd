@@ -10,6 +10,10 @@ eq_stop_worker_pool(eq_type)
 \arguments{
 \item{eq_type}{Integer. The work type for the pools to stop}
 }
+\value{
+ResultStatus$SUCCESS if the stop message was successfully pushed,
+otherwise ResultStatus$FAILURE.
+}
 \description{
 Stops any workers pools associated with the specified work type by
 pusing EQ_STOP into the output queue.

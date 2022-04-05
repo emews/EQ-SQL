@@ -15,6 +15,10 @@ reported.}
 
 \item{result}{String. The result of the task.}
 }
+\value{
+ResultStatus$SUCCESS if the task was successfully reported, otherwise
+ResultStatus$FAILURE.
+}
 \description{
 Reports the result of the specified task of the specified type
 }
