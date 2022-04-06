@@ -254,7 +254,7 @@ eq_push_out_queue <- function(eq_task_id, eq_type, priority = 0) {
                 list(eq_type, eq_task_id, priority))
         ResultStatus$SUCCESS
     }, error = function(cond) {
-        logger::log_error("eq_push_out_queue_error: {conditionMessage(cond)}")
+        logger::log_error("eq_push_out_queue error: {conditionMessage(cond)}")
         return(ResultStatus$FAILURE)
     })
     tcr
@@ -505,7 +505,7 @@ queue_pop <- function(sql_pop, delay, timeout) {
             delay <- delay * delay
         }
     }, error = function(cond) {
-        logger::log_error("eq_push_in_queue_error: {conditionMessage(cond)}")
+        logger::log_error("queue_pop error: {conditionMessage(cond)}")
         return(list(ResultStatus$FAILURE, EQ_ABORT))
     })
     tcr
