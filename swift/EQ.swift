@@ -38,6 +38,8 @@ except Exception as e:
     print(str(e) + ' ... \\n' + ''.join(s))
     sys.stdout.flush()
     result_str = eq.ABORT_JSON_MSG
+finally:
+    eq.close()
 """;
 
 (message msg) eq_task_querier(int eq_type) {

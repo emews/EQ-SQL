@@ -1,7 +1,5 @@
 
 # EQ-SQL eq.py
-
-import random
 import threading
 import traceback
 import logging
@@ -77,6 +75,16 @@ def init(log_level=logging.WARN):
     DB = db_tools.setup_db(log_level=log_level, envs=True)
     DB.connect()
     return DB
+
+
+def close():
+    """Closes the DB connection. eq.init() is required to re-initilaize the connection
+    before calling any other functions.
+    """
+    global DB
+    if DB is not None:
+        DB.close()
+        DB = None
 
 
 def validate():
@@ -201,7 +209,7 @@ def _queue_pop(sql_pop: str, delay: float, timeout: float) -> Tuple[ResultStatus
     the operation completes or the timeout duration has passed. The polling
     interval is specified by
     the delay such that the first interval is defined by the initial delay value
-    which is increased exponentionally after the first poll. The polling will
+    which is increased after the first poll. The polling will
     timeout after the amount of time specified by the timout value is has elapsed.
 
     Args:
@@ -226,9 +234,9 @@ def _queue_pop(sql_pop: str, delay: float, timeout: float) -> Tuple[ResultStatus
                 break  # got good data
             if time.time() - start > timeout:
                 return (ResultStatus.FAILURE, EQ_TIMEOUT)
-            delay = delay * random.random() * 2
             time.sleep(delay)
-            delay = delay * delay
+            if delay < 30:
+                delay += 0.25
     except Exception as e:
         logger.error(f'queue_pop error: {e}')
         logger.error(f'queue_pop error {traceback.format_exc()}')
