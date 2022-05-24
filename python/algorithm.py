@@ -14,15 +14,17 @@ from deap import tools
 from deap import algorithms
 
 import eq
+import proxies
 
 # Global variable names we are going to set from the JSON settings file
-global_settings = ["num_iter", "num_pop", "sigma", "mate_pb", "mutate_pb"]
+global_settings = ["num_iter", "num_pop", "sigma", "mate_pb", "mutate_pb", "use_proxy"]
 
 # Defaults for Elpy:
 mate_pb   = None
 mutate_pb = None
 num_iter  = None
 num_pop   = None
+use_proxy = False
 
 SIM_WORK_TYPE = 1
 
@@ -58,14 +60,35 @@ def pop_to_json(pop: List[List], param_names: Iterable[str]) -> str:
     return json.dumps(res)
 
 
+def pop_to_dict(pop: List[List], param_names: Iterable[str]) -> str:
+    res = []
+    for individual in pop:
+        jmap = {name: individual[i] for i, name in enumerate(param_names)}
+        res.append(jmap)
+    return res
+
+
 def queue_map(obj_func, pop: List[List]):
     """ Note that the obj_func is a dummy
         pops: data that looks like: [[x1,x2],[x1,x2],...]
     """
     if not pop:
         return []
-    # eq.OUT_put(create_list_of_lists_string(pops))
-    payload = pop_to_json(pop, ('x', 'y'))
+    if use_proxy:
+        import test_proxy_wf
+        # create a proxy for the function we want swift-t to call
+        # dump_proxies returns a dict where the keys are the arg names, so
+        # ['f'] gets us the proxied function
+        func = proxies.dump_proxies(f=test_proxy_wf.task_func)['f']
+        proxy_map = proxies.dump_proxies(c=1.0)
+        params = pop_to_dict(pop, ('x', 'y'))
+        # use the required payload dict names
+        payload = json.dumps({'func': func, 'proxies': proxy_map, 'parameters': params})
+
+    else:
+        # eq.OUT_put(create_list_of_lists_string(pops))
+        payload = pop_to_json(pop, ('x', 'y'))
+
     status, eq_task_id = eq.submit_task('test-swift-2', SIM_WORK_TYPE, payload)
     status, result_str = eq.query_result(eq_task_id, timeout=4.0)
     if status != eq.ResultStatus.SUCCESS:
@@ -117,6 +140,9 @@ def run():
     # parse settings # num_iter, num_pop, seed,
     eq.init()
 
+    if use_proxy:
+        proxies.init('proxy_test', store_dir='/tmp/proxystore-dump')
+
     creator.create("FitnessMin", base.Fitness, weights=(-1.0,))
     creator.create("Individual", list, fitness=creator.FitnessMin)
     toolbox = base.Toolbox()
@@ -162,6 +188,8 @@ def load_settings(settings_filename):
     try:
         with open(settings_filename) as fp:
             settings = json.load(fp)
+            if 'use_proxy' in settings:
+                settings['use_proxy'] = True
     except IOError:
         message("could not open: '%s'" % settings_filename)
         message("PWD is: '%s'" % os.getcwd())

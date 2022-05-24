@@ -48,3 +48,46 @@ Workflow with loopj.swift with fake R ME; JSON messages
 
 pools-1.sh::
 Chain of workflow with multiple pools
+
+== Proxy
+
+Consists of the 3 parts:
+
+1. The deap ME (python/algorithm.py) which creates proxies for the function called by the worker pool,
+an example proxied argument to that function, and the list of parameters.
+2. The function that is proxied. This is decorated with @proxy.app which will unpack the proxied arguments
+to the function. Each proxied argument has a name, and that name must match the name of the argument to 
+the function. The final function arguments are the parameters. So for example,
+
+----
+func = proxies.dump_proxies(f=test_proxy_wf.task_func)['f']
+proxy_map = proxies.dump_proxies(c=1.0)
+params = pop_to_dict(pop, ('x', 'y'))
+...
+@proxies.app
+def task_func(c, x, y):
+    ...
+----
+
+Here `c` is the proxied argument corresponding to the `c` task_func argument,
+followed by the `x` and `y` parameters.
+
+3. A worker pool that can handle proxies.
+
+test-proxy.sh::
+Launches the proxy example workflow.
+
+test-proxy-me.py::
+Launches the deap ME (python/algorithm.py)
+
+test_proxy_wf.py::
+Contains the proxy.app decorated function.
+
+python/algorithm.py::
+The deap ME that will send proxy tasks to the DB when its `use_proxy`
+argument is true.
+
+swift/proxy_pool.swift::
+The worker pool for handling proxied functions and arguments.
+
+

@@ -31,6 +31,9 @@ The Swift/T API functions to access EQ-SQL.  Import this into your workflow with
 python/eq.py::
 The Python code to access the DB via the API in `db/db_tools.py` .
 
+swift/proxy_pool.swift::
+Worker pool for consuming proxy tasks (see proxy example in test and test/Readme.adoc).
+
 == DEAP Example
 
 See `tests/test-swift-2` for this example.
