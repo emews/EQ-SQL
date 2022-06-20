@@ -57,7 +57,7 @@ $ ./db-start.sh
 When you start the database, the `DB_HOST`, `DB_PORT` and other important environment variables
 will be displayd as output. Copy and save these. You will need them when creating
 a database connection in R or Python code. These values will also be saved to a
-`db_env_vars_N.txt` file where N is timestamp.
+`db_env_vars_N.txt` file where N is a timestamp.
 
 ## Stop the Database ##
 
