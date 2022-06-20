@@ -8,3 +8,4 @@
 *.tar.gz
 scratch/
 experiments/
+turbine-output
