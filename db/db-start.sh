@@ -24,3 +24,9 @@ fi
 
 log_hosts "START DB on" $(hostname) $DB_PORT
 log_hosts "START PID" $( head -1 $DB_DATA/postmaster.pid )
+
+TS=$(date +%s)
+FNAME="db_env_vars_${TS}.txt"
+echo
+echo "Writing DB_SETTINGS to $FNAME"
+env | grep DB > $FNAME

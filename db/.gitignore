@@ -1,3 +1,4 @@
 *.db
 # Asciidoc output:
 *.html
+db_env_vars_*.txt

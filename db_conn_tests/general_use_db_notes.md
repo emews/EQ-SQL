@@ -6,7 +6,9 @@ Clone EQ/SQL to get the database utilities.
 $ git clone git@github.com:emews/EQ-SQL.git
 ```
 
-* If using R other than `/lcrc/project/EMEWS/bebop/repos/spack/opt/spack/linux-centos7-broadwell/gcc-7.1.0/r-4.0.0-plchfp7jukuhu5oity7ofscseg73tofx/bin/R`, then install the R packages DBI, and RPostgres.
+Database utilities are in `EQ-SQL/db`
+
+* If using R other than `/lcrc/project/EMEWS/bebop/repos/spack/opt/spack/linux-centos7-broadwell/gcc-7.1.0/r-4.0.0-plchfp7jukuhu5oity7ofscseg73tofx/bin/R`, install the R packages DBI, and RPostgres.
 
 ## Starting the Databse ##
 
@@ -14,33 +16,28 @@ The scripts in the EQ-SQL/db are used to start and stop
 the database.
 
 ```bash
-$ DB_DATA=/lcrc/project/EMEWS/db/plima
+$ export DB_DATA=/lcrc/project/EMEWS/db/plima
 $ cd EQ-SQL/db
 $ source env-bebop.sh
 $ ./db-start.sh
 ```
 
-When you start the database, copy and save the DB_HOST, and DB_PORT values in the output. You will
-need these values to stop the database later, if you close the terminal where you started
-the database.
-
-```bash
-$ ./db-start.sh 
-
-# Output:
-DB SETTINGS:
-DB_HOST=beboplogin1.lcrc.anl.gov
-DB_PORT=11219
-DB_NAME=EQ_SQL
-...
-```
+When you start the database, the DB_HOST, DB_PORT and other environment variables
+will be displayd as output. Copy and save these. You will need them when creating
+a database connection in R or Python code. These values will also be saved to a
+db_env_vars_N.txt file where N is timestamp.
 
 ## Stop the Database ##
 
+Currently to stop the database, you *MUST* be logged onto the same login node where the database was
+started. So, if in the `db-start.sh` output, you see:
+
+`DB_HOST=beboplogin4.lcrc.anl.gov`
+
+then you must login to `beboplogin4` to stop the database, and do the following:
+
 ```bash
 $ cd EQ-SQL/db
-$ export DB_HOST=<saved hostname>
-$ export DB_PORT=<saved port>
 $ export DB_DATA=/lcrc/project/EMEWS/db/plima
 $ source env-bebop.sh
 $ ./db-stop.sh
@@ -83,8 +80,8 @@ while (is.null(conn)) {
 }
 
 # Use the connection
-# dbCreateTable(...)
-# dbAppendTable(...)
+# dbCreateTable(conn, ...)
+# dbAppendTable(conn, ...)
 
 # Close the conn each time after it's used
 # There's a max number of concurrent connections and so
