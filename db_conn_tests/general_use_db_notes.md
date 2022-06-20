@@ -8,11 +8,43 @@ $ git clone git@github.com:emews/EQ-SQL.git
 
 Database utilities are in `EQ-SQL/db`
 
+Create the data directory. 
+
+```bash
+$ cd EQ-SQL/db
+$ source env-bebop.sh
+# Using '/lcrc/project/EMEWS/db/plima' as an example data directory
+$ export DB_DATA=/lcrc/project/EMEWS/db/plima
+$ initdb -D $DB_DATA -g
+$ cp sample_postgresql.conf $DB_DATA/postgresql.conf
+$ cp sample_pg_hba.conf $DB_DATA/pg_hba.conf
+```
+
+Start the server and create a database within the data directory
+
+```bash
+$ cd EQ-SQL/db
+$ source env-bebop.sh
+# Using '/lcrc/project/EMEWS/db/plima' as an example data directory
+$ export DB_DATA=/lcrc/project/EMEWS/db/plima
+$ export DB_NAME=EQ_SQL
+# Start the db server
+$ ./db-start.sh
+$ createdb --host=$DB_HOST --port=$DB_PORT $DB_NAME
+# Confirm the database was created
+$ ./db-ping.sh
+# Stop the db server
+$ ./db-stop.sh
+```
+
+R Requirements
+
 * If using R other than `/lcrc/project/EMEWS/bebop/repos/spack/opt/spack/linux-centos7-broadwell/gcc-7.1.0/r-4.0.0-plchfp7jukuhu5oity7ofscseg73tofx/bin/R`, install the R packages DBI, and RPostgres.
 
 ## Starting the Databse ##
 
-The scripts in the EQ-SQL/db are used to start and stop
+Before any workflow that uses the DB is run, the server must be 
+started. The scripts in the EQ-SQL/db are used to start and stop
 the database.
 
 ```bash
