@@ -52,12 +52,11 @@ echo
 
 export SITE=bebop
 
-export DB_HOST=beboplogin4.lcrc.anl.gov
-export DB_PORT=58699
+export DB_HOST=beboplogin2.lcrc.anl.gov
+export DB_PORT=39285
 export DB_NAME=EQ_SQL
-export DB_MODE=ON
 export DB_USER=${USER}
-export DB_DATA=/lcrc/project/EMEWS/db/plima
+export DB_DATA=/lcrc/project/EMEWS/bebop/db
 
 # EQ/R location
 # EQR=/lcrc/project/EMEWS/bebop/repos/spack/opt/spack/linux-centos7-broadwell/gcc-7.1.0/eqr-1.0-5hb4aszbbtezlifks6fz4g24zldnkdbx

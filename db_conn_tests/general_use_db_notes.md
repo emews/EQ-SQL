@@ -99,6 +99,9 @@ db_name <- Sys.getenv("DB_NAME")
 # and these can be easily exhaused by many swift workers 
 # attempting to connect at once.
 conn <- NULL
+# timeout after 10 minutes
+timeout <- 10 * 60
+start  <- Sys.time()
 while (is.null(conn)) {
     conn <- tryCatch({
         DBI::dbConnect(RPostgres::Postgres(),
@@ -106,6 +109,10 @@ while (is.null(conn)) {
                     user = db_user)
        
     }, error = function(err) {
+        end <- Sys.time()
+        if (end - start > timeout) {
+            stop(err)
+        }
         delay <- runif(1) * 4
         Sys.sleep(delay)
     })
