@@ -500,9 +500,10 @@ queue_pop <- function(sql_pop, delay, timeout) {
             if (Sys.time() - start > timeout) {
                 return(list(ResultStatus$FAILURE, EQ_TIMEOUT))
             }
-            delay <- delay * runif(1) * 2
             Sys.sleep(delay)
-            delay <- delay * delay
+            if (delay < 30) {
+                delay <- delay + 0.25
+            }
         }
     }, error = function(cond) {
         logger::log_error("queue_pop error: {conditionMessage(cond)}")
