@@ -64,6 +64,10 @@ def init(retry_threshold=0, log_level=logging.WARN):
     and setting up logging.
 
     Args:
+        retry_threshold: if a DB connection cannot be established
+            (e.g, there are currently too many connections),
+            then retry this many times to establish a connection. There
+            will be random few second delay betwen each retry.
         log_level: the logging threshold level.
     """
     global logger
