@@ -1,5 +1,6 @@
 
 # EQ-SQL eq.py
+from random import random
 import threading
 import traceback
 import logging
@@ -58,7 +59,7 @@ class ThreadRunner(threading.Thread):
             self.exc = traceback.format_exc()
 
 
-def init(log_level=logging.WARN):
+def init(retry_threshold=0, log_level=logging.WARN):
     """Initializes the eq module by connecting to the DB,
     and setting up logging.
 
@@ -72,8 +73,18 @@ def init(log_level=logging.WARN):
     if DB is not None:
         return
 
-    DB = db_tools.setup_db(log_level=log_level, envs=True)
-    DB.connect()
+    retries = 0
+    while True:
+        try:
+            DB = db_tools.setup_db(log_level=log_level, envs=True)
+            DB.connect()
+            break
+        except db_tools.ConnectionException as e:
+            retries += 1
+            if retries > retry_threshold:
+                raise(e)
+            time.sleep(random() * 4)
+
     return DB
 
 
