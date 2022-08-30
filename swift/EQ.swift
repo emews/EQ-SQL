@@ -59,10 +59,13 @@ string code_put = """
 import sys
 import eq
 eq.init()
-eq_task_id = %i
-eq_type = %i
-# TODO this returns a ResultStatus, add FAILURE handling
-eq.report_task(eq_task_id, eq_type, r'%s')
+try:
+    eq_task_id = %i
+    eq_type = %i
+    # TODO this returns a ResultStatus, add FAILURE handling
+    eq.report_task(eq_task_id, eq_type, r'%s')
+finally:
+    eq.close()
 """;
 
 (void v) eq_task_reporter(int eq_task_id, int eq_type, string result_payload) {
