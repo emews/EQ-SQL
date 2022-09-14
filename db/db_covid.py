@@ -9,7 +9,7 @@ import os
 import random
 import time
 
-from db_tools import workflow_sql, workflow_sql_setup, DB_Mode, q, qA, \
+from eqsql.db_tools import workflow_sql, workflow_sql_setup, DB_Mode, q, qA, \
                      ConnectionException
 
 from enum import Enum, unique

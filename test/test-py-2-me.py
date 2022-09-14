@@ -1,7 +1,7 @@
 
 # PY TEST 2 ME
 
-import eq
+import eq.eq as eq
 
 print("PY TEST 2 ME: START")
 

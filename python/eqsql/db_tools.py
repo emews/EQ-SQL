@@ -115,7 +115,6 @@ class workflow_sql:
                     raise ConnectionException(e)
                 self.info("connect(): connected.")
                 self.debug("connect(): " + str(self.conn))
-                self.cursor = self.conn.cursor()
                 # self.debug("connect(): cursor: " + str(self.cursor))
             else:
                 self.info("connect(): DB disabled.")
@@ -125,88 +124,32 @@ class workflow_sql:
                 self.info("connect(): Already connected.")
         return "OK"
 
-    def insert(self, table, names, values, echo=False):
-        """ Do a SQL insert
-            return rowid or -1 on SOFT error
-        """
+    def format_insert(self, table, names, values):
         if len(names) != len(values):
             raise ValueError("lengths of names, values must agree!")
         names_tpl  = sql_tuple(names)
         values_tpl = sql_tuple(values)
-        cmd = "insert into {} {} values {};" \
-            .format(table, names_tpl, values_tpl)
-        try:
-            self.execute(cmd, echo=echo)
-            self.commit()
-        except Exception as e:
-            if self.mode == DB_Mode.SOFT:
-                return -1
-            self.info(e)
-            raise(e)
+        cmd = f'insert into {table} {names_tpl} values {values_tpl};'
 
-    def update(self, table, names, values, where):
-        """ Do a SQL update
-            return rowid or -1 on SOFT error
-        """
+        return cmd
+
+    def format_update(self, table, names, values, where):
         if len(names) != len(values):
             raise ValueError("lengths of names, values must agree!")
         assign_list = []
         for n, v in zip(names, values):
             assign_list.append("%s=%s" % (n, str(v)))
         assigns = ", ".join(assign_list)
-        cmd = "update {} set {} where {};" \
-            .format(table, assigns, where)
-        try:
-            self.execute(cmd)
-            self.commit()
-        except Exception as e:
-            if self.mode == DB_Mode.SOFT:
-                return -1
-            self.info(e)
-            raise(e)
+        cmd = f'update {table} set {assigns} where {where};'
+        return cmd
 
-    def select(self, table, what, where=None):
+    def format_select(self, table, what, where=None):
         ''' Do a SQL select '''
         cmd = "select %s from %s" % (what, table)
         if where is not None:
             cmd += " where "
             cmd += where
         cmd += ";"
-        self.execute(cmd)
-
-    def execute(self, cmd, echo=False):
-        self.info(cmd)
-        if echo:
-            print(cmd)
-        try:
-            self.cursor.execute(cmd)
-            self.conn.commit()
-        except Exception as e:
-            print(str(e))  # Remove this line after debugging
-            if self.mode == DB_Mode.SOFT:
-                return
-            print(str(e))
-            raise(e)
-
-    def executescript(self, cmds):
-        try:
-            self.cursor.executescript(cmds)
-        except Exception as e:
-            if self.mode == DB_Mode.SOFT:
-                self.debug(e)
-                return
-            self.info(e)
-            raise(e)
-
-    def commit(self):
-        """ Should not be called if mode==OFF """
-        self.conn.commit()
-
-    def get(self):
-        """ Wrapper for fetchone() """
-        result = self.cursor.fetchone()
-        self.info("get(): %r" % (result is not None))
-        return result
 
     def close(self):
         self.autoclose = False

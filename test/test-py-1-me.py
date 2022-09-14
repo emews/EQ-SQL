@@ -3,7 +3,7 @@
 
 # import json
 
-import eq
+import eq.eq as eq
 
 
 print("PY TEST 1 ME: START")

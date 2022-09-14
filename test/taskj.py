@@ -5,7 +5,7 @@
 import json, sys
 from math import sin
 
-import eq
+import eq.eq as eq
 
 
 def f(eq_id):

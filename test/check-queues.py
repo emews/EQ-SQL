@@ -3,7 +3,7 @@
 # CHECK QUEUES PY
 # Check that the EMEWS Queues are empty before running a test
 
-from db_tools import workflow_sql
+from eqsql.db_tools import workflow_sql
 
 sql = workflow_sql(envs=True)
 sql.connect()

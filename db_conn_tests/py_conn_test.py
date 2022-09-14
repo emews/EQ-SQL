@@ -1,7 +1,7 @@
 import os
 from multiprocessing import Pool
 import time
-import eq
+import eq.eq as eq
 import random
 
 

@@ -1,4 +1,4 @@
-import proxies
+import eq.proxies as proxies
 from math import sin
 
 

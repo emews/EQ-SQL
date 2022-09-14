@@ -13,8 +13,8 @@ from deap import creator
 from deap import tools
 from deap import algorithms
 
-import eq
-import proxies
+import eq.eq as eq
+import eq.proxies as proxies
 
 # Global variable names we are going to set from the JSON settings file
 global_settings = ["num_iter", "num_pop", "sigma", "mate_pb", "mutate_pb", "use_proxy"]

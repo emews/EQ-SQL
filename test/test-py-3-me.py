@@ -1,7 +1,7 @@
 
 # PY TEST 3 ME
 
-import eq
+import eq.eq as eq
 import json
 
 print("PY TEST 3 ME: START")

@@ -26,7 +26,7 @@ def main(db_file):
     #       success and failure
     success = False
     try:
-        from db_tools import workflow_sql
+        from eqsql.db_tools import workflow_sql
         print("workflow_sql ...")
         DB = workflow_sql(db_file, log=True)
         print("DB OK")
