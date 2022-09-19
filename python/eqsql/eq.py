@@ -1,15 +1,14 @@
 
 # EQ-SQL eq.py
-from asyncio import Task
+
 from random import random
-import threading
 import traceback
 import logging
 import time
 import json
 from datetime import datetime, timezone
 from enum import IntEnum
-from typing import Tuple, Dict
+from typing import Iterable, Tuple, Dict, List
 
 from . import db_tools
 from .db_tools import Q
@@ -34,52 +33,105 @@ class TaskStatus(IntEnum):
 
 ABORT_JSON_MSG = json.dumps({'type': 'status', 'payload': EQ_ABORT})
 
-p = None
-aborted = False
-wait_info = None
-# The psycopg2 handle:
+# The db_tools.workflow_sql
 DB = None
 logger = None
 
 
-class WaitInfo:
+# class WaitInfo:
 
-    def __init__(self):
-        self.wait = 4
+#     def __init__(self):
+#         self.wait = 4
 
-    def getWait(self):
-        if self.wait < 60:
-            self.wait += 1
-        return self.wait
+#     def getWait(self):
+#         if self.wait < 60:
+#             self.wait += 1
+#         return self.wait
 
 
-class ThreadRunner(threading.Thread):
+# class ThreadRunner(threading.Thread):
 
-    def __init__(self, runnable):
-        threading.Thread.__init__(self)
-        self.runnable = runnable
-        self.exc = "Exited normally"
+#     def __init__(self, runnable):
+#         threading.Thread.__init__(self)
+#         self.runnable = runnable
+#         self.exc = "Exited normally"
 
-    def run(self):
-        try:
-            self.runnable.run()
-        except BaseException:
-            # tuple of type, value and traceback
-            self.exc = traceback.format_exc()
+#     def run(self):
+#         try:
+#             self.runnable.run()
+#         except BaseException:
+#             # tuple of type, value and traceback
+#             self.exc = traceback.format_exc()
 
 
 class Future:
 
     def __init__(self, eq_task_id: int, tag: str = None):
+        """Encapsulates an EQ/SQL task. Future instances are created by
+        eq.submit_task."""
         self.eq_task_id = eq_task_id
         self.tag = tag
 
-    def result(self, delay: float = 0.5, timeout: float = 2.0) -> Tuple:
+    def result(self, delay: float = 0.5, timeout: float = 2.0) -> Tuple[ResultStatus, str]:
+        """Gets the result of this future task.
+
+        This repeatedly pools the DB for the task result. The polling interval is specified by
+        the delay such that the first interval is defined by the initial delay value
+        which is increased after the first poll. The polling will
+        timeout after the amount of time specified by the timout value is has elapsed.
+
+    Args:
+        delay: the initial polling delay value
+        timeout: the duration after which the query will timeout.
+            If timeout is None, there is no limit to the wait time.
+
+    Returns:
+        A tuple whose first element indicates the status of the query:
+        ResultStatus.SUCCESS or ResultStatus.FAILURE, and whose second element
+        is either the result of the task, or in the case of failure the reason
+        for the failure (EQ_TIMEOUT, or EQ_ABORT)
+        """
         status_result = query_result(self.eq_task_id, delay, timeout=timeout)
         return status_result
 
-    def status(self):
-        return query_status(self.eq_task_id)
+    @property
+    def status(self) -> TaskStatus:
+        """Gets the current status of this Future, one of: eq.TaskStatus.QUEUED,
+        eq.TaskStatus.RUNNING, eq.TaskStatus.COMPLETE, or eq.TaskStatus.CANCELED.
+
+        Returns:
+            One of: eq.TaskStatus.QUEUED, eq.TaskStatus.RUNNING, eq.TaskStatus.COMPLETE,
+            eq.TaskStatus.CANCELED or None if the status query fails.
+        """
+        result = query_status([self.eq_task_id])
+        if result is None:
+            return result
+        else:
+            return result[0][1]
+
+    def cancel(self):
+        """Cancels this future task by removing this futures task id from the output queue."""
+        return cancel_tasks([self.eq_task_id])
+
+    @property
+    def priority(self) -> int:
+        """Gets the priority of this Future task."""
+        result = query_priority([self.eq_task_id])
+        if result is None:
+            return result
+        else:
+            return result[0][1]
+
+    @priority.setter
+    def priority(self, new_priority) -> ResultStatus:
+        """Updates the priority of this Future task.
+
+        Args:
+            new_priority: the updated priority
+        Returns:
+            ResultStatus.SUCCESS if the priority has been successfully updated, otherwise false.
+        """
+        return update_priority(self.eq_task_id, new_priority)
 
 
 def init(retry_threshold=0, log_level=logging.WARN):
@@ -103,7 +155,7 @@ def init(retry_threshold=0, log_level=logging.WARN):
     retries = 0
     while True:
         try:
-            DB = db_tools.setup_db(log_level=log_level, envs=True)
+            DB = db_tools.WorkflowSQL(log_level=log_level, envs=True)
             DB.connect()
             break
         except db_tools.ConnectionException as e:
@@ -253,7 +305,6 @@ def _queue_pop(cur, sql_pop: str, delay: float, timeout: float) -> Tuple[ResultS
         element will be one of EQ_ABORT or EQ_TIMEOUT depending on the
         cause of the failure.
     """
-    global DB
     start = time.time()
     try:
         while True:
@@ -289,12 +340,11 @@ def push_out_queue(cur, eq_task_id, eq_type, priority=0) -> ResultStatus:
     """
     try:
         # queue_push("emews_queue_OUT", eq_type, eq_task_id, priority)
-        insert_cmd = DB.format_insert('emews_queue_out', ["eq_task_type",
-                                      "eq_task_id", "eq_priority"], [eq_type, eq_task_id, priority])
-        cur.execute(insert_cmd)
-        update_cmd = DB.format_update('eq_tasks', ['eq_status'], [TaskStatus.QUEUED.value],
-                                      where=f'eq_task_id={eq_task_id}')
-        cur.execute(update_cmd)
+        insert_cmd = db_tools.format_insert('emews_queue_out', ["eq_task_type", "eq_task_id",
+                                            "eq_priority"])
+        cur.execute(insert_cmd, [eq_type, eq_task_id, priority])
+        update_cmd = db_tools.format_update('eq_tasks', ['eq_status'], where='eq_task_id=%s')
+        cur.execute(update_cmd, [TaskStatus.QUEUED.value, eq_task_id])
 
         return ResultStatus.SUCCESS
 
@@ -315,9 +365,8 @@ def push_in_queue(cur, eq_task_id, eq_type) -> ResultStatus:
         onto the input queue, otherwise ResultStatus.FAILURE.
     """
     try:
-        cmd = DB.format_insert('emews_queue_IN', ["eq_task_type", "eq_task_id"],
-                               [eq_type, eq_task_id])
-        cur.execute(cmd)
+        cmd = db_tools.format_insert('emews_queue_IN', ["eq_task_type", "eq_task_id"])
+        cur.execute(cmd, [eq_type, eq_task_id])
         return ResultStatus.SUCCESS
     except Exception as e:
         logger.error(f'push_in_queue error: {e}')
@@ -344,12 +393,11 @@ def _insert_task(cur, exp_id: str, eq_type: int, payload: str) -> Tuple:
         rs = cur.fetchone()
         eq_task_id = rs[0]
         ts = datetime.now(timezone.utc).astimezone().isoformat()
-        insert_cmd = DB.format_insert("eq_tasks", ["eq_task_id", "eq_task_type", "json_out", "time_created"],
-                                      [eq_task_id, eq_type, Q(payload), Q(ts)])
-        cur.execute(insert_cmd)
-        insert_cmd = DB.format_insert("eq_exp_id_tasks", ["exp_id", "eq_task_id"],
-                                      [Q(exp_id), eq_task_id])
-        cur.execute(insert_cmd)
+        insert_cmd = db_tools.format_insert("eq_tasks", ["eq_task_id", "eq_task_type",
+                                            "json_out", "time_created"])
+        cur.execute(insert_cmd, [eq_task_id, eq_type, payload, ts])
+        insert_cmd = db_tools.format_insert("eq_exp_id_tasks", ["exp_id", "eq_task_id"])
+        cur.execute(insert_cmd, [exp_id, eq_task_id])
     except Exception as e:
         logger.error(f'insert_task error: {e}')
         logger.error(f'insert_task error {traceback.format_exc()}')
@@ -373,13 +421,13 @@ def select_task_payload(cur, eq_task_id: int) -> Tuple[ResultStatus, str]:
         be EQ_ABORT.
     """
     try:
-        cmd = DB.format_select("eq_tasks", "json_out", f'eq_task_id={eq_task_id}')
-        cur.execute(cmd)
+        cmd = db_tools.format_select("eq_tasks", "json_out", 'eq_task_id=%s')
+        cur.execute(cmd, (eq_task_id,))
         rs = cur.fetchone()
         ts = datetime.now(timezone.utc).astimezone().isoformat()
-        cmd = DB.format_update("eq_tasks", ['eq_status', 'time_start'],
-                               [TaskStatus.RUNNING.value, Q(ts)], where=f'eq_task_id={eq_task_id}')
-        cur.execute(cmd)
+        cmd = db_tools.format_update("eq_tasks", ['eq_status', 'time_start'],
+                                     where='eq_task_id=%s')
+        cur.execute(cmd, [TaskStatus.RUNNING.value, ts, eq_task_id])
         result = rs[0]
         return (ResultStatus.SUCCESS, result)
     except Exception as e:
@@ -400,8 +448,8 @@ def select_task_result(cur, eq_task_id: int) -> Tuple[ResultStatus, str]:
         for the specified task id, otherwise EQ_ABORT.
     """
     try:
-        select_sql = DB.format_select("eq_tasks", "json_in", f'eq_task_id={eq_task_id}')
-        cur.execute(select_sql)
+        select_sql = db_tools.format_select("eq_tasks", "json_in", 'eq_task_id=%s')
+        cur.execute(select_sql, (eq_task_id,))
         rs = cur.fetchone()
         result = rs[0]
     except Exception as e:
@@ -426,9 +474,9 @@ def update_task(cur, eq_task_id: int, payload: str) -> ResultStatus:
     """
     ts = datetime.now(timezone.utc).astimezone().isoformat()
     try:
-        cmd = DB.formate_update("eq_tasks", ["eq_status", "json_in", 'time_stop'], [Q(payload),
-                                TaskStatus.COMPLETE.value, Q(ts)], where=f'eq_task_id={eq_task_id}')
-        cur.execute(cmd)
+        cmd = db_tools.format_update("eq_tasks", ['json_in', 'eq_status', 'time_stop'],
+                                     where='eq_task_id=%s')
+        cur.execute(cmd, [payload, TaskStatus.COMPLETE.value, ts, eq_task_id])
         return ResultStatus.SUCCESS
     except Exception as e:
         logger.error(f'update_task error: {e}')
@@ -453,9 +501,8 @@ def stop_worker_pool(eq_type: int) -> ResultStatus:
                 cur.execute("select nextval('emews_id_generator');")
                 rs = cur.fetchone()
                 eq_task_id = rs[0]
-                cmd = DB.format_insert("eq_tasks", ["eq_task_id", "eq_task_type", "json_out"],
-                                       [eq_task_id, eq_type, Q("EQ_STOP")])
-                cur.execute(cmd)
+                cmd = db_tools.format_insert("eq_tasks", ["eq_task_id", "eq_task_type", "json_out"])
+                cur.execute(cmd, [eq_task_id, eq_type, EQ_STOP])
                 result_status = push_out_queue(cur, eq_task_id, eq_type, priority=-1)
                 return result_status
     except Exception as e:
@@ -519,7 +566,7 @@ def submit_task(exp_id: str, eq_type: int, payload: str, priority: int = 0, tag:
     Returns:
         A tuple whose first element is the ResultStatus of the submission, and
         whose second element is the task id assigned to this task if the submission
-        was successfull, otherwise -1.
+        was successfull, otherwise None.
     """
     try:
         with DB.conn:
@@ -555,19 +602,78 @@ def report_task(eq_task_id: int, eq_type: int, result: str) -> ResultStatus:
                 return result_status
 
 
-def query_status(eq_task_id: int) -> TaskStatus:
+def query_status(eq_task_ids: Iterable[int]) -> List[Tuple[int, TaskStatus]]:
+    ids = tuple(eq_task_ids)
+    placeholders = ', '.join(['%s'] * len(ids))
+    results = []
     try:
         with DB.conn:
             with DB.conn.cursor() as cur:
-                cur.execute(f'select eq_status from eq_tasks where eq_task_id = {eq_task_id}')
-                rs = cur.fetchone()
-                status = rs[0]
+                query = f'select eq_task_id, eq_status from eq_tasks where eq_task_id in ({placeholders})'
+                cur.execute(query, ids)
+                for eq_task_id, status in cur.fetchall():
+                    results.append((eq_task_id, TaskStatus(status)))
     except Exception as e:
         logger.error(f'query_status error: {e}')
         logger.error(f'query_status error: {traceback.format_exc()}')
         return None
 
-    return TaskStatus(status)
+    return results
+
+
+def cancel_tasks(eq_task_ids: Iterable[int]) -> ResultStatus:
+    ids = tuple(eq_task_ids)
+    placeholders = ', '.join(['%s'] * len(ids))
+    # delete should lock all the rows, so they can't be selected
+    update_query = f'update eq_tasks set eq_status = {TaskStatus.CANCELED.value} where '\
+        f'eq_task_id in  ({placeholders});'
+    delete_query = f'delete from emews_queue_out where eq_task_id in ({placeholders});'
+    try:
+        with DB.conn:
+            with DB.conn.cursor() as cur:
+                cur.execute(delete_query, ids)
+                deleted_rows = cur.rowcount
+                cur.execute(update_query, ids)
+
+    except Exception as e:
+        logger.error(f'cancel task error: {e}')
+        logger.error(f'cancel task error: {traceback.format_exc()}')
+        return (ResultStatus.FAILURE, -1)
+
+    return (ResultStatus.SUCCESS, deleted_rows)
+
+
+def update_priority(eq_task_id: int, new_priority) -> int:
+    try:
+        with DB.conn:
+            with DB.conn.cursor() as cur:
+                query = 'update emews_queue_out set eq_priority = %s where eq_task_id = %s'
+                cur.execute(query, (new_priority, eq_task_id))
+    except Exception as e:
+        logger.error(f'update_priority error: {e}')
+        logger.error(f'update_priority error: {traceback.format_exc()}')
+        return ResultStatus.FAILURE
+
+    return ResultStatus.SUCCESS
+
+
+def query_priority(eq_task_ids: Iterable[int]) -> List[Tuple[int, int]]:
+    ids = tuple(eq_task_ids)
+    placeholders = ', '.join(['%s'] * len(ids))
+    results = []
+    try:
+        with DB.conn:
+            with DB.conn.cursor() as cur:
+                query = f'select eq_task_id, eq_priority from emews_queue_out where eq_task_id in ({placeholders})'
+                cur.execute(query, ids)
+                for eq_task_id, priority in cur.fetchall():
+                    results.append((eq_task_id, priority))
+    except Exception as e:
+        logger.error(f'query_priority error: {e}')
+        logger.error(f'query_priority error: {traceback.format_exc()}')
+        return None
+
+    return results
 
 
 def query_result(eq_task_id: int, delay: float = 0.5, timeout: float = 2.0) -> Tuple:
@@ -575,7 +681,7 @@ def query_result(eq_task_id: int, delay: float = 0.5, timeout: float = 2.0) -> T
 
     The query repeatedly polls for a result. The polling interval is specified by
     the delay such that the first interval is defined by the initial delay value
-    which is increased exponentionally after the first poll. The polling will
+    which is increased after the first poll. The polling will
     timeout after the amount of time specified by the timout value is has elapsed.
 
     Args:
@@ -596,7 +702,7 @@ def query_result(eq_task_id: int, delay: float = 0.5, timeout: float = 2.0) -> T
             if msg[0] != ResultStatus.SUCCESS:
                 return msg
 
-        try:
-            return select_task_result(cur, eq_task_id)
-        except Exception:
-            return (ResultStatus.FAILURE, EQ_ABORT)
+            try:
+                return select_task_result(cur, eq_task_id)
+            except Exception:
+                return (ResultStatus.FAILURE, EQ_ABORT)
