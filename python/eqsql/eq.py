@@ -382,7 +382,7 @@ def push_out_queue(cur, eq_task_id, eq_type, priority=0) -> ResultStatus:
     except Exception as e:
         logger.error(f'push_out_queue error: {e}')
         logger.error(f'push_out_queue error {traceback.format_exc()}')
-        raise(e)
+        raise e
 
 
 def push_in_queue(cur, eq_task_id, eq_type) -> ResultStatus:
@@ -432,7 +432,7 @@ def _insert_task(cur, exp_id: str, eq_type: int, payload: str) -> Tuple:
     except Exception as e:
         logger.error(f'insert_task error: {e}')
         logger.error(f'insert_task error {traceback.format_exc()}')
-        raise(e)
+        raise e
 
     return (ResultStatus.SUCCESS, eq_task_id)
 
@@ -464,7 +464,7 @@ def select_task_payload(cur, eq_task_id: int) -> Tuple[ResultStatus, str]:
     except Exception as e:
         logger.error(f'select_task_payload error: {e}')
         logger.error(f'select_task_payload error {traceback.format_exc()}')
-        raise(e)
+        raise e
 
 
 def select_task_result(cur, eq_task_id: int) -> Tuple[ResultStatus, str]:
@@ -486,7 +486,7 @@ def select_task_result(cur, eq_task_id: int) -> Tuple[ResultStatus, str]:
     except Exception as e:
         logger.error(f'select_task_result error: {e}')
         logger.error(f'select_task_result error {traceback.format_exc()}')
-        raise(e)
+        raise e
 
     return (ResultStatus.SUCCESS, result)
 
@@ -512,7 +512,7 @@ def update_task(cur, eq_task_id: int, payload: str) -> ResultStatus:
     except Exception as e:
         logger.error(f'update_task error: {e}')
         logger.error(f'update_task error {traceback.format_exc()}')
-        raise(e)
+        raise e
 
 
 def stop_worker_pool(eq_type: int) -> ResultStatus:
