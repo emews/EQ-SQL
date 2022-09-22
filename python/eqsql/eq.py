@@ -124,8 +124,18 @@ class Future:
             return ts
 
     def cancel(self):
-        """Cancels this future task by removing this futures task id from the output queue."""
-        return cancel_tasks([self.eq_task_id])
+        """Cancels this future task by removing this futures task id from the output queue.
+        Cancelation can fail if this future task has been popped from the output queue
+        before this call completes. Calling this on an already canceled task will return True.
+
+        Returns:
+            True if the task is canceled, otherwise False.
+        """
+        if self._status is not None and self._status == TaskStatus.CANCELED:
+            return True
+
+        status, row_count = cancel_tasks([self.eq_task_id])
+        return status == ResultStatus.SUCCESS and row_count == 1
 
     def done(self):
         """Returns True if this future task has been completed or canceled, otherwise
@@ -152,7 +162,7 @@ class Future:
         Returns:
             ResultStatus.SUCCESS if the priority has been successfully updated, otherwise false.
         """
-        return update_priority(self.eq_task_id, new_priority)
+        return update_priorities([self.eq_task_id], new_priority)
 
 
 def init(retry_threshold=0, log_level=logging.WARN):
@@ -182,7 +192,7 @@ def init(retry_threshold=0, log_level=logging.WARN):
         except db_tools.ConnectionException as e:
             retries += 1
             if retries > retry_threshold:
-                raise(e)
+                raise e
             time.sleep(random() * 4)
 
     return DB
@@ -651,7 +661,7 @@ def query_status(eq_task_ids: Iterable[int]) -> List[Tuple[int, TaskStatus]]:
     return results
 
 
-def cancel_tasks(eq_task_ids: Iterable[int]) -> ResultStatus:
+def cancel_tasks(eq_task_ids: Iterable[int]) -> Tuple[ResultStatus, int]:
     ids = tuple(eq_task_ids)
     placeholders = ', '.join(['%s'] * len(ids))
     # delete should lock all the rows, so they can't be selected
@@ -673,12 +683,14 @@ def cancel_tasks(eq_task_ids: Iterable[int]) -> ResultStatus:
     return (ResultStatus.SUCCESS, deleted_rows)
 
 
-def update_priority(eq_task_id: int, new_priority) -> int:
+def update_priorities(eq_task_ids: Iterable[int], new_priority: int) -> ResultStatus:
+    ids = tuple(eq_task_ids)
+    placeholders = ', '.join(['%s'] * len(ids))
     try:
         with DB.conn:
             with DB.conn.cursor() as cur:
-                query = 'update emews_queue_out set eq_priority = %s where eq_task_id = %s'
-                cur.execute(query, (new_priority, eq_task_id))
+                query = f'update emews_queue_out set eq_priority = %s where eq_task_id in ({placeholders})'
+                cur.execute(query, (new_priority, ids))
     except Exception as e:
         logger.error(f'update_priority error: {e}')
         logger.error(f'update_priority error: {traceback.format_exc()}')
@@ -764,6 +776,16 @@ def as_completed(futures: List[Future], timeout=None, n=None,
 
         if stop_condition is not None and stop_condition():
             raise StopConditionException('as_completed stopped due stop condition')
+
+
+def cancel(futures: List[Future]) -> int:
+    """Returns the number tasks successfully canceled"""
+    cancel_tasks((f.eq_task_id for f in futures))
+
+
+def update_priority(futures: List[Future], new_priority: int) -> int:
+    """Returns the number of tasks whose priority was successfully updated"""
+    update_priorities((f.eq_task_id for f in futures), new_priority)
 
 
 class StopConditionException(Exception):
