@@ -8,10 +8,9 @@ import time
 import json
 from datetime import datetime, timezone
 from enum import IntEnum
-from typing import Iterable, Tuple, Dict, List
+from typing import Iterable, Tuple, Dict, List, Generator
 
 from . import db_tools
-from .db_tools import Q
 
 
 class ResultStatus(IntEnum):
@@ -71,6 +70,8 @@ class Future:
         eq.submit_task."""
         self.eq_task_id = eq_task_id
         self.tag = tag
+        self._result = None
+        self._status = None
 
     def result(self, delay: float = 0.5, timeout: float = 2.0) -> Tuple[ResultStatus, str]:
         """Gets the result of this future task.
@@ -91,8 +92,15 @@ class Future:
         is either the result of the task, or in the case of failure the reason
         for the failure (EQ_TIMEOUT, or EQ_ABORT)
         """
-        status_result = query_result(self.eq_task_id, delay, timeout=timeout)
-        return status_result
+        # retry after an abort
+        if self._result is None or self._result[1] == EQ_ABORT:
+            status_result = query_result(self.eq_task_id, delay, timeout=timeout)
+            if status_result[0] == ResultStatus.SUCCESS or status_result[1] == EQ_ABORT:
+                self._result = status_result
+
+            return status_result
+
+        return self._result
 
     @property
     def status(self) -> TaskStatus:
@@ -100,18 +108,31 @@ class Future:
         eq.TaskStatus.RUNNING, eq.TaskStatus.COMPLETE, or eq.TaskStatus.CANCELED.
 
         Returns:
-            One of: eq.TaskStatus.QUEUED, eq.TaskStatus.RUNNING, eq.TaskStatus.COMPLETE,
+            One of eq.TaskStatus.QUEUED, eq.TaskStatus.RUNNING, eq.TaskStatus.COMPLETE,
             eq.TaskStatus.CANCELED or None if the status query fails.
         """
+        if self._status is not None:
+            return self._status
+
         result = query_status([self.eq_task_id])
         if result is None:
             return result
         else:
-            return result[0][1]
+            ts = result[0][1]
+            if ts == TaskStatus.COMPLETE or ts == TaskStatus.CANCELED:
+                self._status = ts
+            return ts
 
     def cancel(self):
         """Cancels this future task by removing this futures task id from the output queue."""
         return cancel_tasks([self.eq_task_id])
+
+    def done(self):
+        """Returns True if this future task has been completed or canceled, otherwise
+        False
+        """
+        status = self.status
+        return status == TaskStatus.CANCELED or status == TaskStatus.COMPLETE
 
     @property
     def priority(self) -> int:
@@ -481,7 +502,7 @@ def update_task(cur, eq_task_id: int, payload: str) -> ResultStatus:
     except Exception as e:
         logger.error(f'update_task error: {e}')
         logger.error(f'update_task error {traceback.format_exc()}')
-        return ResultStatus.FAILURE
+        raise(e)
 
 
 def stop_worker_pool(eq_type: int) -> ResultStatus:
@@ -590,16 +611,25 @@ def report_task(eq_task_id: int, eq_type: int, result: str) -> ResultStatus:
         ResultStatus.SUCCESS if the task was successfully reported, otherwise
         ResultStatus.FAILURE.
     """
-    with DB.conn:
-        with DB.conn.cursor() as cur:
-            # update_task doesn't throw an exception, so we won't
-            # roll this back as we don't want to loose the result
-            # if push_in_queue fails.
-            result_status = update_task(cur, eq_task_id, result)
-            if result_status == ResultStatus.SUCCESS:
+    # We do this is in two transactions so if push_in_queue fails, we don't
+    # rollback update_task and lose a task result.
+    try:
+        with DB.conn:
+            with DB.conn.cursor() as cur:
+                update_task(cur, eq_task_id, result)
+    except Exception as e:
+        logger.error(f'report_task error: {e}')
+        logger.error(f'report_task error {traceback.format_exc()}')
+        return ResultStatus.FAILURE
+
+    try:
+        with DB.conn:
+            with DB.conn.cursor() as cur:
                 return push_in_queue(cur, eq_task_id, eq_type)
-            else:
-                return result_status
+    except Exception as e:
+        logger.error(f'report_task error: {e}')
+        logger.error(f'report_task error {traceback.format_exc()}')
+        return ResultStatus.FAILURE
 
 
 def query_status(eq_task_ids: Iterable[int]) -> List[Tuple[int, TaskStatus]]:
@@ -696,13 +726,53 @@ def query_result(eq_task_id: int, delay: float = 0.5, timeout: float = 2.0) -> T
         is either the result of the task, or in the case of failure the reason
         for the failure (EQ_TIMEOUT, or EQ_ABORT)
     """
-    with DB.conn:
-        with DB.conn.cursor() as cur:
-            msg = pop_in_queue(cur, eq_task_id, delay, timeout)
-            if msg[0] != ResultStatus.SUCCESS:
-                return msg
+    try:
+        with DB.conn:
+            with DB.conn.cursor() as cur:
+                msg = pop_in_queue(cur, eq_task_id, delay, timeout)
+                if msg[0] != ResultStatus.SUCCESS:
+                    return msg
 
-            try:
                 return select_task_result(cur, eq_task_id)
-            except Exception:
-                return (ResultStatus.FAILURE, EQ_ABORT)
+    except Exception as e:
+        logger.error(f'query_result error: {e}')
+        logger.error(f'query_result error {traceback.format_exc()}')
+        return (ResultStatus.FAILURE, EQ_ABORT)
+
+
+def as_completed(futures: List[Future], timeout=None, n=None,
+                 stop_condition=None) -> Generator[Future, None, None]:
+    start_time = time.time()
+    completed_tasks = set()
+    n_futures = len(futures)
+
+    go = True
+    while go:
+        for f in futures:
+            if f.eq_task_id not in completed_tasks:
+                status, result_str = f.result(timeout=0.0)
+                if status == ResultStatus.SUCCESS or result_str == EQ_ABORT:
+                    completed_tasks.add(f.eq_task_id)
+                    yield f
+                    n_completed = len(completed_tasks)
+                    if n_completed == n_futures or n_completed == n:
+                        go = False
+                        break
+
+            if timeout is not None and time.time() - start_time > timeout:
+                raise TimeoutError(f'as_completed timed out after {timeout} seconds')
+
+        if stop_condition is not None and stop_condition():
+            raise StopConditionException('as_completed stopped due stop condition')
+
+
+class StopConditionException(Exception):
+    def __init__(self, msg='StopIterationException', *args, **kwargs):
+        super().__init__(msg, *args, **kwargs)
+        pass
+
+
+class TimeoutError(Exception):
+    def __init__(self, msg='TimeoutError', *args, **kwargs):
+        super().__init__(msg, *args, **kwargs)
+        pass

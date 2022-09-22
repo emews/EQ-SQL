@@ -1,3 +1,5 @@
+from multiprocessing.resource_sharer import stop
+import re
 import unittest
 import os
 import json
@@ -45,6 +47,7 @@ class EQTests(unittest.TestCase):
         result_status, ft = eq.submit_task('test_future', 0, create_payload(), tag='x')
         self.assertEqual(eq.ResultStatus.SUCCESS, result_status)
         self.assertEqual(eq.TaskStatus.QUEUED, ft.status)
+        self.assertFalse(ft.done())
         self.assertEqual('x', ft.tag)
         eq.close()
 
@@ -54,11 +57,13 @@ class EQTests(unittest.TestCase):
         result_status, ft = eq.submit_task('test_future', 0, create_payload(), priority=10, tag='x')
         self.assertEqual(eq.ResultStatus.SUCCESS, result_status)
         self.assertEqual(eq.TaskStatus.QUEUED, ft.status)
+        self.assertFalse(ft.done())
         self.assertEqual('x', ft.tag)
         self.assertEqual(10, ft.priority)
 
         ft.priority = 20
         self.assertEqual(eq.TaskStatus.QUEUED, ft.status)
+        self.assertFalse(ft.done())
         self.assertEqual('x', ft.tag)
         self.assertEqual(20, ft.priority)
 
@@ -76,6 +81,7 @@ class EQTests(unittest.TestCase):
         payload = create_payload()
         _, ft = eq.submit_task('test_future', 0, payload)
         self.assertEqual(eq.TaskStatus.QUEUED, ft.status)
+        self.assertFalse(ft.done())
         result_status, result = ft.result(timeout=0.5)
         self.assertEqual(eq.ResultStatus.FAILURE, result_status)
         self.assertEqual(result, eq.EQ_TIMEOUT)
@@ -92,6 +98,7 @@ class EQTests(unittest.TestCase):
         self.assertEqual(result, eq.EQ_TIMEOUT)
         task_status = ft.status
         self.assertEqual(eq.TaskStatus.RUNNING, task_status)
+        self.assertFalse(ft.done())
 
         # report task result
         task_result = {'j': 3}
@@ -106,6 +113,7 @@ class EQTests(unittest.TestCase):
         # test status
         task_status = ft.status
         self.assertEqual(eq.TaskStatus.COMPLETE, task_status)
+        self.assertTrue(ft.done())
 
         # test eq stop
         eq.stop_worker_pool(0)
@@ -180,11 +188,13 @@ class EQTests(unittest.TestCase):
         result_status, ft = eq.submit_task('test_future', 0, create_payload(), tag='x')
         self.assertEqual(eq.ResultStatus.SUCCESS, result_status)
         self.assertEqual(eq.TaskStatus.QUEUED, ft.status)
+        self.assertFalse(ft.done())
 
         result, rows = ft.cancel()
         self.assertEqual(eq.ResultStatus.SUCCESS, result)
         self.assertEqual(1, rows)
         self.assertEqual(eq.TaskStatus.CANCELED, ft.status)
+        self.assertTrue(ft.done())
 
         # no work because canceled
         result = eq.query_task(0, timeout=0.5)
@@ -196,3 +206,146 @@ class EQTests(unittest.TestCase):
         self.assertEqual(0, rows)
 
         eq.close()
+
+    def test_as_completed(self):
+        eq.init()
+        clear_db(eq.DB.conn)
+
+        fs = []
+        for i in range(0, 200):
+            payload = create_payload(i)
+            submit_status, ft = eq.submit_task('eq_test', 0, payload, priority=0)
+            self.assertEqual(eq.ResultStatus.SUCCESS, submit_status)
+            fs.append(ft)
+
+        timedout = False
+        try:
+            for ft in eq.as_completed(fs, timeout=5):
+                pass
+            self.fail('timeout exception expected')
+        except eq.TimeoutError:
+            timedout = True
+        self.assertTrue(timedout)
+
+        count = 0
+        while True:
+            result = eq.query_task(0, timeout=0.0)
+            if result['type'] == 'status':
+                break
+            self.assertEqual('work', result['type'])
+            count += 1
+            task_id = result['eq_task_id']
+            task_result = {'j': task_id}
+            report_result = eq.report_task(task_id, 0, json.dumps(task_result))
+            self.assertEqual(eq.ResultStatus.SUCCESS, report_result)
+
+        self.assertEqual(200, count)
+
+        for ft in eq.as_completed(fs, timeout=None):
+            self.assertTrue(ft.done())
+            self.assertEqual(eq.TaskStatus.COMPLETE, ft.status)
+            status, result_str = ft.result(timeout=0)
+            self.assertEqual(eq.ResultStatus.SUCCESS, status)
+            self.assertEqual(ft.eq_task_id, json.loads(result_str)['j'])
+
+        eq.close()
+
+    def test_as_completed_stop(self):
+        eq.init()
+        clear_db(eq.DB.conn)
+
+        fs = []
+        for i in range(0, 200):
+            payload = create_payload(i)
+            submit_status, ft = eq.submit_task('eq_test', 0, payload, priority=0)
+            self.assertEqual(eq.ResultStatus.SUCCESS, submit_status)
+            fs.append(ft)
+
+        # add 10 results
+        for _ in range(10):
+            result = eq.query_task(0, timeout=0.0)
+            if result['type'] == 'status':
+                break
+            self.assertEqual('work', result['type'])
+            task_id = result['eq_task_id']
+            task_result = {'j': task_id}
+            report_result = eq.report_task(task_id, 0, json.dumps(task_result))
+            self.assertEqual(eq.ResultStatus.SUCCESS, report_result)
+
+        excepted = False
+        count = 0
+        try:
+            for ft in eq.as_completed(fs, timeout=None, stop_condition=lambda: True):
+                count += 1
+                self.assertTrue(ft.done())
+                self.assertEqual(eq.TaskStatus.COMPLETE, ft.status)
+                status, result_str = ft.result(timeout=0)
+                self.assertEqual(eq.ResultStatus.SUCCESS, status)
+                self.assertEqual(ft.eq_task_id, json.loads(result_str)['j'])
+            self.fail('exception not thrown')
+        except eq.StopConditionException:
+            excepted = True
+
+        self.assertTrue(excepted)
+        self.assertEqual(10, count)
+
+        eq.close()
+
+    def test_as_completed_n(self):
+        eq.init()
+        clear_db(eq.DB.conn)
+
+        fs = []
+        for i in range(0, 200):
+            payload = create_payload(i)
+            submit_status, ft = eq.submit_task('eq_test', 0, payload, priority=0)
+            self.assertEqual(eq.ResultStatus.SUCCESS, submit_status)
+            fs.append(ft)
+
+        # add 100 results
+        for _ in range(100):
+            result = eq.query_task(0, timeout=0.0)
+            if result['type'] == 'status':
+                break
+            self.assertEqual('work', result['type'])
+            task_id = result['eq_task_id']
+            task_result = {'j': task_id}
+            report_result = eq.report_task(task_id, 0, json.dumps(task_result))
+            self.assertEqual(eq.ResultStatus.SUCCESS, report_result)
+
+        count = 0
+        for ft in eq.as_completed(fs, timeout=None, n=10):
+            count += 1
+            self.assertTrue(ft.done())
+            self.assertEqual(eq.TaskStatus.COMPLETE, ft.status)
+            status, result_str = ft.result(timeout=0)
+            self.assertEqual(eq.ResultStatus.SUCCESS, status)
+            self.assertEqual(ft.eq_task_id, json.loads(result_str)['j'])
+
+        self.assertEqual(10, count)
+        eq.close()
+
+    def test_as_completed_abort(self):
+        eq.init()
+        clear_db(eq.DB.conn)
+
+        fs = []
+        for i in range(10):
+            payload = create_payload(i)
+            submit_status, ft = eq.submit_task('eq_test', 0, payload, priority=0)
+            self.assertEqual(eq.ResultStatus.SUCCESS, submit_status)
+            fs.append(ft)
+
+        eq.close()
+
+        count = 0
+        # this will produce exception output through logger.error calls
+        # because eq.DB is now None
+        for ft in eq.as_completed(fs, timeout=None):
+            count += 1
+            self.assertFalse(ft.done())
+            status, result_str = ft.result(timeout=0)
+            self.assertEqual(eq.ResultStatus.FAILURE, status)
+            self.assertEqual(result_str, eq.EQ_ABORT)
+
+        self.assertEqual(10, count)
