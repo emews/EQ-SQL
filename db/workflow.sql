@@ -38,6 +38,11 @@ create table eq_tasks (
        time_stop  timestamp
 );
 
+create table eq_task_tags (
+       eq_task_id integer PRIMARY KEY,
+       tag text
+);
+
 /* This generator is just for the queues */
 create sequence emews_id_generator start 1 no cycle;
 

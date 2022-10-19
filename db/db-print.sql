@@ -12,6 +12,9 @@ select * from eq_exp_id_tasks;
 \echo == EMEWS TASKS ==
 select * from eq_tasks;
 
+\echo == EMEWS TASK TAGS ==
+select * from eq_task_tags;
+
 \echo == EMEWS QUEUE IN ==
 select * from emews_queue_IN;
 \echo == EMEWS QUEUE OUT ==
