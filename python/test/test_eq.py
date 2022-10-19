@@ -1,8 +1,7 @@
-from multiprocessing.resource_sharer import stop
-import re
 import unittest
 import os
 import json
+import logging
 
 from eqsql import eq
 
@@ -24,6 +23,7 @@ delete from eq_exp_id_tasks;
 delete from eq_tasks;
 delete from emews_queue_OUT;
 delete from emews_queue_IN;
+delete from eq_task_tags;
 alter sequence emews_id_generator restart;
 """
 
@@ -38,9 +38,13 @@ class EQTests(unittest.TestCase):
 
     def test_submit(self):
         # test before init, so fails
+        # turn off the exception printing of errors, so we get
+        # clean test results
+        eq.logger.setLevel(logging.CRITICAL)
         result_status, ft = eq.submit_task('test_future', 0, create_payload(), tag='x')
         self.assertEqual(eq.ResultStatus.FAILURE, result_status)
         self.assertIsNone(ft)
+        eq.logger.setLevel(logging.WARN)
 
         eq.init()
         clear_db(eq.DB.conn)
@@ -190,9 +194,8 @@ class EQTests(unittest.TestCase):
         self.assertEqual(eq.TaskStatus.QUEUED, ft.status)
         self.assertFalse(ft.done())
 
-        result, rows = ft.cancel()
-        self.assertEqual(eq.ResultStatus.SUCCESS, result)
-        self.assertEqual(1, rows)
+        result = ft.cancel()
+        self.assertTrue(result)
         self.assertEqual(eq.TaskStatus.CANCELED, ft.status)
         self.assertTrue(ft.done())
 
@@ -201,9 +204,8 @@ class EQTests(unittest.TestCase):
         self.assertEqual('status', result['type'])
         self.assertEqual(eq.EQ_TIMEOUT, result['payload'])
 
-        result, rows = ft.cancel()
-        self.assertEqual(eq.ResultStatus.SUCCESS, result)
-        self.assertEqual(0, rows)
+        result = ft.cancel()
+        self.assertTrue(result)
 
         eq.close()
 
@@ -338,6 +340,9 @@ class EQTests(unittest.TestCase):
 
         eq.close()
 
+        # turn off the exception printing of errors, so we get
+        # clean test results
+        eq.logger.setLevel(logging.CRITICAL)
         count = 0
         # this will produce exception output through logger.error calls
         # because eq.DB is now None
@@ -349,3 +354,85 @@ class EQTests(unittest.TestCase):
             self.assertEqual(result_str, eq.EQ_ABORT)
 
         self.assertEqual(10, count)
+        eq.logger.setLevel(logging.WARN)
+
+    def test_as_completed_pop(self):
+        eq.init()
+        clear_db(eq.DB.conn)
+
+        fs = []
+        # 100 submissions
+        for i in range(0, 200):
+            payload = create_payload(i)
+            submit_status, ft = eq.submit_task('eq_test', 0, payload, priority=0)
+            self.assertEqual(eq.ResultStatus.SUCCESS, submit_status)
+            fs.append(ft)
+
+        # add 100 results
+        for _ in range(100):
+            result = eq.query_task(0, timeout=0.0)
+            if result['type'] == 'status':
+                break
+            self.assertEqual('work', result['type'])
+            task_id = result['eq_task_id']
+            task_result = {'j': task_id}
+            report_result = eq.report_task(task_id, 0, json.dumps(task_result))
+            self.assertEqual(eq.ResultStatus.SUCCESS, report_result)
+
+        fs_len = len(fs)
+        ft = eq.pop_completed(fs)
+        self.assertTrue(ft.done())
+        self.assertEqual(eq.TaskStatus.COMPLETE, ft.status)
+        self.assertEqual(fs_len - 1, len(fs))
+
+        n = 10
+        fs_len = len(fs)
+        count = 0
+        for ft in eq.as_completed(fs, pop=True, n=n):
+            count += 1
+            self.assertTrue(ft.done())
+            self.assertEqual(eq.TaskStatus.COMPLETE, ft.status)
+            self.assertEqual(fs_len - count, len(fs))
+
+        self.assertEqual(fs_len - n, len(fs))
+        eq.close()
+
+    def test_cancel_tasks(self):
+        eq.init()
+        clear_db(eq.DB.conn)
+
+        fs = []
+        for i in range(0, 200):
+            payload = create_payload(i)
+            submit_status, ft = eq.submit_task('eq_test', 0, payload, priority=0)
+            self.assertEqual(eq.ResultStatus.SUCCESS, submit_status)
+            fs.append(ft)
+
+        status, count = eq.cancel(fs)
+        self.assertEqual(eq.ResultStatus.SUCCESS, status)
+        self.assertEqual(200, count)
+
+        for f in fs:
+            self.assertEqual(eq.TaskStatus.CANCELED, f.status)
+
+        eq.close()
+
+    def test_update_priorities(self):
+        eq.init()
+        clear_db(eq.DB.conn)
+
+        fs = []
+        for i in range(0, 200):
+            payload = create_payload(i)
+            submit_status, ft = eq.submit_task('eq_test', 0, payload, priority=0)
+            self.assertEqual(eq.ResultStatus.SUCCESS, submit_status)
+            fs.append(ft)
+
+        status, count = eq.update_priority(fs, 10)
+        self.assertEqual(eq.ResultStatus.SUCCESS, status)
+        self.assertEqual(200, count)
+
+        for f in fs:
+            self.assertEqual(10, f.priority)
+
+        eq.close()
