@@ -36,7 +36,11 @@ def clear_db(conn):
 
 class EQTests(unittest.TestCase):
 
+    def tearDown(self):
+        eq.close()
+
     def test_submit(self):
+        self.assertIsNone(eq._DB)
         # test before init, so fails
         # turn off the exception printing of errors, so we get
         # clean test results
@@ -47,7 +51,7 @@ class EQTests(unittest.TestCase):
         eq.logger.setLevel(logging.WARN)
 
         eq.init()
-        clear_db(eq.DB.conn)
+        clear_db(eq._DB.conn)
         result_status, ft = eq.submit_task('test_future', 0, create_payload(), tag='x')
         self.assertEqual(eq.ResultStatus.SUCCESS, result_status)
         self.assertEqual(eq.TaskStatus.QUEUED, ft.status)
@@ -57,7 +61,7 @@ class EQTests(unittest.TestCase):
 
     def test_query_priority(self):
         eq.init()
-        clear_db(eq.DB.conn)
+        clear_db(eq._DB.conn)
         result_status, ft = eq.submit_task('test_future', 0, create_payload(), priority=10, tag='x')
         self.assertEqual(eq.ResultStatus.SUCCESS, result_status)
         self.assertEqual(eq.TaskStatus.QUEUED, ft.status)
@@ -75,7 +79,7 @@ class EQTests(unittest.TestCase):
 
     def test_query_result(self):
         eq.init()
-        clear_db(eq.DB.conn)
+        clear_db(eq._DB.conn)
 
         # no task so query timesout
         result = eq.query_task(0, timeout=0.5)
@@ -126,11 +130,139 @@ class EQTests(unittest.TestCase):
         self.assertEqual(eq.EQ_STOP, result['payload'])
 
         eq.close()
-        self.assertIsNone(eq.DB)
+        self.assertIsNone(eq._DB)
+
+    def test_query_more(self):
+        eq.init()
+        # eq.logger.setLevel(logging.DEBUG)
+        clear_db(eq._DB.conn)
+
+        fts = {}
+        payloads = {}
+        # ME: submit tasks
+        for i in range(0, 8):
+            payload = create_payload(i)
+            _, ft = eq.submit_task('test_future', 0, payload)
+            fts[ft.eq_task_id] = ft
+            payloads[ft.eq_task_id] = payload
+            self.assertEqual(eq.TaskStatus.QUEUED, ft.status)
+            self.assertFalse(ft.done())
+
+        # Worker Pool: get 4 tasks
+        batch_size = 4
+        # currently running_task_ids and new tasks
+        running_task_ids, tasks = eq.query_more_tasks(0, eq_task_ids=[],
+                                                      batch_size=batch_size)
+
+        # nothing running prior to the above call
+        self.assertEqual([1, 2, 3, 4], running_task_ids)
+        self.assertEqual(4, len(tasks))
+
+        # WP: complete 2 tasks
+        for task in tasks[:2]:
+            task_id = task['eq_task_id']
+            task_result = {'j': task_id}
+            eq.report_task(task_id, 0, json.dumps(task_result))
+
+        # WP: Completed 2 tasks of the current tasks, so 2 new "slots" available
+        running_task_ids, tasks = eq.query_more_tasks(0, eq_task_ids=running_task_ids,
+                                                      batch_size=batch_size)
+        self.assertEqual(4, len(running_task_ids))
+        # running_task_ids now contains the original 2 (3 and 4) that had not yet
+        # finished, and the two new tasks: 5 and 6.
+        self.assertEqual([3, 4, 5, 6], running_task_ids)
+        self.assertEqual(2, len(tasks))
+
+        # complete all the running tasks. So, 2 left in queue
+        for task_id in running_task_ids:
+            task_result = {'j': task_id}
+            eq.report_task(task_id, 0, json.dumps(task_result))
+
+        # WP: ask for 4, should get remaining 2
+        running_task_ids, tasks = eq.query_more_tasks(0, eq_task_ids=running_task_ids,
+                                                      batch_size=batch_size)
+        self.assertEqual(2, len(running_task_ids))
+        self.assertEqual([7, 8], running_task_ids)
+        self.assertEqual(2, len(tasks))
+
+        eq.close()
+
+    def test_query_task_n(self):
+        eq.init()
+        clear_db(eq._DB.conn)
+
+        # no task so query timesout
+        result = eq.query_task(0, timeout=0.5)
+        self.assertEqual('status', result['type'])
+        self.assertEqual(eq.EQ_TIMEOUT, result['payload'])
+
+        fts = {}
+        payloads = {}
+        for i in range(0, 8):
+            payload = create_payload(i)
+            _, ft = eq.submit_task('test_future', 0, payload)
+            fts[ft.eq_task_id] = ft
+            payloads[ft.eq_task_id] = payload
+            self.assertEqual(eq.TaskStatus.QUEUED, ft.status)
+            self.assertFalse(ft.done())
+
+        results = eq.query_task(0, n=4, timeout=0.5)
+        self.assertEqual(4, len(results))
+        for result in results:
+            self.assertEqual('work', result['type'])
+            task_id = result['eq_task_id']
+            self.assertEqual(payloads[task_id], result['payload'])
+            ft = fts[task_id]
+            # test result still failure, and status is running
+            result_status, result = ft.result(timeout=0.5)
+            self.assertEqual(eq.ResultStatus.FAILURE, result_status)
+            self.assertEqual(result, eq.EQ_TIMEOUT)
+            task_status = ft.status
+            self.assertEqual(eq.TaskStatus.RUNNING, task_status)
+            self.assertFalse(ft.done())
+
+        results = eq.query_task(0, n=2, timeout=0.5)
+        self.assertEqual(2, len(results))
+        for result in results:
+            self.assertEqual('work', result['type'])
+            task_id = result['eq_task_id']
+            self.assertEqual(payloads[task_id], result['payload'])
+            ft = fts[task_id]
+            # test result still failure, and status is running
+            result_status, result = ft.result(timeout=0.5)
+            self.assertEqual(eq.ResultStatus.FAILURE, result_status)
+            self.assertEqual(result, eq.EQ_TIMEOUT)
+            task_status = ft.status
+            self.assertEqual(eq.TaskStatus.RUNNING, task_status)
+            self.assertFalse(ft.done())
+
+        eq.stop_worker_pool(0)
+        results = eq.query_task(0, n=10, timeout=0.5)
+        # 3 - 2 remaining tasks and stop
+        self.assertEqual(3, len(results))
+        for result in results[:-1]:
+            self.assertEqual('work', result['type'])
+            task_id = result['eq_task_id']
+            self.assertEqual(payloads[task_id], result['payload'])
+            ft = fts[task_id]
+            # test result still failure, and status is running
+            result_status, result = ft.result(timeout=0.5)
+            self.assertEqual(eq.ResultStatus.FAILURE, result_status)
+            self.assertEqual(result, eq.EQ_TIMEOUT)
+            task_status = ft.status
+            self.assertEqual(eq.TaskStatus.RUNNING, task_status)
+            self.assertFalse(ft.done())
+
+        result = results[-1]
+        self.assertEqual('status', result['type'])
+        self.assertEqual(eq.EQ_STOP, result['payload'])
+
+        eq.close()
+        self.assertIsNone(eq._DB)
 
     def test_priority(self):
         eq.init()
-        clear_db(eq.DB.conn)
+        clear_db(eq._DB.conn)
 
         # test priority, add mult work with different priority
         # get in order
@@ -154,7 +286,7 @@ class EQTests(unittest.TestCase):
     def test_work_type(self):
         # add different work types and get by type
         eq.init()
-        clear_db(eq.DB.conn)
+        clear_db(eq._DB.conn)
 
         # test priority, add mult work with different priority
         # get in order
@@ -177,7 +309,7 @@ class EQTests(unittest.TestCase):
 
     def test_no_work(self):
         eq.init()
-        clear_db(eq.DB.conn)
+        clear_db(eq._DB.conn)
         # query for work when no work
 
         result = eq.query_task(0, timeout=0.5)
@@ -188,7 +320,7 @@ class EQTests(unittest.TestCase):
 
     def test_cancel(self):
         eq.init()
-        clear_db(eq.DB.conn)
+        clear_db(eq._DB.conn)
         result_status, ft = eq.submit_task('test_future', 0, create_payload(), tag='x')
         self.assertEqual(eq.ResultStatus.SUCCESS, result_status)
         self.assertEqual(eq.TaskStatus.QUEUED, ft.status)
@@ -211,7 +343,7 @@ class EQTests(unittest.TestCase):
 
     def test_as_completed(self):
         eq.init()
-        clear_db(eq.DB.conn)
+        clear_db(eq._DB.conn)
 
         fs = []
         for i in range(0, 200):
@@ -254,7 +386,7 @@ class EQTests(unittest.TestCase):
 
     def test_as_completed_stop(self):
         eq.init()
-        clear_db(eq.DB.conn)
+        clear_db(eq._DB.conn)
 
         fs = []
         for i in range(0, 200):
@@ -295,7 +427,7 @@ class EQTests(unittest.TestCase):
 
     def test_as_completed_n(self):
         eq.init()
-        clear_db(eq.DB.conn)
+        clear_db(eq._DB.conn)
 
         fs = []
         for i in range(0, 200):
@@ -329,7 +461,7 @@ class EQTests(unittest.TestCase):
 
     def test_as_completed_abort(self):
         eq.init()
-        clear_db(eq.DB.conn)
+        clear_db(eq._DB.conn)
 
         fs = []
         for i in range(10):
@@ -358,7 +490,7 @@ class EQTests(unittest.TestCase):
 
     def test_as_completed_pop(self):
         eq.init()
-        clear_db(eq.DB.conn)
+        clear_db(eq._DB.conn)
 
         fs = []
         # 100 submissions
@@ -399,7 +531,7 @@ class EQTests(unittest.TestCase):
 
     def test_cancel_tasks(self):
         eq.init()
-        clear_db(eq.DB.conn)
+        clear_db(eq._DB.conn)
 
         fs = []
         for i in range(0, 200):
@@ -419,7 +551,7 @@ class EQTests(unittest.TestCase):
 
     def test_update_priorities(self):
         eq.init()
-        clear_db(eq.DB.conn)
+        clear_db(eq._DB.conn)
 
         fs = []
         for i in range(0, 200):
