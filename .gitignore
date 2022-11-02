@@ -9,3 +9,4 @@
 scratch/
 experiments/
 turbine-output
+__pycache__

@@ -172,7 +172,7 @@ eq_report_task <- function(eq_task_id, eq_type, result) {
 #'   second element is either the result of the task, or in the case of
 #'   failure the reason for the failure ("EQ_TIMEOUT", or "EQ_ABORT")
 #' @export
-eq_query_result <- function(eq_task_id, delay, timeout) {
+eq_query_result <- function(eq_task_id, delay = 0.5, timeout = 2.0) {
     msg <- eq_pop_in_queue(eq_task_id, delay, timeout)
     if (msg[[1]] != ResultStatus$SUCCESS) {
         return(msg)

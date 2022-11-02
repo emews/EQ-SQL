@@ -3,32 +3,31 @@
 # CHECK QUEUES PY
 # Check that the EMEWS Queues are empty before running a test
 
-from eqsql.db_tools import workflow_sql
+from eqsql import eq
 
-sql = workflow_sql(envs=True)
-sql.connect()
+eq.init()
 
 success = True
 
-tables = [ "emews_queue_IN", "emews_queue_OUT" ]
-for table in tables:
-    sql.select(table=table, what="count(eq_task_id)")
-    rs = sql.get()
-    count = rs[0]
-    if count > 0:
-        print("check-queues.py: There are entries in table '%s'" %
-              table)
-        success = False
+with eq._DB.conn:
+    with eq._DB.conn.cursor() as cur:
+        tables = ["emews_queue_in", "emews_queue_out"]
+        for table in tables:
+            cur.execute(f"select count(eq_task_id) from {table};")
+            rs = cur.fetchone()
+            count = rs[0]
+            if count > 0:
+                print(f"check-queues.py: There are entries in table '{table}'")
+                success = False
 
-tables = [ "eq_tasks" ]
-for table in tables:
-    sql.select(table=table, what="count(eq_task_id)")
-    rs = sql.get()
-    count = rs[0]
-    if count > 0:
-        print("check-queues.py: There are entries in table '%s'" %
-              table)
-        success = True
+        cur.execute("select count(eq_task_id) from eq_tasks;")
+        rs = cur.fetchone()
+        count = rs[0]
+        if count > 0:
+            print(f"check-queues.py: There are entries in table 'eq_tasks'")
+            success = True
 
 if not success:
     exit(1)
+
+eq.close()

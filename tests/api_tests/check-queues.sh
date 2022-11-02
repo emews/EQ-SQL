@@ -5,8 +5,8 @@ set -eu
 # Check that the EMEWS Queues are empty before running a test
 
 THIS=$(   readlink --canonicalize $( dirname $0 ) )
-EQ_SQL=$( readlink --canonicalize $THIS/.. )
+EQ_SQL=$( readlink --canonicalize $THIS/../.. )
 export EQ_SQL
+export PYTHONPATH=$EQ_SQL/python
 
-export PYTHONPATH=$EQ_SQL/db
 python3 $THIS/check-queues.py

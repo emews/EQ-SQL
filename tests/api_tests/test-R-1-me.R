@@ -5,7 +5,7 @@ suppressMessages(library(EQ.SQL))
 
 print("R TEST 1 ME: START")
 
-if (! eq_init()) {
+if (! eq_init(log_level=logger::INFO)) {
   quit(status=1)
 }
 

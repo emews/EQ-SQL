@@ -1,4 +1,4 @@
-import eq.proxies as proxies
+from eqsql import proxies
 from math import sin
 
 

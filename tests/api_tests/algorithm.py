@@ -13,8 +13,8 @@ from deap import creator
 from deap import tools
 from deap import algorithms
 
-import eq.eq as eq
-import eq.proxies as proxies
+from eqsql import eq
+from eqsql import proxies
 
 # Global variable names we are going to set from the JSON settings file
 global_settings = ["num_iter", "num_pop", "sigma", "mate_pb", "mutate_pb", "use_proxy"]
@@ -89,8 +89,8 @@ def queue_map(obj_func, pop: List[List]):
         # eq.OUT_put(create_list_of_lists_string(pops))
         payload = pop_to_json(pop, ('x', 'y'))
 
-    status, eq_task_id = eq.submit_task('test-swift-2', SIM_WORK_TYPE, payload)
-    status, result_str = eq.query_result(eq_task_id, timeout=4.0)
+    status, ft = eq.submit_task('test-swift-2', SIM_WORK_TYPE, payload)
+    status, result_str = ft.result(timeout=4.0)
     if status != eq.ResultStatus.SUCCESS:
         print(f'Aborting ME: {result_str}')
         return []
@@ -181,6 +181,7 @@ def run():
     msg = "{0}\n{1}\n{2}".format(pop_to_json(pop, ('x', 'y')), ';'.join(fitnesses), log)
     # eq.OUT_put(format(msg))
     message(msg)
+    eq.close()
 
 
 def load_settings(settings_filename):
@@ -188,8 +189,6 @@ def load_settings(settings_filename):
     try:
         with open(settings_filename) as fp:
             settings = json.load(fp)
-            if 'use_proxy' in settings:
-                settings['use_proxy'] = True
     except IOError:
         message("could not open: '%s'" % settings_filename)
         message("PWD is: '%s'" % os.getcwd())
