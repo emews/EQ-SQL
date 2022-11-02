@@ -24,7 +24,7 @@ with eq._DB.conn:
         rs = cur.fetchone()
         count = rs[0]
         if count > 0:
-            print(f"check-queues.py: There are entries in table 'eq_tasks'")
+            print("check-queues.py: There are entries in table 'eq_tasks'")
             success = True
 
 if not success:
