@@ -70,7 +70,7 @@ run(message msgs[]) {
 
 (void o) start() {
   location querier_loc = locationFromRank(resident_work_rank);
-  eq_init_batch_querier(querier_loc, BATCH_SIZE, BATCH_THRESHOLD, WORK_TYPE, 0) =>
+  eq_init_batch_querier(querier_loc, BATCH_SIZE, BATCH_THRESHOLD, WORK_TYPE) =>
   loop(querier_loc) => {
     eq_stop_batch_querier(querier_loc);
     o = propagate();

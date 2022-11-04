@@ -81,11 +81,22 @@ eq_swift.report_task(eq_task_id, eq_type, payload, retry_threshold=retry_thresho
 (string output) _string_py(string code, string expr) "turbine" "0.1.0"
     [ "set <<output>> [ turbine::python 1 1 <<code>> <<expr>> ]" ];
 
-string init_querier_string = "import eq_swift\neq_swift.init_task_querier(%d, %d, %d, %d)";
+string init_querier_string = """
+import eq_swift
+import os
 
-(void v) eq_init_batch_querier(location loc, int batch_size, int threshold, int work_type, int retry_threshold) {
+try:
+    retry_threshold = int(os.environ.get('EQ_DB_RETRY_THRESHOLD', 10))
+except ValueError as e:
+    print("ENV VAR: EQ_DB_RETRY_THRESHOLD must be an integer")
+    raise e
+
+eq_swift.init_task_querier(%d, %d, %d, retry_threshold)
+""";
+
+(void v) eq_init_batch_querier(location loc, int batch_size, int threshold, int work_type) {
     //printf("EQPy_init_package(%s) ...", packageName);
-    string code = init_querier_string % (batch_size, threshold, work_type, retry_threshold); //,packageName);
+    string code = init_querier_string % (batch_size, threshold, work_type); //,packageName);
     //printf("Code is: \n%s", code);
     @location=loc _void_py(code) => v = propagate();
 }
