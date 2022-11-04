@@ -160,12 +160,12 @@ def init(retry_threshold=0, log_level=logging.WARN):
             will be random few second delay betwen each retry.
         log_level: the logging threshold level.
     """
-    global logger
-    logger = db_tools.setup_log(__name__, log_level)
-
     global _DB
     if _DB is not None:
         return
+
+    global logger
+    logger = db_tools.setup_log(__name__, log_level)
 
     retries = 0
     while True:
@@ -210,14 +210,14 @@ def _sql_pop_out_q(eq_type: int, n: int = 1) -> str:
     """
     code = f"""
     DELETE FROM emews_queue_OUT
-    WHERE  eq_task_id in (
+    WHERE  eq_task_id = any( array(
     SELECT eq_task_id
     FROM emews_queue_OUT
     WHERE eq_task_type = {eq_type}
     ORDER BY eq_priority DESC, eq_task_id ASC
     FOR UPDATE SKIP LOCKED
     LIMIT {n}
-    )
+    ))
     RETURNING *;
     """
     return code
@@ -278,6 +278,7 @@ def pop_out_queue(cur, eq_type: int, n: int, delay: float, timeout: float) -> Tu
         cause of the failure.
     """
     sql_pop = _sql_pop_out_q(eq_type, n)
+    # print(sql_pop)
     res = _queue_pop(cur, sql_pop, delay, timeout)
     logger.debug(f'pop_out_queue sql:\n{sql_pop}')
     logger.debug(f'pop_out_queue: {res}')
@@ -450,7 +451,7 @@ def select_task_payload(cur, eq_task_ids: Iterable[int]) -> List[Tuple[int, str]
     placeholders = ', '.join(['%s'] * len(eq_task_ids))
     task_ids = list(eq_task_ids)
     try:
-        query = f'select eq_task_id, json_out from eq_tasks where eq_task_id in ({placeholders})'
+        query = f'select eq_task_id, json_out from eq_tasks where eq_task_id in ({placeholders}) ORDER BY eq_task_id ASC'
         cur.execute(query, task_ids)
         result = [(rs[0], rs[1]) for rs in cur.fetchall()]
         # cmd = db_tools.format_select("eq_tasks", "json_out", 'eq_task_id=%s')
@@ -532,14 +533,15 @@ def stop_worker_pool(eq_type: int) -> ResultStatus:
         return ResultStatus.FAILURE
 
 
-def query_more_tasks(eq_type: int, eq_task_ids: Iterable[int], batch_size: int, delay: float = 0.5,
-                     timeout: float = 2.0) -> Tuple[List[int], List[Dict]]:
+def query_more_tasks(eq_type: int, eq_task_ids: Iterable[int], batch_size: int, threshold: int = 1,
+                     delay: float = 0.5, timeout: float = 2.0) -> Tuple[List[int], List[Dict]]:
     """Queries for tasks of the specified type, returning up to batch_size number of tasks. The
     exact number of task to return is batch_size - X where X is the number of currently running tasks
     in the tasks in eq_task_ids. The intention here is that worker pool may have a limited amount
-    of capacity and doesn't want to get more work than that. eq_task_ids keeps track of the number
+    of capacity and shouldn't get more work than that. eq_task_ids keeps track of the number
     tasks the worker pool is working on and batch_size is the maximum amount of work (tasks)
-    the worker pool wants to execute.
+    the worker pool wants to execute. When the difference between batch size and the number of
+    running tasks is greater than the threshold then query for tasks.
 
     The query repeatedly polls for tasks. The polling interval is specified by
     the delay such that the first interval is defined by the initial delay value
@@ -550,6 +552,9 @@ def query_more_tasks(eq_type: int, eq_task_ids: Iterable[int], batch_size: int, 
         eq_type: the type of the work to query for.
         eq_task_ids: the possibly running task ids used to determine the number of tasks to return.
         batch_size: the maximum amount of tasks to return
+        threshold: the number of free "slots" (difference between running workers and batch_size)
+            that must be available before tasks are queried for. This must be less than or equal to
+            batch size.
         delay: the initial polling delay value
         timeout: the duration after which the query will timeout. If timeout is None, there is no limit to
             the wait time.
@@ -560,6 +565,16 @@ def query_more_tasks(eq_type: int, eq_task_ids: Iterable[int], batch_size: int, 
         from those specified in eq_task_ids plus the ids of any new tasks, and the second element
         is a List of Dictionaries as returned by :func: `~eqsql.eq.query_task`.
     """
+    if threshold < 1:
+        raise ValueError(f'Invalid threshold: threshold must be greater than 0: threshold = {threshold}')
+
+    if batch_size < 1:
+        raise ValueError(f'Invalid batch_size: batch_size must be greater than 0: batch_size = {batch_size}')
+
+    if threshold > batch_size:
+        raise ValueError('Invalid threshold / batch_size: threshold of must be less than '
+                         f'or equal to batch_size: threshold = {threshold}, batch_size = {batch_size}')
+
     running_tasks = []
     if len(eq_task_ids) > 0:
         statuses = query_status(eq_task_ids)
@@ -569,14 +584,20 @@ def query_more_tasks(eq_type: int, eq_task_ids: Iterable[int], batch_size: int, 
         running_tasks = [eq_task_id for eq_task_id, _ in
                          filter(lambda item: item[1] == TaskStatus.RUNNING, statuses)]
 
+    # print("batch size", batch_size, flush=True)
     n_query = batch_size - len(running_tasks)
-    # print(f'n_query: {n_query}')
-    if n_query > 0:
+    # print(f'n_query: {n_query}', flush=True)
+    if n_query >= threshold:
         new_tasks = query_task(eq_type, n_query, delay, timeout)
         if n_query == 1:
-            return (running_tasks + [new_tasks['eq_task_id']], [new_tasks])
+            if 'eq_task_id' in new_tasks:
+                return (running_tasks + [new_tasks['eq_task_id']], [new_tasks])
+            else:
+                # stop or abort msg
+                return (running_tasks, [new_tasks])
         else:
-            return (running_tasks + [task['eq_task_id'] for task in new_tasks],
+            return (running_tasks + [task['eq_task_id'] for task in
+                    filter(lambda task: 'eq_task_id' in task, new_tasks)],
                     new_tasks)
     else:
         return (running_tasks, [])

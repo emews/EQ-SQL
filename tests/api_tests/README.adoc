@@ -13,64 +13,49 @@ NOTE: Remember to run db-reset after any failed tests!
 
 Run these tests in the order given below.
 
-== Plain Python
+== Python
 
-test-py-1.sh::
-Simple one-way handoff of parameters from a Python ME to a Python WF
+Pure Python tests have been moved to `EQ-SQL/python/test`
 
-test-py-2.sh::
-Simple two-way exchange of parameters between a Python ME and a Python WF
+== R
 
-== Plain R
-
-test-R-1.sh::
-Simple one-way handoff of parameters from a R ME to a R WF
+Run test-R-[1-3].sh
 
 == Swift
 
-test-swift-1.sh::
-Simple test to connect to DB
+The swift tests test a worker pool (`worker_pool.swift`) written in swift-t
+using a Python or R ME. Run with:
 
-=== Python ME
+test-swift-py-2.sh - deap GA ME with batch synchronous tasks, single DB row with multiple tasks separated
+    by swift.
+test-swift-py-3.sh - asynchronous ME, one task per DB row, worker pool queries up to batch size to
+    execute.
 
-test-swift-2.sh::
-Real DEAP run with loopj.swift
+test-swift-R-2.sh - R ME with batch synchronous tasks, single DB row with multiple tasks separated
+    by swift.
 
-=== R ME
-
-test-swift-3.sh::
-Workflow with loop.swift with fake R ME; comma-separated messages
-
-test-swift-4.sh::
-Workflow with loopj.swift with fake R ME; JSON messages
-
-=== Worker pools
-
-pools-1.sh::
-Chain of workflow with multiple pools
-
-== Proxy
+== Proxy Tests
 
 Consists of the 3 parts:
 
-1. The deap ME (python/algorithm.py) which creates proxies for the function called by the worker pool,
+1. The deap ME (algorithm.py) which creates proxies for the function called by the worker pool,
 an example proxied argument to that function, and the list of parameters.
 2. The function that is proxied. This is decorated with @proxy.app which will unpack the proxied arguments
-to the function. Each proxied argument has a name, and that name must match the name of the argument to 
-the function. The final function arguments are the parameters. So for example,
+    to the function. Each proxied argument has a name, and that name must match the name of the argument to 
+    the function. The final function arguments are the parameters. So for example,
 
-----
-func = proxies.dump_proxies(f=test_proxy_wf.task_func)['f']
-proxy_map = proxies.dump_proxies(c=1.0)
-params = pop_to_dict(pop, ('x', 'y'))
-...
-@proxies.app
-def task_func(c, x, y):
+    ----
+    func = proxies.dump_proxies(f=test_proxy_wf.task_func)['f']
+    proxy_map = proxies.dump_proxies(c=1.0)
+    params = pop_to_dict(pop, ('x', 'y'))
     ...
-----
+    @proxies.app
+    def task_func(c, x, y):
+        ...
+    ----
 
-Here `c` is the proxied argument corresponding to the `c` task_func argument,
-followed by the `x` and `y` parameters.
+    Here `c` is the proxied argument corresponding to the `c` task_func argument,
+    followed by the `x` and `y` parameters.
 
 3. A worker pool that can handle proxies.
 
@@ -78,16 +63,16 @@ test-proxy.sh::
 Launches the proxy example workflow.
 
 test-proxy-me.py::
-Launches the deap ME (python/algorithm.py)
+Launches the deap ME (algorithm.py)
 
 test_proxy_wf.py::
 Contains the proxy.app decorated function.
 
-python/algorithm.py::
+algorithm.py::
 The deap ME that will send proxy tasks to the DB when its `use_proxy`
 argument is true.
 
-swift/proxy_pool.swift::
+worker_pool_proxies.swift::
 The worker pool for handling proxied functions and arguments.
 
 

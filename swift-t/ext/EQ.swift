@@ -3,6 +3,9 @@
    EMEWS EQ.swift for SQL
 */
 
+import location;
+pragma worktypedef resident_work;
+
 type message {
     int eq_task_id;
     string msg_type;
@@ -13,38 +16,9 @@ type message {
     result = python_persist("import eq ; eq.init()", "eq.validate()");
 }
 
-// string code_get = """
-// import sys
-// import eq
-// import json
-
-// eq.init()
-// try:
-//     print('swift out_get', flush=True)
-//     # result is a msg map
-//     msg_map = eq.query_task(%i, timeout=120.0)
-//     items = [msg_map['type'], msg_map['payload']]
-//     if msg_map['type'] == 'work':
-//         items.append(str(msg_map['eq_task_id']))
-//     result_str = '|'.join(items)
-//     # result_str = json.dumps(result)
-//     # result_str = '{}|{}'.format(eq_task_id, payload)
-
-//     print('swift out_get done', flush=True)
-// except Exception as e:
-//     import sys, traceback
-//     info = sys.exc_info()
-//     s = traceback.format_tb(info[2])
-//     print(str(e) + ' ... \\n' + ''.join(s))
-//     sys.stdout.flush()
-//     result_str = eq.ABORT_JSON_MSG
-// finally:
-//     eq.close()
-// """;
-
 string code_get = """
 import os
-import tasks
+import eq_swift
 
 eq_work_type = %i
 try:
@@ -59,10 +33,10 @@ except ValueError as e:
     print("ENV VAR: EQ_DB_RETRY_THRESHOLD must be a float")
     raise e
 
-result_str = tasks.query_task(eq_work_type, query_timeout, retry_threshold)
+result_str = eq_swift.query_task(eq_work_type, query_timeout, retry_threshold)
 """;
 
-(message msg) eq_task_querier(int eq_type) {
+(message msg) eq_task_query(int eq_type) {
     string msg_string = python_persist(code_get % eq_type, "result_str");
     // string msg_string = python_persist(code_parse_msg % result, "result_str");
     string msg_parts[] = split(msg_string, "|");
@@ -75,22 +49,9 @@ result_str = tasks.query_task(eq_work_type, query_timeout, retry_threshold)
     }
 }
 
-// string code_put = """
-// import sys
-// import eq
-// eq.init()
-// try:
-//     eq_task_id = %i
-//     eq_type = %i
-//     # TODO this returns a ResultStatus, add FAILURE handling
-//     eq.report_task(eq_task_id, eq_type, r'%s')
-// finally:
-//     eq.close()
-// """;
-
 string code_put = """
 import os
-import tasks
+import eq_swift
 
 try:
     retry_threshold = int(os.environ.get('EQ_DB_RETRY_THRESHOLD', 10))
@@ -102,14 +63,59 @@ eq_task_id = %i
 eq_type = %i
 payload = r'%s'
 
-tasks.report_task(eq_task_id, eq_type, payload, retry_threshold=retry_threshold)
-
+eq_swift.report_task(eq_task_id, eq_type, payload, retry_threshold=retry_threshold)
 """;
 
-(void v) eq_task_reporter(int eq_task_id, int eq_type, string result_payload) {
+(void v) eq_task_report(int eq_task_id, int eq_type, string result_payload) {
     // trace("code: " + code_put % (eq_type, eq_ids));
     python_persist(code_put % (eq_task_id, eq_type, result_payload)) =>
         v = propagate();
+}
+
+
+@dispatch=resident_work
+(void v) _void_py(string code, string expr="\"\"") "turbine" "0.1.0"
+    [ "turbine::python 1 1 <<code>> <<expr>> "];
+
+@dispatch=resident_work
+(string output) _string_py(string code, string expr) "turbine" "0.1.0"
+    [ "set <<output>> [ turbine::python 1 1 <<code>> <<expr>> ]" ];
+
+string init_querier_string = "import eq_swift\neq_swift.init_task_querier(%d, %d, %d, %d)";
+
+(void v) eq_init_batch_querier(location loc, int batch_size, int threshold, int work_type, int retry_threshold) {
+    //printf("EQPy_init_package(%s) ...", packageName);
+    string code = init_querier_string % (batch_size, threshold, work_type, retry_threshold); //,packageName);
+    //printf("Code is: \n%s", code);
+    @location=loc _void_py(code) => v = propagate();
+}
+
+(void v) eq_stop_batch_querier(location loc){
+    stop_string = "eq_swift.stop_task_querier()";
+    @location=loc _void_py(stop_string) => v = propagate();
+}
+
+
+string get_string = "result = eq_swift.get_tasks_n()";
+
+(message msgs[]) eq_batch_task_query(location loc) {
+    //printf("EQPy_get called");
+    //printf("Code is: \n%s", code);
+    result = @location=loc _string_py(get_string, "result");
+    string msg_strs[] = split(result, ";");
+
+    foreach msg_str, i in msg_strs {
+        string msg_parts[] = split(msg_str, "|");
+        message msg;
+        msg.msg_type = msg_parts[0];
+        msg.payload = msg_parts[1];
+        if (size(msg_parts) == 3) {
+            msg.eq_task_id = string2int(msg_parts[2]);
+        } else {
+            msg.eq_task_id = -1;
+        }
+        msgs[i] = msg;
+    }
 }
 
 // Local Variables:

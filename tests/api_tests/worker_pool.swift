@@ -68,7 +68,7 @@ loop()
        b;
        b=c)
   {
-    message msg = eq_task_querier(SIM_WORK_TYPE);
+    message msg = eq_task_query(SIM_WORK_TYPE);
     boolean c;
     if (msg.msg_type == "status") {
       if (msg.payload == "EQ_STOP") {
@@ -94,7 +94,7 @@ loop()
       printf("RESULT: %s", result);
       json_result = result_to_json(result);
       // printf("JSON RESULT: %s", json_result);
-      eq_task_reporter(eq_task_id, SIM_WORK_TYPE, json_result) => c = true;
+      eq_task_report(eq_task_id, SIM_WORK_TYPE, json_result) => c = true;
     }
   }
 
