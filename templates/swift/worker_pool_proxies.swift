@@ -11,12 +11,17 @@ import sys;
 import EQ;
 import emews;
 
+
+string emews_root = getenv("EMEWS_PROJECT_ROOT");
+string turbine_output = getenv("TURBINE_OUTPUT");
+
 int SIM_WORK_TYPE = string2int(argv("sim_work_type", 1));
 
 // IMPORTANT ENV VARIABLE:
 // * EQ_DB_RETRY_THRESHOLD sets the db connection retry threshold for querying and reporting
 // * EQ_QUERY_TASK_TIMEOUT sets the query task timeout.
 
+// Example code for using a proxied function 'f'
 string task_code = """
 from eqsql import proxies
 import json
@@ -29,39 +34,8 @@ params_str = r'%s'
 r = f(proxy_str, params_str)
 """;
 
-string parse_params_code = """
-import json
-# r (raw string) is required here 
-payload = json.loads(r'%s')
-# print(payload, flush=True)
-result = '{}|{}|{}'.format(json.dumps(payload['func']), json.dumps(payload['proxies']), json.dumps(payload['parameters']))
-""";
 
-
-(string result)result_to_json(string vals) {
-  result = python_persist(
-----
-import json
-l = [%s]
-result = json.dumps(l)
----- % vals, "result");
-}
-
-// app (file out, file err) app_run_eval(string func, string proxies, string params) {
-//   "bash" eval_sh func proxies params @stdout=out @stderr=err;
-// }
-
-// (string result)run_eval(string func, string proxies, string params, string tmp_dir, int idx) {
-//   string out_fname = "%s/out_%d.txt" % (tmp_dir, idx);
-//   string err_fname = "%s/err_%d.txt" % (tmp_dir, idx);
-//   // printf(out_fname);
-//   file out <out_fname>;
-//   file err <err_fname>;
-//   (out, err) = app_run_eval(func, proxies, params) =>
-//   result = "OK";
-// }
-
-(string result)run_eval(string func, string proxies, string params) {
+(string result)run(string func, string proxies, string params) {
   tc = task_code % (func, proxies, params);
   result = python_persist(tc, "str(r)");
 }
@@ -98,7 +72,7 @@ loop()
       {
         // string code = task_code % (payload_parts[0], payload_parts[1], p);
         // results[i] = python_persist(code, "r");
-        results[i] = run_eval(payload_parts[0], payload_parts[1], p);
+        results[i] = run(payload_parts[0], payload_parts[1], p);
       }
       result = join(results, ",");
       json_result = result_to_json(result);

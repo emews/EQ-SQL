@@ -12,7 +12,10 @@ import unix;
 import EQ;
 import emews;
 
+string emews_root = getenv("EMEWS_PROJECT_ROOT");
+string turbine_output = getenv("TURBINE_OUTPUT");
 int resident_work_rank = string2int(getenv("RESIDENT_WORK_RANK"));
+
 int WORK_TYPE = string2int(argv("sim_work_type", 0));
 int BATCH_SIZE = string2int(argv("batch_size"));
 int BATCH_THRESHOLD = string2int(argv("batch_threshold", 1));

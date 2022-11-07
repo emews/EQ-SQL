@@ -16,6 +16,9 @@ import EQ;
 // * EQ_DB_RETRY_THRESHOLD sets the db connection retry threshold for querying and reporting
 // * EQ_QUERY_TASK_TIMEOUT sets the query task timeout.
 
+string emews_root = getenv("EMEWS_PROJECT_ROOT");
+string turbine_output = getenv("TURBINE_OUTPUT");
+
 int SIM_WORK_TYPE = string2int(argv("sim_work_type", 1));
 
 (string result) run(string params) {
