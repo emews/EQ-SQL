@@ -2,3 +2,8 @@
 
 These are template examples of different types of workflows that
 can be copied and modified as necessary.
+
+1. `worker_pool_batch.swift` - single run per DB task with batch query capaility
+2. `worker_pool.swift` - multiple ';' separated runs per DB task
+3. `worker_pool_proxies.swift` - multiple ';' separated runs per DB task with proxy function evaluation
+
