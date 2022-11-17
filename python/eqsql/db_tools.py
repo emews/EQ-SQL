@@ -60,7 +60,7 @@ class WorkflowSQL:
             except ValueError as e:
                 self.logger.fatal("DB_PORT is not an integer: " +
                                   "got: '%s'" % port_string)
-                raise(e)
+                raise e
 
         if env_has("DB_NAME"):
             self.dbname = os.getenv("DB_NAME")
