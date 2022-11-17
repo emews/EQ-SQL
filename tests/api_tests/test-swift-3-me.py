@@ -9,14 +9,14 @@ def get_new_point():
 
 
 def run():
-    eq.init()
+    eq_sql = eq.init()
 
     try:
         init_pts = 7
         fts = []
         for _ in range(init_pts):
             payload = get_new_point()
-            _, ft = eq.submit_task('test-swift-3', 0, payload)
+            _, ft = eq_sql.submit_task('test-swift-3', 0, payload)
             fts.append(ft)
 
         num_obs = 18
@@ -33,7 +33,7 @@ def run():
             # add a new point
             if submitted < num_obs:
                 payload = get_new_point()
-                _, ft = eq.submit_task('test-swift-3', 0, payload)
+                _, ft = eq_sql.submit_task('test-swift-3', 0, payload)
                 fts.append(ft)
                 submitted += 1
                 # print("FT: ", ft.eq_task_id, flush=True)
@@ -43,14 +43,14 @@ def run():
         # including the stop works.
 
         payload = get_new_point()
-        _, ft = eq.submit_task('test-swift-3', 0, payload)
-        eq.stop_worker_pool(0)
+        _, ft = eq_sql.submit_task('test-swift-3', 0, payload)
+        eq_sql.stop_worker_pool(0)
         # get the result of the last submit in order to
         # clear emews_queue_in
         eq.pop_completed([ft])
 
     finally:
-        eq.close()
+        eq_sql.close()
 
     print('ME DONE', flush=True)
 

@@ -28,6 +28,8 @@ use_proxy = False
 
 SIM_WORK_TYPE = 1
 
+eq_sql = None
+
 
 def message(s):
     print("algorithm.py: " + s, flush=True)
@@ -40,7 +42,7 @@ def i2s(i):
 
 def obj_func(x):
     """ Dummy function for compatibility with DEAP """
-    assert(False)
+    assert False
 
 
 def make_random_params():
@@ -89,7 +91,7 @@ def queue_map(obj_func, pop: List[List]):
         # eq.OUT_put(create_list_of_lists_string(pops))
         payload = pop_to_json(pop, ('x', 'y'))
 
-    status, ft = eq.submit_task('test-swift-2', SIM_WORK_TYPE, payload)
+    status, ft = eq_sql.submit_task('test-swift-2', SIM_WORK_TYPE, payload)
     status, result_str = ft.result(timeout=4.0)
     if status != eq.ResultStatus.SUCCESS:
         print(f'Aborting ME: {result_str}')
@@ -138,7 +140,8 @@ def run():
     # load_settings(settings_filename)
 
     # parse settings # num_iter, num_pop, seed,
-    eq.init()
+    global eq_sql
+    eq_sql = eq.init()
 
     if use_proxy:
         proxies.init('proxy_test', store_dir='/tmp/proxystore-dump')
@@ -176,12 +179,12 @@ def run():
     fitnesses = [str(p.fitness.values[0]) for p in pop]
 
     # eq.OUT_put(eq_type=0, params="EQ_STOP")
-    eq.stop_worker_pool(SIM_WORK_TYPE)
+    eq_sql.stop_worker_pool(SIM_WORK_TYPE)
     # return the final population
     msg = "{0}\n{1}\n{2}".format(pop_to_json(pop, ('x', 'y')), ';'.join(fitnesses), log)
     # eq.OUT_put(format(msg))
     message(msg)
-    eq.close()
+    eq_sql.close()
 
 
 def load_settings(settings_filename):

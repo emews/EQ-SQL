@@ -5,12 +5,12 @@
 
 from eqsql import eq
 
-eq.init()
+eq_sql = eq.init()
 
 success = True
 
-with eq._DB.conn:
-    with eq._DB.conn.cursor() as cur:
+with eq_sql.db.conn:
+    with eq_sql.db.conn.cursor() as cur:
         tables = ["emews_queue_in", "emews_queue_out"]
         for table in tables:
             cur.execute(f"select count(eq_task_id) from {table};")
@@ -30,4 +30,4 @@ with eq._DB.conn:
 if not success:
     exit(1)
 
-eq.close()
+eq_sql.close()

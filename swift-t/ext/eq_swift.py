@@ -10,35 +10,35 @@ from eqsql import eq
 
 def query_task(eq_work_type: int, query_timeout: float = 120.0,
                retry_threshold: int = 0, log_level=logging.WARN):
-    eq.init(retry_threshold, log_level)
+    eq_sql = eq.init(retry_threshold, log_level)
     try:
-        eq.logger.debug('swift out_get')
+        eq_sql.logger.debug('swift out_get')
         # result is a msg map
-        msg_map = eq.query_task(eq_work_type, timeout=query_timeout)
+        msg_map = eq_sql.query_task(eq_work_type, timeout=query_timeout)
         items = [msg_map['type'], msg_map['payload']]
         if msg_map['type'] == 'work':
             items.append(str(msg_map['eq_task_id']))
         # result_str should be returned via swift's python persist
-        eq.logger.debug('swift out_get done')
+        eq_sql.logger.debug('swift out_get done')
         return '|'.join(items)
     except Exception:
-        eq.logger.error(f'tasks.query_task error {traceback.format_exc()}')
+        eq_sql.logger.error(f'tasks.query_task error {traceback.format_exc()}')
         # result_str returned via swift's python persist
         return eq.ABORT_JSON_MSG
     finally:
-        eq.close()
+        eq_sql.close()
 
 
 def report_task(eq_task_id: int, eq_work_type: int, result_payload: str,
                 retry_threshold: int = 0, log_level=logging.WARN):
-    eq.init(retry_threshold, log_level)
+    eq_sql = eq.init(retry_threshold, log_level)
     try:
         # TODO this returns a ResultStatus, add FAILURE handling
-        eq.report_task(eq_task_id, eq_work_type, result_payload)
+        eq_sql.report_task(eq_task_id, eq_work_type, result_payload)
     except Exception:
-        eq.logger.error(f'tasks.report_task error {traceback.format_exc()}')
+        eq_sql.logger.error(f'tasks.report_task error {traceback.format_exc()}')
     finally:
-        eq.close()
+        eq_sql.close()
 
 
 _q = mp.Queue(1)
@@ -49,16 +49,16 @@ def query_tasks_n(batch_size: int, threshold: int, work_type: int, retry_thresho
     running_task_ids = []
     wait = 0.25
     while _go:
-        eq.init(retry_threshold)
+        eq_sql = eq.init(retry_threshold)
         try:
-            running_task_ids, tasks = eq.query_more_tasks(work_type, running_task_ids,
-                                                          batch_size=batch_size, threshold=threshold,
-                                                          timeout=10)
+            running_task_ids, tasks = eq_sql.query_more_tasks(work_type, running_task_ids,
+                                                              batch_size=batch_size, threshold=threshold,
+                                                              timeout=10)
         finally:
-            eq.close()
+            eq_sql.close()
 
         n_tasks = len(tasks)
-        print("TASKS: ", tasks, flush=True)
+        # print("TASKS: ", tasks, flush=True)
         if n_tasks > 0:
             wait = 0.25
             if tasks[-1]['type'] == 'status':
