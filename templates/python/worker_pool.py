@@ -20,9 +20,9 @@ def do_work(rank, payload):
     pass
 
 
-async def get_tasks(work_type, q: asyncio.Queue):
+async def get_tasks(work_type, q: asyncio.Queue, eq_sql: eq.EQSQL):
     while True:
-        msg_map = eq.query_task(work_type, timeout=0)
+        msg_map = eq_sql.query_task(work_type, timeout=0)
         task_type = msg_map['type']
         payload = msg_map['payload']
         if task_type == 'work':
@@ -63,7 +63,7 @@ async def distribute_tasks(comm, q: asyncio.Queue):
     print('Distribute Tasks Done', flush=True)
 
 
-async def get_results(comm, work_type: int):
+async def get_results(comm, work_type: int, eq_sql: eq.EQSQL):
     live_ranks = comm.Get_size() - 1
     while live_ranks > 0:
         has_request = comm.iprobe(source=MPI.ANY_SOURCE, tag=RESULT)
@@ -74,7 +74,7 @@ async def get_results(comm, work_type: int):
             else:
                 eq_task_id = result['eq_task_id']
                 payload = result['payload']
-                eq.report_task(eq_task_id, work_type, payload)
+                eq_sql.report_task(eq_task_id, work_type, payload)
 
         await asyncio.sleep(0)
 
@@ -105,26 +105,26 @@ def run_worker(comm):
     print(f'Rank {comm.Get_rank()} Done', flush=True)
 
 
-async def run_server(comm, work_type):
+async def run_server(comm, work_type, eq_sql):
     work_queue = asyncio.Queue()
     # qt = asyncio.create_task(get_tasks(work_type, work_queue))
     # dt = asyncio.create_task(distribute_tasks(comm, work_queue))
     # grt = asyncio.create_task(get_results(comm, work_type))
 
-    await asyncio.gather(get_tasks(work_type, work_queue),
+    await asyncio.gather(get_tasks(work_type, work_queue, eq_sql),
                          distribute_tasks(comm, work_queue),
-                         get_results(comm, work_type))
+                         get_results(comm, work_type, eq_sql))
 
 
 def run(work_type: int):
     comm = MPI.COMM_WORLD
     rank = comm.Get_rank()
     if rank == 0:
-        eq.init()
+        eq_sql = eq.init()
         try:
-            asyncio.run(run_server(comm, work_type))
+            asyncio.run(run_server(comm, work_type, eq_sql))
         finally:
-            eq.close()
+            eq_sql.close()
     else:
         run_worker(comm)
 
