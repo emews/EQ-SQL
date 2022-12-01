@@ -11,7 +11,7 @@ from . import db_tools
 from .db_tools import WorkflowSQL
 
 
-class ResultStatus(IntEnum):f
+class ResultStatus(IntEnum):
     """Enum defining the status (success / failure) of an eq database
     operation.
     """
