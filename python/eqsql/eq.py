@@ -11,7 +11,7 @@ from . import db_tools
 from .db_tools import WorkflowSQL
 
 
-class ResultStatus(IntEnum):
+class ResultStatus(IntEnum):f
     """Enum defining the status (success / failure) of an eq database
     operation.
     """
@@ -520,7 +520,7 @@ class EQSQL:
 
     def submit_task(self, exp_id: str, eq_type: int, payload: str, priority: int = 0, tag: str = None) -> Future:
         """Submits work of the specified type and priority with the specified
-        payload, returning the task id assigned to that task.
+        payload, returning the status and the Future encapsulating the submission.
 
         Args:
             exp_id: the id of the experiment of which the work is part.
@@ -529,7 +529,8 @@ class EQSQL:
             priority: the priority of this work
 
         Returns:
-            A Future object representing the submitted task.
+            A tuple containing the status (ResultStatus.FAILURE or ResultStatus.SUCCESS) of the submission
+            and if successful, a Future representing the submitted task otherwise None.
         """
         try:
             with self.db.conn:
