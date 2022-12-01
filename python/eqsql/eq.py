@@ -40,7 +40,7 @@ class Future:
 
     def __init__(self, eq_sql, eq_task_id: int, tag: str = None):
         """Represents the eventual result of an EQ/SQL task. Future
-        instances are created by eq.submit_task."""
+        instances are created by eq.EQSQL.submit_task."""
         self.eq_task_id = eq_task_id
         self.tag = tag
         self.eq_sql = eq_sql
