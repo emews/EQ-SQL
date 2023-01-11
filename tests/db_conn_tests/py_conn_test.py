@@ -1,25 +1,21 @@
-import os
 from multiprocessing import Pool
 import time
-import eq.eq as eq
+from eqsql import eq
 import random
 
 
 def connect(i):
-    eq.init(retry_threshold=100)
+    host = 'localhost'
+    user = 'eqsql_user'
+    port = 5433
+    db_name = 'eqsql_db'
+
+    eq.init_eqsql(host, user, port, db_name, retry_threshold=100)
     time.sleep(random.randint(2, 5))
     eq.close()
 
 
-def setup():
-    os.environ['DB_HOST'] = 'localhost'
-    os.environ['DB_USER'] = 'eqsql_user'
-    os.environ['DB_PORT'] = '5433'
-    os.environ['DB_NAME'] = 'eqsql_db'
-
-
 def run():
-    setup()
     with Pool(500) as p:
         p.map(connect, [x for x in range(1000)])
 

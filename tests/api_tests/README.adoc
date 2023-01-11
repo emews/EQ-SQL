@@ -11,7 +11,10 @@ NOTE: Remember to run db-reset after any failed tests!
       Otherwise, old messages will be in the queue.
       check-queues.sh checks for this automatically now.
 
-Run these tests in the order given below.
+
+== DB Settings
+The database host etc. settings are defined in db_env.sh. 
+Change this as necessary.
 
 == Python
 

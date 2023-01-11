@@ -6,6 +6,7 @@ set -eu
 THIS=$(   readlink --canonicalize $( dirname $0 ) )
 EQ_SQL=$( readlink --canonicalize $THIS/../.. )
 export EQ_SQL
+source $THIS/db_env.sh
 source $EQ_SQL/db/db-settings.sh
 
 export PYTHONPATH=$EQ_SQL/swift-t/ext:$EQ_SQL/python

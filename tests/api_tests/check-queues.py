@@ -3,9 +3,15 @@
 # CHECK QUEUES PY
 # Check that the EMEWS Queues are empty before running a test
 
+import os
 from eqsql import eq
 
-eq_sql = eq.init()
+
+host = os.getenv('DB_HOST')
+user = os.getenv('DB_USER')
+port = int(os.getenv('DB_PORT'))
+db_name = os.getenv('DB_NAME')
+eq_sql = eq.init_eqsql(host, user, port, db_name)
 
 success = True
 

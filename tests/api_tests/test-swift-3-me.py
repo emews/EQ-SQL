@@ -1,6 +1,7 @@
 from eqsql import eq
 import random
 import json
+import os
 
 
 def get_new_point():
@@ -8,8 +9,16 @@ def get_new_point():
     return json.dumps(pt)
 
 
+def _create_eqsql():
+    host = os.getenv('DB_HOST')
+    user = os.getenv('DB_USER')
+    port = int(os.getenv('DB_PORT'))
+    db_name = os.getenv('DB_NAME')
+    return eq.init_eqsql(host, user, port, db_name)
+
+
 def run():
-    eq_sql = eq.init()
+    eq_sql = _create_eqsql()
 
     try:
         init_pts = 7

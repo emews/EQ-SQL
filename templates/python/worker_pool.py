@@ -1,6 +1,7 @@
 from mpi4py import MPI
 import asyncio
 import argparse
+import os
 
 from eqsql import eq
 
@@ -120,7 +121,11 @@ def run(work_type: int):
     comm = MPI.COMM_WORLD
     rank = comm.Get_rank()
     if rank == 0:
-        eq_sql = eq.init()
+        host = os.getenv('DB_HOST')
+        user = os.getenv('DB_USER')
+        port = int(os.getenv('DB_PORT'))
+        db_name = os.getenv('DB_NAME')
+        eq_sql = eq.init_eqsql(host, user, port, db_name)
         try:
             asyncio.run(run_server(comm, work_type, eq_sql))
         finally:

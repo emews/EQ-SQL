@@ -144,11 +144,17 @@ class Future:
         return status
 
 
-def init(retry_threshold=0, log_level=logging.WARN):
-    """Initializes the eq module by connecting to the DB,
-    and setting up logging.
+_log_id = 1
+
+
+def init_eqsql(host: str, user: str, port: int, db_name: str, retry_threshold=0, log_level=logging.WARN):
+    """Initializes and returns an EQSQL class instance with the specified parameters.
 
     Args:
+        host: the eqsql database host
+        user: the eqsql database user
+        port: the eqsql database port
+        db_name: the eqsql database name
         retry_threshold: if a DB connection cannot be established
             (e.g, there are currently too many connections),
             then retry "retry_threshold" many times to establish a connection. There
@@ -156,12 +162,15 @@ def init(retry_threshold=0, log_level=logging.WARN):
         log_level: the logging threshold level.
     """
 
-    logger = db_tools.setup_log(__name__, log_level)
+    global _log_id
+    log_name = f'{__name__}-{_log_id}'
+    _log_id += 1
+    logger = db_tools.setup_log(log_name, log_level)
 
     retries = 0
     while True:
         try:
-            db = db_tools.WorkflowSQL(log_level=log_level, envs=True)
+            db = db_tools.WorkflowSQL(host=host, user=user, port=port, dbname=db_name, log_level=log_level, envs=False)
             db.connect()
             break
         except db_tools.ConnectionException as e:
@@ -180,7 +189,7 @@ class EQSQL:
         self.logger = logger
 
     def close(self):
-        """Closes the DB connection. eq.init() is required to re-create a new EQSQL
+        """Closes the DB connection. eq.init_sql() is required to re-create a new EQSQL
         before calling any other functions.
         """
         if self.db:

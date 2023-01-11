@@ -4,13 +4,22 @@ import traceback
 import threading
 import time
 import multiprocessing as mp
+import os
 
 from eqsql import eq
 
 
+def _create_eqsql(retry_threshold: int = 0, log_level=logging.WARN):
+    host = os.getenv('DB_HOST')
+    user = os.getenv('DB_USER')
+    port = int(os.getenv('DB_PORT'))
+    db_name = os.getenv('DB_NAME')
+    return eq.init_eqsql(host, user, port, db_name, retry_threshold, log_level)
+
+
 def query_task(eq_work_type: int, query_timeout: float = 120.0,
                retry_threshold: int = 0, log_level=logging.WARN):
-    eq_sql = eq.init(retry_threshold, log_level)
+    eq_sql = _create_eqsql(retry_threshold, log_level)
     try:
         eq_sql.logger.debug('swift out_get')
         # result is a msg map
@@ -31,7 +40,7 @@ def query_task(eq_work_type: int, query_timeout: float = 120.0,
 
 def report_task(eq_task_id: int, eq_work_type: int, result_payload: str,
                 retry_threshold: int = 0, log_level=logging.WARN):
-    eq_sql = eq.init(retry_threshold, log_level)
+    eq_sql = _create_eqsql(retry_threshold, log_level)
     try:
         # TODO this returns a ResultStatus, add FAILURE handling
         eq_sql.report_task(eq_task_id, eq_work_type, result_payload)
@@ -49,7 +58,7 @@ def query_tasks_n(batch_size: int, threshold: int, work_type: int, retry_thresho
     running_task_ids = []
     wait = 0.25
     while _go:
-        eq_sql = eq.init(retry_threshold)
+        eq_sql = _create_eqsql(retry_threshold)
         try:
             running_task_ids, tasks = eq_sql.query_more_tasks(work_type, running_task_ids,
                                                               batch_size=batch_size, threshold=threshold,

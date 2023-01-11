@@ -6,6 +6,7 @@ import os
 import random
 import sys
 import math
+import logging
 from typing import Iterable, List
 
 from deap import base
@@ -127,6 +128,14 @@ def cxUniform(ind1, ind2, indpb):
     return (c1, c2)
 
 
+def _create_eqsql(retry_threshold: int = 0, log_level=logging.WARN):
+    host = os.getenv('DB_HOST')
+    user = os.getenv('DB_USER')
+    port = int(os.getenv('DB_PORT'))
+    db_name = os.getenv('DB_NAME')
+    return eq.init_eqsql(host, user, port, db_name, retry_threshold, log_level)
+
+
 def run():
     """
     :param num_iter: number of generations
@@ -141,7 +150,7 @@ def run():
 
     # parse settings # num_iter, num_pop, seed,
     global eq_sql
-    eq_sql = eq.init()
+    eq_sql = _create_eqsql()
 
     if use_proxy:
         proxies.init('proxy_test', store_dir='/tmp/proxystore-dump')

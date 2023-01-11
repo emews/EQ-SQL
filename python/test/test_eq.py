@@ -1,5 +1,4 @@
 import unittest
-import os
 import json
 import logging
 
@@ -7,10 +6,10 @@ from eqsql import eq
 
 # Assumes the existence of a testing database
 # with these characteristics
-os.environ['DB_HOST'] = 'localhost'
-os.environ['DB_USER'] = 'eqsql_test_user'
-os.environ['DB_PORT'] = '5433'
-os.environ['DB_NAME'] = 'eqsql_test_db'
+host = 'localhost'
+user = 'eqsql_test_user'
+port = 5433
+db_name = 'eqsql_test_db'
 
 
 def create_payload(x=1.2):
@@ -40,7 +39,7 @@ class EQTests(unittest.TestCase):
         self.eq_sql.close()
 
     def test_submit(self):
-        self.eq_sql = eq.init()
+        self.eq_sql = eq.init_eqsql(host, user, port, db_name)
         clear_db(self.eq_sql.db.conn)
         result_status, ft = self.eq_sql.submit_task('test_future', 0, create_payload(), tag='x')
         self.assertEqual(eq.ResultStatus.SUCCESS, result_status)
@@ -49,7 +48,7 @@ class EQTests(unittest.TestCase):
         self.assertEqual('x', ft.tag)
 
     def test_query_priority(self):
-        self.eq_sql = eq.init()
+        self.eq_sql = eq.init_eqsql(host, user, port, db_name)
         clear_db(self.eq_sql.db.conn)
         result_status, ft = self.eq_sql.submit_task('test_future', 0, create_payload(), priority=10, tag='x')
         self.assertEqual(eq.ResultStatus.SUCCESS, result_status)
@@ -65,7 +64,7 @@ class EQTests(unittest.TestCase):
         self.assertEqual(20, ft.priority)
 
     def test_query_result(self):
-        self.eq_sql = eq.init()
+        self.eq_sql = eq.init_eqsql(host, user, port, db_name)
         clear_db(self.eq_sql.db.conn)
 
         # no task so query timesout
@@ -120,7 +119,7 @@ class EQTests(unittest.TestCase):
         self.assertIsNone(self.eq_sql.db)
 
     def test_query_more(self):
-        self.eq_sql = eq.init()
+        self.eq_sql = eq.init_eqsql(host, user, port, db_name)
         # eq.logger.setLevel(logging.DEBUG)
         clear_db(self.eq_sql.db.conn)
 
@@ -173,7 +172,7 @@ class EQTests(unittest.TestCase):
         self.assertEqual(2, len(tasks))
 
     def test_query_task_n(self):
-        self.eq_sql = eq.init()
+        self.eq_sql = eq.init_eqsql(host, user, port, db_name)
         clear_db(self.eq_sql.db.conn)
 
         # no task so query timesout
@@ -243,7 +242,7 @@ class EQTests(unittest.TestCase):
         self.assertEqual(eq.EQ_STOP, result['payload'])
 
     def test_priority(self):
-        self.eq_sql = eq.init()
+        self.eq_sql = eq.init_eqsql(host, user, port, db_name)
         clear_db(self.eq_sql.db.conn)
 
         # test priority, add mult work with different priority
@@ -265,7 +264,7 @@ class EQTests(unittest.TestCase):
 
     def test_work_type(self):
         # add different work types and get by type
-        self.eq_sql = eq.init()
+        self.eq_sql = eq.init_eqsql(host, user, port, db_name)
         clear_db(self.eq_sql.db.conn)
 
         # test priority, add mult work with different priority
@@ -286,7 +285,7 @@ class EQTests(unittest.TestCase):
             self.assertEqual(payload, result['payload'])
 
     def test_no_work(self):
-        self.eq_sql = eq.init()
+        self.eq_sql = eq.init_eqsql(host, user, port, db_name)
         clear_db(self.eq_sql.db.conn)
         # query for work when no work
 
@@ -297,7 +296,7 @@ class EQTests(unittest.TestCase):
         self.eq_sql.close()
 
     def test_cancel(self):
-        self.eq_sql = eq.init()
+        self.eq_sql = eq.init_eqsql(host, user, port, db_name)
         clear_db(self.eq_sql.db.conn)
         result_status, ft = self.eq_sql.submit_task('test_future', 0, create_payload(), tag='x')
         self.assertEqual(eq.ResultStatus.SUCCESS, result_status)
@@ -318,7 +317,7 @@ class EQTests(unittest.TestCase):
         self.assertTrue(result)
 
     def test_as_completed(self):
-        self.eq_sql = eq.init()
+        self.eq_sql = eq.init_eqsql(host, user, port, db_name)
         clear_db(self.eq_sql.db.conn)
 
         fs = []
@@ -361,7 +360,7 @@ class EQTests(unittest.TestCase):
         self.eq_sql.close()
 
     def test_as_completed_stop(self):
-        self.eq_sql = eq.init()
+        self.eq_sql = eq.init_eqsql(host, user, port, db_name)
         clear_db(self.eq_sql.db.conn)
 
         fs = []
@@ -402,7 +401,7 @@ class EQTests(unittest.TestCase):
         self.eq_sql.close()
 
     def test_as_completed_n(self):
-        self.eq_sql = eq.init()
+        self.eq_sql = eq.init_eqsql(host, user, port, db_name)
         clear_db(self.eq_sql.db.conn)
 
         fs = []
@@ -436,7 +435,7 @@ class EQTests(unittest.TestCase):
         self.eq_sql.close()
 
     def test_as_completed_abort(self):
-        self.eq_sql = eq.init()
+        self.eq_sql = eq.init_eqsql(host, user, port, db_name)
         clear_db(self.eq_sql.db.conn)
 
         fs = []
@@ -465,7 +464,7 @@ class EQTests(unittest.TestCase):
         self.eq_sql.logger.setLevel(logging.WARN)
 
     def test_as_completed_pop(self):
-        self.eq_sql = eq.init()
+        self.eq_sql = eq.init_eqsql(host, user, port, db_name)
         clear_db(self.eq_sql.db.conn)
 
         fs = []
@@ -506,7 +505,7 @@ class EQTests(unittest.TestCase):
         self.eq_sql.close()
 
     def test_cancel_tasks(self):
-        self.eq_sql = eq.init()
+        self.eq_sql = eq.init_eqsql(host, user, port, db_name)
         clear_db(self.eq_sql.db.conn)
 
         fs = []
@@ -526,7 +525,7 @@ class EQTests(unittest.TestCase):
         self.eq_sql.close()
 
     def test_update_priorities(self):
-        self.eq_sql = eq.init()
+        self.eq_sql = eq.init_eqsql(host, user, port, db_name)
         clear_db(self.eq_sql.db.conn)
 
         fs = []

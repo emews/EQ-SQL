@@ -12,10 +12,6 @@ type message {
     string payload;
 }
 
-(string result) EQ_validate() {
-    result = python_persist("import eq ; eq.init()", "eq.validate()");
-}
-
 string code_get = """
 import os
 import eq_swift
