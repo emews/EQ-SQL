@@ -756,26 +756,50 @@ class EQSQL:
 
         return (ResultStatus.SUCCESS, deleted_rows)
 
-    def _update_priorities(self, eq_task_ids: Iterable[int], new_priority: int) -> Tuple[ResultStatus, int]:
+    def _update_priorities(self, eq_task_ids: Iterable[int], new_priority: Union[int, List[int]]) -> Tuple[ResultStatus, int]:
         """Updates the priorities of the specified tasks.
 
         Args:
             eq_task_ids: the ids of the tasks whose priorities should be updated.
-            new_priority: the new priority for the specified tasks.
+            new_priority: the new priority for the specified tasks. If this is a single integer then
+            all the specified tasks are updated with that priority. If this is a
+            List of ints then each task is updated with the corresponding priority, i.e.,
+            the first task in the eq_task_ids is updated with the first priority in the new_priority
+            List.
 
         Returns:
             If the update is successful, the Tuple will contain ResultStatus.SUCCESS and
             the number of tasks whose priorities were successfully updated,
             otherwise (ResultStatus.FAILURE, -1).
         """
+
+        # update emews_queue_out as u set
+        # eq_priority = u2.priority
+        # from (values
+        # (1, 3),
+        # (2, 5),
+        # (3, 2)) as u2(id, priority) where u2.id = eq_task_id;
         ids = tuple(eq_task_ids)
-        placeholders = ', '.join(['%s'] * len(ids))
         try:
             with self.db.conn:
                 with self.db.conn.cursor() as cur:
-                    query = f'update emews_queue_out set eq_priority = %s where eq_task_id in ({placeholders})'
-                    cur.execute(query, (new_priority,) + ids)
-                    updated_rows = cur.rowcount
+                    if isinstance(new_priority, int):
+                        placeholders = ', '.join(['%s'] * len(ids))
+                        query = f'update emews_queue_out set eq_priority = %s where eq_task_id in ({placeholders})'
+                        cur.execute(query, (new_priority,) + ids)
+                        updated_rows = cur.rowcount
+                    else:
+                        if len(ids) != len(new_priority):
+                            raise ValueError("Number of task ids and updated priorities must be equal")
+                        placeholders = ', '.join(['(%s, %s)'] * len(ids))
+                        query = f"""update emews_queue_out as u set
+                                eq_priority = u2.priority
+                                from (values
+                                {placeholders}
+                                ) as u2(id, priority) where u2.id = eq_task_id;
+                                """
+                        cur.execute(query, [y for x in zip(ids, new_priority) for y in x])
+                        updated_rows = cur.rowcount
         except Exception:
             self.logger.error(f'update_priority error: {traceback.format_exc()}')
             return (ResultStatus.FAILURE, -1)
@@ -845,7 +869,7 @@ def as_completed(futures: List[Future], pop: bool = False, timeout: float = None
                  stop_condition: Callable = None, sleep: float = 0) -> Generator[Future, None, None]:
     """Returns a generator over the futures given by the futures argument that yields
     futures as they complete. The futures are checked for completion by iterating over all of the
-    ones that have not yet completed and checking for a result. At the of each iteration, the
+    ones that have not yet completed and checking for a result. At the end of each iteration, the
     stop_condition and timeout are checked. Note that adding or removing Futures to or from the futures
     argument List will have NO effect on this call as it operates on a copy of the futures List.
     A TimeoutError will be raised if the futures do not complete within the specified timeout duration.
@@ -921,12 +945,16 @@ def cancel(futures: List[Future]) -> int:
     return (ResultStatus.SUCCESS, 0)
 
 
-def update_priority(futures: List[Future], new_priority: int) -> int:
+def update_priority(futures: List[Future], new_priority: Union[int, List[int]]) -> int:
     """Updates the priority of the specified Futures to the new_priority.
 
     Args:
         futures: the Futures to update.
-        new_priority: the priority to update to.
+        new_priority: the priority to update to. If this is a single integer then
+            all the specified tasks are updated with that priority. If this is a
+            List of ints then each task is updated with the corresponding priority, i.e.,
+            the first task in the eq_task_ids is updated with the first priority in the new_priority
+            List.
 
     Returns:
         The ResultStatus and number tasks successfully whose priority was

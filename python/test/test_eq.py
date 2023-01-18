@@ -542,4 +542,11 @@ class EQTests(unittest.TestCase):
         for f in fs:
             self.assertEqual(10, f.priority)
 
+        status, count = eq.update_priority(fs, [f.eq_task_id for f in fs])
+        self.assertEqual(eq.ResultStatus.SUCCESS, status)
+        self.assertEqual(200, count)
+
+        for f in fs:
+            self.assertEqual(f.eq_task_id, f.priority)
+
         self.eq_sql.close()
