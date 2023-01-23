@@ -704,6 +704,26 @@ class EQSQL:
             self.logger.error(f'report_task error {traceback.format_exc()}')
             return ResultStatus.FAILURE
 
+    def are_queues_empty(self) -> bool:
+        """Gets whether or not either of the input or output queues are empty.
+
+        Returns:
+            True if the queues are empty, otherwise False.
+        """
+        empty = True
+        with self.db.conn:
+            with self.db.conn.cursor() as cur:
+                tables = ["emews_queue_in", "emews_queue_out"]
+                for table in tables:
+                    cur.execute(f"select count(eq_task_id) from {table};")
+                    rs = cur.fetchone()
+                    count = rs[0]
+                    if count > 0:
+                        # print(f": There are entries in table '{table}'")
+                        empty = False
+
+        return empty
+
     def query_status(self, eq_task_ids: Iterable[int]) -> List[Tuple[int, TaskStatus]]:
         """Queries for the status (queued, running, etc.) of the specified tasks
 
@@ -893,7 +913,7 @@ def as_completed(futures: List[Future], pop: bool = False, timeout: float = None
     start_time = time.time()
     completed_tasks = set()
     wk_futures = [f for f in futures]
-    n_futures = len(futures)
+    n_futures = len(wk_futures)
     while True:
         for i, f in enumerate(wk_futures):
             if f.eq_task_id not in completed_tasks:
