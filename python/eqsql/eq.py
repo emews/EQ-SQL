@@ -599,7 +599,7 @@ class EQSQL:
         if len(eq_task_ids) > 0:
             statuses = self.query_status(eq_task_ids)
             if statuses is None:
-                return {'type': 'status', 'payload': EQ_ABORT}
+                return ([], [{'type': 'status', 'payload': EQ_ABORT}])
 
             running_tasks = [eq_task_id for eq_task_id, _ in
                              filter(lambda item: item[1] == TaskStatus.RUNNING, statuses)]
@@ -616,6 +616,9 @@ class EQSQL:
                     # stop or abort msg
                     return (running_tasks, [new_tasks])
             else:
+                # can be single dictionary if abort or timeout
+                if not isinstance(new_tasks, List):
+                    new_tasks = [new_tasks]
                 return (running_tasks + [task['eq_task_id'] for task in
                         filter(lambda task: 'eq_task_id' in task, new_tasks)],
                         new_tasks)
