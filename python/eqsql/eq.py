@@ -912,13 +912,13 @@ def as_completed(futures: List[Future], pop: bool = False, timeout: float = None
     wk_futures = [f for f in futures]
     n_futures = len(wk_futures)
     while True:
-        for i, f in enumerate(wk_futures):
+        for f in wk_futures:
             if f.eq_task_id not in completed_tasks:
                 status, result_str = f.result(timeout=0.0)
                 if status == ResultStatus.SUCCESS or result_str == EQ_ABORT:
                     completed_tasks.add(f.eq_task_id)
                     if pop:
-                        del futures[i]
+                        futures.remove(f)
                     yield f
                     n_completed = len(completed_tasks)
                     if n_completed == n_futures or n_completed == n:
