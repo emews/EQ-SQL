@@ -75,6 +75,7 @@ class EQTests(unittest.TestCase):
         payload = create_payload()
         _, ft = self.eq_sql.submit_task('test_future', 0, payload)
         self.assertEqual(eq.TaskStatus.QUEUED, ft.status)
+        self.assertIsNone(ft.worker_pool)
         self.assertFalse(ft.done())
         result_status, result = ft.result(timeout=0.5)
         self.assertEqual(eq.ResultStatus.FAILURE, result_status)
@@ -92,6 +93,7 @@ class EQTests(unittest.TestCase):
         self.assertEqual(result, eq.EQ_TIMEOUT)
         task_status = ft.status
         self.assertEqual(eq.TaskStatus.RUNNING, task_status)
+        self.assertEqual('default', ft.worker_pool)
         self.assertFalse(ft.done())
 
         # report task result
@@ -134,15 +136,31 @@ class EQTests(unittest.TestCase):
             self.assertEqual(eq.TaskStatus.QUEUED, ft.status)
             self.assertFalse(ft.done())
 
+        pools = eq.query_worker_pool([ft for ft in fts.values()])
+        self.assertEqual(8, len(pools))
+        for _, p in pools:
+            self.assertIsNone(p)
+
         # Worker Pool: get 4 tasks
         batch_size = 4
         # currently running_task_ids and new tasks
         running_task_ids, tasks = self.eq_sql.query_more_tasks(0, eq_task_ids=[],
-                                                               batch_size=batch_size)
+                                                               batch_size=batch_size, worker_pool='P1')
 
         # nothing running prior to the above call
         self.assertEqual([1, 2, 3, 4], running_task_ids)
         self.assertEqual(4, len(tasks))
+
+        pools = eq.query_worker_pool([ft for ft in fts.values()])
+        self.assertEqual(8, len(pools))
+        p1s = 0
+        for ft, pool in pools:
+            if ft.eq_task_id in running_task_ids:
+                self.assertEqual('P1', pool)
+                p1s += 1
+            else:
+                self.assertIsNone(pool)
+        self.assertEqual(p1s, len(running_task_ids))
 
         # WP: complete 2 tasks
         for task in tasks[:2]:
@@ -190,13 +208,16 @@ class EQTests(unittest.TestCase):
             self.assertEqual(eq.TaskStatus.QUEUED, ft.status)
             self.assertFalse(ft.done())
 
-        results = self.eq_sql.query_task(0, n=4, timeout=0.5)
+        results = self.eq_sql.query_task(0, n=4, worker_pool='P1', timeout=0.5)
         self.assertEqual(4, len(results))
+        running_fts = []
         for result in results:
             self.assertEqual('work', result['type'])
             task_id = result['eq_task_id']
             self.assertEqual(payloads[task_id], result['payload'])
             ft = fts[task_id]
+            running_fts.append(ft)
+            self.assertEqual('P1', ft.worker_pool)
             # test result still failure, and status is running
             result_status, result = ft.result(timeout=0.5)
             self.assertEqual(eq.ResultStatus.FAILURE, result_status)
@@ -204,6 +225,10 @@ class EQTests(unittest.TestCase):
             task_status = ft.status
             self.assertEqual(eq.TaskStatus.RUNNING, task_status)
             self.assertFalse(ft.done())
+
+        pools = eq.query_worker_pool(running_fts)
+        for _, pool in pools:
+            self.assertEqual('P1', pool)
 
         results = self.eq_sql.query_task(0, n=2, timeout=0.5)
         self.assertEqual(2, len(results))

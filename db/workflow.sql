@@ -30,6 +30,8 @@ create table eq_tasks (
        json_out text,
        /* JSON-formatted payload for the IN queue */
        json_in  text,
+       /* Worker Pool that is running the task */
+       worker_pool text,
        /* time this task was created (json_out) */
        time_created timestamp,
        /* time this task started (json_out) */

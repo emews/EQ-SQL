@@ -46,6 +46,7 @@ class Future:
         self.eq_sql = eq_sql
         self._result = None
         self._status = None
+        self._pool = None
 
     def result(self, delay: float = 0.5, timeout: float = 2.0) -> Tuple[ResultStatus, str]:
         """Gets the result of this future task.
@@ -96,6 +97,13 @@ class Future:
             if ts == TaskStatus.COMPLETE or ts == TaskStatus.CANCELED:
                 self._status = ts
             return ts
+
+    @property
+    def worker_pool(self) -> Union[str, None]:
+        if self._pool is None:
+            _, pool = self.eq_sql.query_worker_pool([self.eq_task_id])[0]
+            self._pool = pool
+        return self._pool
 
     def cancel(self):
         """Cancels this future task by removing this Future's task id from the output queue.
@@ -432,14 +440,16 @@ class EQSQL:
 
         return eq_task_id
 
-    def select_task_payload(self, cur, eq_task_ids: Iterable[int]) -> List[Tuple[int, str]]:
-        """Selects the 'json_out' payload associated with the specified task id in
-        the eq_tasks table, setting the start time of the task to
-        the current time.
+    def select_task_payload(self, cur, eq_task_ids: Iterable[int], worker_pool_id='default') -> List[Tuple[int, str]]:
+        """Selects the 'json_out' payload associated with the specified task ids in
+        the eq_tasks table, setting the start time of the tasks to
+        the current time, the status of the tasks to TaskStatus.RUNNING, and the
+        worker_pool to the specified worker_pool.
 
         Args:
             cur: the database cursor used to execute the sql select
             eq_task_ids: the ids of the tasks to get the json_out for
+            worker_pool: the id of the worker pool asking for the payload
 
         Returns:
             If successful, a list of tuples containing an eq_task_id and
@@ -456,8 +466,8 @@ class EQSQL:
             # cur.execute(cmd, (eq_task_id,))
             # rs = cur.fetchone()
             ts = datetime.now(timezone.utc).astimezone().isoformat()
-            cmd = f'update eq_tasks set eq_status=%s, time_start=%s where eq_task_id in ({placeholders})'
-            cur.execute(cmd, [TaskStatus.RUNNING.value, ts] + task_ids)
+            cmd = f'update eq_tasks set eq_status=%s, worker_pool=%s, time_start=%s where eq_task_id in ({placeholders})'
+            cur.execute(cmd, [TaskStatus.RUNNING.value, worker_pool_id, ts] + task_ids)
             return result
         except Exception as e:
             self.logger.error(f'select_task_payload error {traceback.format_exc()}')
@@ -554,7 +564,7 @@ class EQSQL:
             return (ResultStatus.FAILURE, None)
 
     def query_more_tasks(self, eq_type: int, eq_task_ids: Iterable[int], batch_size: int, threshold: int = 1,
-                         delay: float = 0.5, timeout: float = 2.0) -> Tuple[List[int], List[Dict]]:
+                         worker_pool: str = 'default', delay: float = 0.5, timeout: float = 2.0) -> Tuple[List[int], List[Dict]]:
         """Queries for tasks of the specified type, returning up to batch_size number of tasks. The
         exact number of task to return is batch_size - X where X is the number of currently running tasks
         in the tasks in eq_task_ids. The intention here is that worker pool may have a limited amount
@@ -575,6 +585,7 @@ class EQSQL:
             threshold: the number of free "slots" (difference between running workers and batch_size)
                 that must be available before tasks are queried for. This must be less than or equal to
                 batch size.
+            worker_pool: the id of the worker pool query for the tasks
             delay: the initial polling delay value
             timeout: the duration after which the query will timeout. If timeout is None, there is no limit to
                 the wait time.
@@ -608,7 +619,7 @@ class EQSQL:
         n_query = batch_size - len(running_tasks)
         # print(f'n_query: {n_query}', flush=True)
         if n_query >= threshold:
-            new_tasks = self.query_task(eq_type, n_query, delay, timeout)
+            new_tasks = self.query_task(eq_type, n=n_query, worker_pool=worker_pool, delay=delay, timeout=timeout)
             if n_query == 1:
                 if 'eq_task_id' in new_tasks:
                     return (running_tasks + [new_tasks['eq_task_id']], [new_tasks])
@@ -625,7 +636,7 @@ class EQSQL:
         else:
             return (running_tasks, [])
 
-    def query_task(self, eq_type: int, n: int = 1, delay: float = 0.5, timeout: float = 2.0) -> Union[List[Dict], Dict]:
+    def query_task(self, eq_type: int, n: int = 1, worker_pool: str = 'default', delay: float = 0.5, timeout: float = 2.0) -> Union[List[Dict], Dict]:
         """Queries for the highest priority task of the specified type.
 
         The query repeatedly polls for n number of tasks. The polling interval is specified by
@@ -636,6 +647,7 @@ class EQSQL:
         Args:
             eq_type: the type of the task to query for
             n: the maximum number of tasks to query for
+            worker_pool: the id of the worker pool query for the tasks
             delay: the initial polling delay value
             timeout: the duration after which the query will timeout. If timeout is None, there is no limit to
                 the wait time.
@@ -657,7 +669,7 @@ class EQSQL:
                     self.logger.info(f'MSG: {status} {result}')
                     if status == ResultStatus.SUCCESS:
                         eq_task_ids = result
-                        payloads = self.select_task_payload(cur, eq_task_ids)
+                        payloads = self.select_task_payload(cur, eq_task_ids, worker_pool)
                         results = []
                         for task_id, payload in payloads:
                             if payload == EQ_STOP:
@@ -745,6 +757,21 @@ class EQSQL:
                     results = [(eq_task_id, TaskStatus(status)) for eq_task_id, status in cur.fetchall()]
         except Exception:
             self.logger.error(f'query_status error: {traceback.format_exc()}')
+            return None
+
+        return results
+
+    def query_worker_pool(self, eq_task_ids: Iterable[int]) -> List[Tuple[id, Union[str, None]]]:
+        ids = tuple(eq_task_ids)
+        placeholders = ', '.join(['%s'] * len(ids))
+        try:
+            with self.db.conn:
+                with self.db.conn.cursor() as cur:
+                    query = f'select eq_task_id, worker_pool from eq_tasks where eq_task_id in ({placeholders})'
+                    cur.execute(query, ids)
+                    results = [(eq_task_id, wp) for eq_task_id, wp in cur.fetchall()]
+        except Exception:
+            self.logger.error(f'query_worker_pool error: {traceback.format_exc()}')
             return None
 
         return results
@@ -987,6 +1014,13 @@ def update_priority(futures: List[Future], new_priority: Union[int, List[int]]) 
         return futures[0].eq_sql._update_priorities((f.eq_task_id for f in futures), new_priority)
 
     return (ResultStatus.SUCCESS, 0)
+
+
+def query_worker_pool(futures: List[Future]):
+    """Assumes all the futures were submitted in the same task queue"""
+    ids = {ft.eq_task_id: ft for ft in futures}
+    results = futures[0].eq_sql.query_worker_pool(ids.keys())
+    return [(ids[task_id], pool) for task_id, pool in results]
 
 
 class StopConditionException(Exception):
