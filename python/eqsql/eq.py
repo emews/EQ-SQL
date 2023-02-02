@@ -100,6 +100,14 @@ class Future:
 
     @property
     def worker_pool(self) -> Union[str, None]:
+        """Gets the id of the worker pool, if any, that this future task is
+        running on.
+
+        Returns:
+            The id of the worker pool that this Future task is
+            running on, or None if the task hasn't been selected
+            by a worker pool yet.
+        """
         if self._pool is None:
             _, pool = self.eq_sql.query_worker_pool([self.eq_task_id])[0]
             self._pool = pool
@@ -762,6 +770,13 @@ class EQSQL:
         return results
 
     def query_worker_pool(self, eq_task_ids: Iterable[int]) -> List[Tuple[id, Union[str, None]]]:
+        """Gets the worker pools on which the specified tasks are running, if any.
+
+        Returns:
+            A list of two element tuples. The first element is the task id, and the
+            second is that task's worker pool, or None, if the task hasn't been
+            selected for execution yet.
+        """
         ids = tuple(eq_task_ids)
         placeholders = ', '.join(['%s'] * len(ids))
         try:
@@ -1016,8 +1031,16 @@ def update_priority(futures: List[Future], new_priority: Union[int, List[int]]) 
     return (ResultStatus.SUCCESS, 0)
 
 
-def query_worker_pool(futures: List[Future]):
-    """Assumes all the futures were submitted in the same task queue"""
+def query_worker_pool(futures: List[Future]) -> List[Tuple[Future, Union[str, None]]]:
+    """Gets the worker pools on which the specified list of Futures are running, if any.
+    All the specified Futures much have been submitted by the same task queue (i.e., they
+    are all in the same eqsql database).
+
+    Returns:
+        A list of two element tuples. The first element is a Future, and the
+        second is that Future's worker pool, or None, if the Future hasn't been
+        selected for execution yet.
+    """
     ids = {ft.eq_task_id: ft for ft in futures}
     results = futures[0].eq_sql.query_worker_pool(ids.keys())
     return [(ids[task_id], pool) for task_id, pool in results]
