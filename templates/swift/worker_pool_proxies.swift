@@ -16,6 +16,7 @@ string emews_root = getenv("EMEWS_PROJECT_ROOT");
 string turbine_output = getenv("TURBINE_OUTPUT");
 
 int SIM_WORK_TYPE = string2int(argv("sim_work_type", 1));
+string WORKER_POOL_ID = argv("worker_pool_id", "default");
 
 // IMPORTANT ENV VARIABLE:
 // * EQ_DB_RETRY_THRESHOLD sets the db connection retry threshold for querying and reporting
@@ -47,7 +48,7 @@ loop()
        b;
        b=c)
   {
-    message msg = eq_task_query(SIM_WORK_TYPE);
+    message msg = eq_task_query(SIM_WORK_TYPE, WORKER_POOL_ID);
     boolean c;
     if (msg.msg_type == "status") {
       if (msg.payload == "EQ_STOP") {

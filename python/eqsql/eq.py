@@ -440,7 +440,7 @@ class EQSQL:
 
         return eq_task_id
 
-    def select_task_payload(self, cur, eq_task_ids: Iterable[int], worker_pool_id='default') -> List[Tuple[int, str]]:
+    def select_task_payload(self, cur, eq_task_ids: Iterable[int], worker_pool_id: str = 'default') -> List[Tuple[int, str]]:
         """Selects the 'json_out' payload associated with the specified task ids in
         the eq_tasks table, setting the start time of the tasks to
         the current time, the status of the tasks to TaskStatus.RUNNING, and the
@@ -449,7 +449,7 @@ class EQSQL:
         Args:
             cur: the database cursor used to execute the sql select
             eq_task_ids: the ids of the tasks to get the json_out for
-            worker_pool: the id of the worker pool asking for the payload
+            worker_pool_id: the id of the worker pool asking for the payload
 
         Returns:
             If successful, a list of tuples containing an eq_task_id and

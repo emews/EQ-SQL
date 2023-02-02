@@ -19,6 +19,7 @@ int resident_work_rank = string2int(getenv("RESIDENT_WORK_RANK"));
 int WORK_TYPE = string2int(argv("sim_work_type", 0));
 int BATCH_SIZE = string2int(argv("batch_size"));
 int BATCH_THRESHOLD = string2int(argv("batch_threshold", 1));
+string WORKER_POOL_ID = argv("worker_pool_id", "default");
 
 // IMPORTANT ENV VARIABLE:
 // * EQ_DB_RETRY_THRESHOLD sets the db connection retry threshold for querying and reporting
@@ -63,7 +64,7 @@ run(message msgs[]) {
 
 (void o) start() {
   location querier_loc = locationFromRank(resident_work_rank);
-  eq_init_batch_querier(querier_loc, BATCH_SIZE, BATCH_THRESHOLD, WORK_TYPE) =>
+  eq_init_batch_querier(querier_loc, WORKER_POOL_ID, BATCH_SIZE, BATCH_THRESHOLD, WORK_TYPE) =>
   loop(querier_loc) => {
     eq_stop_batch_querier(querier_loc);
     o = propagate();

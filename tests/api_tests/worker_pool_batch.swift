@@ -18,6 +18,8 @@ int BATCH_SIZE = 4;
 int WORK_TYPE = 0;
 int BATCH_THRESHOLD = 1;
 
+string WORKER_POOL_ID = "batch_pool";
+
 string obj_code = """
 import numpy as np
 import json
@@ -70,7 +72,7 @@ run(message msgs[]) {
 
 (void o) start() {
   location querier_loc = locationFromRank(resident_work_rank);
-  eq_init_batch_querier(querier_loc, BATCH_SIZE, BATCH_THRESHOLD, WORK_TYPE) =>
+  eq_init_batch_querier(querier_loc, WORKER_POOL_ID, BATCH_SIZE, BATCH_THRESHOLD, WORK_TYPE) =>
   loop(querier_loc) => {
     eq_stop_batch_querier(querier_loc);
     o = propagate();

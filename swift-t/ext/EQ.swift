@@ -17,6 +17,7 @@ import os
 import eq_swift
 
 eq_work_type = %i
+worker_pool_id = '%s'
 try:
     retry_threshold = int(os.environ.get('EQ_DB_RETRY_THRESHOLD', 10))
 except ValueError as e:
@@ -29,11 +30,11 @@ except ValueError as e:
     print("ENV VAR: EQ_DB_RETRY_THRESHOLD must be a float")
     raise e
 
-result_str = eq_swift.query_task(eq_work_type, query_timeout, retry_threshold)
+result_str = eq_swift.query_task(eq_work_type, worker_pool=worker_pool_id, query_timeout=query_timeout, retry_threshold=retry_threshold)
 """;
 
-(message msg) eq_task_query(int eq_type) {
-    string msg_string = python_persist(code_get % eq_type, "result_str");
+(message msg) eq_task_query(int eq_type, string worker_pool_id) {
+    string msg_string = python_persist(code_get % (eq_type, worker_pool_id), "result_str");
     // string msg_string = python_persist(code_parse_msg % result, "result_str");
     string msg_parts[] = split(msg_string, "|");
     msg.msg_type = msg_parts[0];
@@ -87,12 +88,12 @@ except ValueError as e:
     print("ENV VAR: EQ_DB_RETRY_THRESHOLD must be an integer")
     raise e
 
-eq_swift.init_task_querier(%d, %d, %d, retry_threshold)
+eq_swift.init_task_querier('%s', %d, %d, %d, retry_threshold)
 """;
 
-(void v) eq_init_batch_querier(location loc, int batch_size, int threshold, int work_type) {
+(void v) eq_init_batch_querier(location loc, string worker_pool, int batch_size, int threshold, int work_type) {
     //printf("EQPy_init_package(%s) ...", packageName);
-    string code = init_querier_string % (batch_size, threshold, work_type); //,packageName);
+    string code = init_querier_string % (worker_pool, batch_size, threshold, work_type); //,packageName);
     //printf("Code is: \n%s", code);
     @location=loc _void_py(code) => v = propagate();
 }

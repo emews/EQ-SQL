@@ -40,6 +40,7 @@ result = json.dumps(l)
 }
 
 int SIM_WORK_TYPE = 1;
+string WORKER_POOL_ID = "default_pool";
 
 /*
 (string result)
@@ -68,7 +69,7 @@ loop()
        b;
        b=c)
   {
-    message msg = eq_task_query(SIM_WORK_TYPE);
+    message msg = eq_task_query(SIM_WORK_TYPE, WORKER_POOL_ID);
     boolean c;
     if (msg.msg_type == "status") {
       if (msg.payload == "EQ_STOP") {
