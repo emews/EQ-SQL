@@ -82,13 +82,8 @@ def query_tasks_n(batch_size: int, threshold: int, work_type: int, worker_pool: 
                 print(f'eq_swift.query_task_n error {traceback.format_exc()}', flush=True)
             else:
                 eq_sql.logger.error(f'eq_swift.query_task_n error {traceback.format_exc()}')
-<<<<<<< HEAD
             running_task_ids = []
             tasks = [ABORT_MSG]
-=======
-            q.put([ABORT_MSG])
-            break
->>>>>>> 0bf2c21c6136d6e1fc7b1e8f3c18ac403f874314
         finally:
             if eq_sql is not None:
                 eq_sql.close()
