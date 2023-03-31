@@ -1,6 +1,9 @@
 from datetime import datetime
 from typing import Dict
+from subprocess import Popen, STDOUT, PIPE, CalledProcessError
+from time import sleep
 from psij.job_status import JobStatus
+import psutil
 
 
 def format_pool_exp_id(exp_id: str, name: str):
@@ -35,9 +38,18 @@ def _cancel_pool(job_id, scheduler, poll_period=5):
 
 class LocalPool:
 
-    def __init__(self, name, cfg_file):
+    def __init__(self, name, proc, cfg_file):
         self.name = name
+        self.proc = proc
         self.cfg_file = cfg_file
+
+    def cancel(self):
+        with self.proc:
+            pid = self.proc.pid
+            p = psutil.Process(pid)
+            for child_process in p.children(recursive=True):
+                child_process.send_signal(15)
+            self.proc.terminate()
 
 
 class ScheduledPool:
@@ -67,20 +79,34 @@ def cfg_tofile(cfg_params: Dict) -> str:
                 f.write(f'{k}={v}\n')
     return fname
 
+# def _start_local_p
+
 
 def start_local_pool(name, launch_script, exp_id, cfg_params):
-    pass
+    cfg_fname = cfg_tofile(cfg_params)
+    # try:
+    proc = Popen([launch_script, str(exp_id), cfg_fname], stdout=PIPE,
+                 stderr=STDOUT)
+    for _ in range(4):
+        sleep(2)
+        rc = proc.poll()
+        if rc is not None:
+            stdout, _ = proc.communicate()
+            raise ValueError(f"start_local_pool failed with {stdout.decode('utf-8')}")
 
+    # assume started and running
+    return LocalPool(name, proc, cfg_fname)
 
 def start_scheduled_pool(fx, name, launch_script, exp_id, cfg_params, scheduler):
-    def _start_scheduled_pool(name, launch_script, exp_id, cfg_params, scheduler):
+    def _start_scheduled_pool(launch_script, exp_id, cfg_params, scheduler):
         # imports here for funcx
         import os
         import subprocess
         import re
         import traceback
+        from eqsql import worker_pool
 
-        fname = cfg_tofile(cfg_params)
+        fname = worker_pool.cfg_tofile(cfg_params)
         try:
             cwd = os.path.dirname(launch_script)
             result = subprocess.run([launch_script, str(exp_id), fname], stdout=subprocess.PIPE,
@@ -95,6 +121,6 @@ def start_scheduled_pool(fx, name, launch_script, exp_id, cfg_params, scheduler)
         except subprocess.CalledProcessError:
             raise ValueError(f'start_scheduled_pool failed with {traceback.format_exc()}')
 
-    ft = fx.submit(_start_scheduled_pool, name, launch_script, exp_id, cfg_params, scheduler)
+    ft = fx.submit(_start_scheduled_pool, launch_script, exp_id, cfg_params, scheduler)
     job_id, cfg_file = ft.result()
     return ScheduledPool(name, job_id, scheduler, cfg_file)
