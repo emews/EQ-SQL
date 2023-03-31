@@ -1,6 +1,11 @@
 [build-system]
 requires = [
     "setuptools>=42",
-    "wheel"
+    "wheel",
+    "psij-python",
+    "proxystore",
+    "psycopg2",
+    "paramiko",
+    "funcx"
 ]
 build-backend = "setuptools.build_meta"
