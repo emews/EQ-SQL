@@ -120,6 +120,32 @@ class EQTests(unittest.TestCase):
         self.eq_sql.close()
         self.assertIsNone(self.eq_sql.db)
 
+    def test_get(self):
+        self.eq_sql = eq.init_eqsql(host, user, port, db_name)
+        # eq.logger.setLevel(logging.DEBUG)
+        clear_db(self.eq_sql.db.conn)
+
+        fts = {}
+        payloads = {}
+        # ME: submit tasks
+        for i in range(0, 8):
+            payload = create_payload(i)
+            _, ft = self.eq_sql.submit_task('test_future', 0, payload)
+            fts[ft.eq_task_id] = ft
+            payloads[ft.eq_task_id] = payload
+            self.assertEqual(eq.TaskStatus.QUEUED, ft.status)
+            self.assertFalse(ft.done())
+
+        query = "select eq_task_id, json_out from eq_tasks where eq_task_id in (%s, %s, %s)"
+        result = self.eq_sql._get(query, (1, 2, 3))
+        self.assertEqual(3, len(result))
+        ids = [1, 2, 3]
+        for eq_task_id, payload in result:
+            self.assertTrue(eq_task_id in ids)
+            ids.remove(eq_task_id)
+            exp_payload = {"x": eq_task_id - 1, "y": 7.3, "z": "foo"}
+            self.assertEqual(json.dumps(exp_payload), payload)
+
     def test_query_more(self):
         self.eq_sql = eq.init_eqsql(host, user, port, db_name)
         # eq.logger.setLevel(logging.DEBUG)
@@ -560,18 +586,32 @@ class EQTests(unittest.TestCase):
             self.assertEqual(eq.ResultStatus.SUCCESS, submit_status)
             fs.append(ft)
 
-        status, count = eq.update_priority(fs, 10)
+        status, ids = eq.update_priority(fs, 10)
         self.assertEqual(eq.ResultStatus.SUCCESS, status)
-        self.assertEqual(200, count)
+        self.assertEqual(200, len(ids))
+        self.assertEqual(sorted(ids), [x for x in range(1, 201)])
 
         for f in fs:
             self.assertEqual(10, f.priority)
 
-        status, count = eq.update_priority(fs, [f.eq_task_id for f in fs])
+        status, ids = eq.update_priority(fs, [f.eq_task_id for f in fs])
         self.assertEqual(eq.ResultStatus.SUCCESS, status)
-        self.assertEqual(200, count)
+        self.assertEqual(200, len(ids))
+        self.assertEqual(sorted(ids), [x for x in range(1, 201)])
 
         for f in fs:
+            self.assertEqual(f.eq_task_id, f.priority)
+
+        # pop off output queue
+        for i in range(0, 10):
+            self.eq_sql.query_task(0, timeout=0.5)
+
+        running_fs = fs[-10:]
+        # update their priority, should have no effect because
+        # they are already running
+        eq.update_priority(running_fs, 22)
+        for f in fs:
+            # priority remains their task_id, not 22
             self.assertEqual(f.eq_task_id, f.priority)
 
         self.eq_sql.close()

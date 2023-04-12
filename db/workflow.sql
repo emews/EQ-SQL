@@ -37,7 +37,9 @@ create table eq_tasks (
        /* time this task started (json_out) */
        time_start timestamp,
        /* time this task finished (json_in) */
-       time_stop  timestamp
+       time_stop  timestamp,
+       /* tracks priority of task so it can be restarted with correct priority */
+       eq_priority integer
 );
 
 create table eq_task_tags (
