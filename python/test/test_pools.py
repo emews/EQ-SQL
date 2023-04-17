@@ -2,10 +2,19 @@ import unittest
 import yaml
 import funcx
 from time import sleep
+import json
+
 from psij.job_state import JobState
 
+from eqsql import worker_pool, eq
+from utils import clear_db
 
-from eqsql import worker_pool
+# Assumes the existence of a testing database
+# with these characteristics
+host = 'localhost'
+user = 'eqsql_test_user'
+port = 5433
+db_name = 'eqsql_test_db'
 
 bebop_ep = 'd526418b-8920-4bc9-a9a0-3c97e1a10d3b'
 
@@ -42,22 +51,108 @@ class PoolTests(unittest.TestCase):
             # 2 should be good for a while
             self.assertTrue(pool.job_id.startswith('2'))
             sleep(4)
-            self.assertEqual(JobState.ACTIVE, pool.status(fx).state)
-            pool.cancel(fx)
+            self.assertEqual(JobState.ACTIVE, pool.status().state)
+            pool.cancel()
             # sleep needs longer than this
             # sleep(10)
             # self.assertEqual(JobState.CANCELED, pool.status(fx).state)
 
     def test_local_pool(self):
+        # make sure swift-t in path
         params = yaml.safe_load(local_pool_yaml)
         name = 'local1'
         exp_id = worker_pool.format_pool_exp_id('t1', name)
         pool = worker_pool.start_local_pool(name, params['start_pool_script'],
                                             exp_id, params)
-        # TODO: replace with status
-        rc = pool.proc.poll()
-        self.assertIsNone(rc)
+
+        state = pool.status().state
+        self.assertEqual(JobState.ACTIVE, state)
         pool.cancel()
         sleep(2)
-        rc = pool.proc.poll()
-        self.assertIsNotNone(rc)
+        state = pool.status().state
+        self.assertEqual(JobState.CANCELED, state)
+
+    def test_cancel_pool(self):
+        # 1. start pool
+        # 2. schedule tasks
+        # 3. query tasks to remove N from queue
+        # 4. cancel pool
+        # 5. old futures should have rescheduled status
+        # 6. N new futures
+        # make sure swift-t in path
+        params = yaml.safe_load(local_pool_yaml)
+        name = 'local1'
+        exp_id = worker_pool.format_pool_exp_id('t1', name)
+        pool = worker_pool.start_local_pool(name, params['start_pool_script'],
+                                            exp_id, params)
+
+        state = pool.status().state
+        self.assertEqual(JobState.ACTIVE, state)
+
+        try:
+            self.eq_sql = eq.init_eqsql(host, user, port, db_name)
+            clear_db(self.eq_sql.db.conn)
+            exp_id = '1'
+
+            fts = []
+            payloads = {}
+            tags = {}
+            for i in range(10):
+                payload = json.dumps({'x': i})
+                _, ft = self.eq_sql.submit_task(exp_id, 0, payload, priority=i, tag=f'tag {i}')
+                fts.append(ft)
+                self.assertEqual(eq.TaskStatus.QUEUED, ft.status)
+                payloads[ft.eq_task_id] = payload
+                tags[ft.eq_task_id] = f'tag {i}'
+                self.assertFalse(ft.done())
+
+            self.eq_sql.query_task(0, n=2, worker_pool=name)
+
+            running = []
+            for ft in fts:
+                if ft.status == eq.TaskStatus.RUNNING:
+                    self.assertEqual(name, ft.worker_pool)
+                    running.append(ft)
+            self.assertEqual(2, len(running))
+
+            eq_env = eq.EQEnvironment(exp_id)
+            eq_env._pq_map[name] = self.eq_sql
+
+            new_fts = eq.cancel_worker_pool(pool, eq_env, self.eq_sql, fts)
+            self.assertEqual(len(fts), len(new_fts))
+            self.assertTrue(running[0] not in new_fts)
+            self.assertTrue(running[1] not in new_fts)
+            self.assertEqual(eq.TaskStatus.REQUEUED, running[0].status)
+            self.assertEqual(eq.TaskStatus.REQUEUED, running[1].status)
+
+            # first two should be the new ones
+            ft1, ft2 = new_fts[:2]
+            self.assertTrue(ft1 not in fts)
+            self.assertTrue(ft2 not in fts)
+            self.assertEqual(eq.TaskStatus.QUEUED, ft1.status)
+            self.assertEqual(eq.TaskStatus.QUEUED, ft2.status)
+            self.assertFalse(ft1.done())
+            self.assertFalse(ft1.done())
+
+            exp_payloads = (payloads[running[0].eq_task_id], payloads[running[1].eq_task_id])
+            ft1_payload = self.eq_sql._get("select json_out from eq_tasks where eq_task_id = %s", ft1.eq_task_id)[1][0][0]
+            idx1 = exp_payloads.index(ft1_payload)
+            ft2_payload = self.eq_sql._get("select json_out from eq_tasks where eq_task_id = %s", ft2.eq_task_id)[1][0][0]
+            idx2 = exp_payloads.index(ft2_payload)
+            self.assertNotEqual(idx1, idx2)
+
+            priorities = [running[0].priority, running[1].priority]
+            self.assertTrue(ft1.priority in priorities)
+            self.assertTrue(ft2.priority in priorities)
+            self.assertTrue(ft1.priority != ft2.priority)
+
+            exp_tags = (tags[running[0].eq_task_id], tags[running[1].eq_task_id])
+            ft1_tag = self.eq_sql._get("select tag from eq_task_tags where eq_task_id = %s", ft1.eq_task_id)[1][0][0]
+            ft2_tag = self.eq_sql._get("select tag from eq_task_tags where eq_task_id = %s", ft2.eq_task_id)[1][0][0]
+            self.assertTrue(ft1_tag in exp_tags)
+            self.assertTrue(ft2_tag in exp_tags)
+            self.assertTrue(ft1_tag != ft2_tag)
+
+        except Exception as e:
+            pool.cancel()
+            raise e

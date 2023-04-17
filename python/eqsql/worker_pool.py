@@ -1,8 +1,8 @@
 from datetime import datetime
 from typing import Dict
-from subprocess import Popen, STDOUT, PIPE, CalledProcessError
+from subprocess import Popen, STDOUT, PIPE
 from time import sleep
-from psij.job_status import JobStatus
+from psij.job_status import JobStatus, JobState
 import psutil
 
 
@@ -42,30 +42,61 @@ class LocalPool:
         self.name = name
         self.proc = proc
         self.cfg_file = cfg_file
+        self.canceled = False
 
-    def cancel(self):
+    def cancel(self, timeout=10):
+        p = psutil.Process(self.proc.pid)
         with self.proc:
-            pid = self.proc.pid
-            p = psutil.Process(pid)
             for child_process in p.children(recursive=True):
                 child_process.send_signal(15)
             self.proc.terminate()
 
+            retry_count = 0
+            sleep_val = 0.25
+            while self.proc.poll() is None and retry_count < timeout / sleep_val:
+                sleep(sleep_val)
+
+        self.canceled = True
+
+    def status(self) -> JobStatus:
+        """
+        Returns: the current JobStatus of this LocalPool. Note only the JobState
+        attribute of the JobStatus will be set.
+        """
+        if self.canceled:
+            return JobStatus(JobState.CANCELED)
+
+        rc = self.proc.poll()
+        if rc is None:
+            return JobStatus(JobState.ACTIVE)
+        elif rc == 0:
+            return JobStatus(JobState.COMPLETED)
+        else:
+            return JobStatus(JobState.FAILED)
+
 
 class ScheduledPool:
 
-    def __init__(self, name, job_id, scheduler, cfg_file):
+    def __init__(self, name, job_id, scheduler, fx, cfg_file):
         self.job_id = job_id
         self.name = name
         self.scheduler = scheduler
         self.cfg_file = cfg_file
+        self.fx = fx
 
-    def cancel(self, fx):
-        ft = fx.submit(_cancel_pool, self.job_id, self.scheduler)
+    def cancel(self, timeout=60):
+        ft = self.fx.submit(_cancel_pool, self.job_id, self.scheduler)
         ft.result()
 
-    def status(self, fx, timeout=60):
-        ft = fx.submit(_pool_status, self.job_id, self.scheduler)
+        retry_count = 0
+        sleep_val = 0.25
+        # TODO: fix this so polls for canceled some number of times, then returns a value.s
+        while self.status().state != JobState.CANCELED and retry_count < timeout / sleep_val:
+            sleep(sleep_val)
+            retry_count += 1
+
+    def status(self, timeout=60):
+        ft = self.fx.submit(_pool_status, self.job_id, self.scheduler)
         return ft.result(timeout=timeout)
 
 
@@ -79,12 +110,10 @@ def cfg_tofile(cfg_params: Dict) -> str:
                 f.write(f'{k}={v}\n')
     return fname
 
-# def _start_local_p
-
 
 def start_local_pool(name, launch_script, exp_id, cfg_params):
+    cfg_params['CFG_POOL_ID'] = name
     cfg_fname = cfg_tofile(cfg_params)
-    # try:
     proc = Popen([launch_script, str(exp_id), cfg_fname], stdout=PIPE,
                  stderr=STDOUT)
     for _ in range(4):
@@ -96,6 +125,7 @@ def start_local_pool(name, launch_script, exp_id, cfg_params):
 
     # assume started and running
     return LocalPool(name, proc, cfg_fname)
+
 
 def start_scheduled_pool(fx, name, launch_script, exp_id, cfg_params, scheduler):
     def _start_scheduled_pool(launch_script, exp_id, cfg_params, scheduler):
@@ -121,6 +151,7 @@ def start_scheduled_pool(fx, name, launch_script, exp_id, cfg_params, scheduler)
         except subprocess.CalledProcessError:
             raise ValueError(f'start_scheduled_pool failed with {traceback.format_exc()}')
 
+    cfg_params['CFG_POOL_ID'] = name
     ft = fx.submit(_start_scheduled_pool, launch_script, exp_id, cfg_params, scheduler)
     job_id, cfg_file = ft.result()
-    return ScheduledPool(name, job_id, scheduler, cfg_file)
+    return ScheduledPool(name, job_id, scheduler, fx, cfg_file)

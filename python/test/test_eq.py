@@ -3,6 +3,7 @@ import json
 import logging
 
 from eqsql import eq
+from utils import clear_db
 
 # Assumes the existence of a testing database
 # with these characteristics
@@ -15,22 +16,6 @@ db_name = 'eqsql_test_db'
 def create_payload(x=1.2):
     payload = {'x': x, 'y': 7.3, 'z': 'foo'}
     return json.dumps(payload)
-
-
-clear_db_sql = """
-delete from eq_exp_id_tasks;
-delete from eq_tasks;
-delete from emews_queue_OUT;
-delete from emews_queue_IN;
-delete from eq_task_tags;
-alter sequence emews_id_generator restart;
-"""
-
-
-def clear_db(conn):
-    with conn:
-        with conn.cursor() as cur:
-            cur.execute(clear_db_sql)
 
 
 class EQTests(unittest.TestCase):
@@ -137,7 +122,8 @@ class EQTests(unittest.TestCase):
             self.assertFalse(ft.done())
 
         query = "select eq_task_id, json_out from eq_tasks where eq_task_id in (%s, %s, %s)"
-        result = self.eq_sql._get(query, (1, 2, 3))
+        status, result = self.eq_sql._get(query, 1, 2, 3)
+        self.assertEqual(status, eq.ResultStatus.SUCCESS)
         self.assertEqual(3, len(result))
         ids = [1, 2, 3]
         for eq_task_id, payload in result:
@@ -226,7 +212,7 @@ class EQTests(unittest.TestCase):
 
         fts = {}
         payloads = {}
-        for i in range(0, 8):
+        for i in range(8):
             payload = create_payload(i)
             _, ft = self.eq_sql.submit_task('test_future', 0, payload)
             fts[ft.eq_task_id] = ft

@@ -506,10 +506,15 @@ class EQSQL:
         return result
 
     def _get(self, select_query: str, *args):
-        with self.db.conn:
-            with self.db.conn.cursor() as cur:
-                cur.execute(select_query, *args)
-                return [x for x in cur.fetchall()]
+        try:
+            with self.db.conn:
+                with self.db.conn.cursor() as cur:
+                    cur.execute(select_query, args)
+                    return (ResultStatus.SUCCESS, cur.fetchall())
+
+        except Exception:
+            self.logger.error(f'_get error {traceback.format_exc()}')
+            return (ResultStatus.FAILURE, [])
 
     def update_task(self, cur, eq_task_id: int, payload: str):
         """Updates the specified task in the eq_tasks table with the specified
@@ -829,6 +834,20 @@ class EQSQL:
 
         return (ResultStatus.SUCCESS, deleted_rows)
 
+    def _update_status(self, eq_task_ids: Iterable[int], status: TaskStatus):
+        ids = tuple(eq_task_ids)
+        try:
+            with self.db.conn:
+                with self.db.conn.cursor() as cur:
+                    placeholders = ', '.join(['%s'] * len(ids))
+                    query = f'update eq_tasks set eq_status = {int(status)} where eq_task_id in ({placeholders})'
+                    cur.execute(query, ids)
+        except Exception:
+            self.logger.error(f'update status error: {traceback.format_exc()}')
+            return ResultStatus.FAILURE
+
+        return ResultStatus.SUCCESS
+
     def _update_priorities(self, eq_task_ids: Iterable[int], new_priority: Union[int, List[int]]) -> Tuple[ResultStatus, int]:
         """Updates the priorities of the specified tasks.
 
@@ -961,12 +980,13 @@ class EQSQL:
 
 class EQEnvironment:
 
-    def __init__(self):
+    def __init__(self, exp_id):
         # maps pools to queues
-        self.pq_map = {}
+        self._pq_map = {}
+        self.exp_id = exp_id
 
     def queue_for_pool(self, pool: Union[LocalPool, ScheduledPool]):
-        return self.pq_map[pool.name]
+        return self._pq_map[pool.name]
 
 
 def as_completed(futures: List[Future], pop: bool = False, timeout: float = None, n: int = None,
@@ -1095,24 +1115,48 @@ def cancel_worker_pool(pool: Union[LocalPool, ScheduledPool], env: EQEnvironment
         env: the EQEnvironment. This will be used to get the task queue information for the
             canceled pool
         eqsql: the eqsql instance on which to submit any uncompleted tasks running on that pool
-        futures: if not None, then any completed tasks will removed from this list.
+        futures: if not None, then remove the requeued tasks from this list, and return the remaining
+        together with the new futures.
 
     Returns:
-        A list of futures containing the uncompleted, but now requeued tasks.
+        A tuple - (ResultStatus.SUCCESS, futures list) if success, otherwise (ResultStatus.FAILURE, [])
     """
-    # 1. cancel pool
-    # 2. get list of uncompleted tasks ids and payloads for those tasks
-    # 3. resubmit those tasks
     pool.cancel()
     pool_eqsql = env.queue_for_pool(pool)
-    result = pool_eqsql._get('select eq_task_id, eq_task_type, json_out from eq_tasks where worker_pool=%s and eq_status=1',
-                             pool.name)
-    task_ids = [task_id for task_id, _, _ in result]
-    pool_eqsql._update_status(task_ids, TaskStatus.REQUEUED)
-    # TODO: need to keep original priority so can requeue with that.
+    result_status, result = pool_eqsql._get("select eq_task_id, eq_task_type, json_out, eq_priority from eq_tasks where worker_pool = %s "
+                                            f"and eq_status={int(TaskStatus.RUNNING)}",
+                                            pool.name)
+    if result_status == ResultStatus.FAILURE:
+        return (ResultStatus.FAILURE, [])
+
+    task_ids = [task_id for task_id, _, _, _ in result]
+    result_status = pool_eqsql._update_status(task_ids, TaskStatus.REQUEUED)
+
+    if result_status == ResultStatus.FAILURE:
+        return (ResultStatus.FAILURE, [])
+
+    placeholders = ', '.join(['%s'] * len(task_ids))
+    result_status, tag_query = pool_eqsql._get(f'select eq_task_id, tag from eq_task_tags where eq_task_id in ({placeholders})',
+                                               *task_ids)
+
+    if result_status == ResultStatus.FAILURE:
+        return (ResultStatus.FAILURE, [])
+
+    tags = {x[0]: x[1] for x in tag_query}
     new_futures = []
-    for _, payload in result:
-        ft = task_queue.submit_tasks(env.exp_id, )
+    for eq_task_id, eq_task_type, payload, priority in result:
+        tag = tags.get(eq_task_id, None)
+        _, ft = task_queue.submit_task(env.exp_id, eq_task_type, payload, priority, tag)
+        new_futures.append(ft)
+
+    task_ids = set(task_ids)
+    if futures is not None:
+        for ft in futures:
+            if ft.eq_task_id not in task_ids:
+                new_futures.append(ft)
+
+    return new_futures
+
 
 class StopConditionException(Exception):
     def __init__(self, msg='StopIterationException', *args, **kwargs):
