@@ -22,7 +22,8 @@ Pure Python tests have been moved to `EQ-SQL/python/test`
 
 == R
 
-Run test-R-[1-3].sh
+R API uses the Python API via reticulate. Unit tests for
+R wrapper functions are in `EQ-SQL/R/EQ.SQL/tests`
 
 == Swift
 
