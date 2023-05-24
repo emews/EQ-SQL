@@ -63,7 +63,7 @@ init_task_queue <- function(eqsql, db_host, db_user, db_port, db_name, retry_thr
         pylog <- 20
     }
 
-    task_queue <- eqsql$eq$init_eqsql(db_host, db_user, db_port, db_name, retry_threshold, log_level)
+    task_queue <- eqsql$eq$init_task_queue(db_host, db_user, db_port, db_name, retry_threshold, log_level)
 }
 
 #' Applies the specified function to the specified list of futures as they
