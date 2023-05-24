@@ -11,3 +11,4 @@ experiments/
 turbine-output
 __pycache__
 .Rproj.user
+.lintr
