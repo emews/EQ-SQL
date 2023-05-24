@@ -10,3 +10,4 @@ scratch/
 experiments/
 turbine-output
 __pycache__
+.Rproj.user

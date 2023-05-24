@@ -125,7 +125,7 @@ def run(work_type: int):
         user = os.getenv('DB_USER')
         port = int(os.getenv('DB_PORT'))
         db_name = os.getenv('DB_NAME')
-        eq_sql = eq.init_eqsql(host, user, port, db_name)
+        eq_sql = eq.init_task_queue(host, user, port, db_name)
         try:
             asyncio.run(run_server(comm, work_type, eq_sql))
         finally:

@@ -10,7 +10,7 @@ def connect(i):
     port = 5433
     db_name = 'eqsql_db'
 
-    eq.init_eqsql(host, user, port, db_name, retry_threshold=100)
+    eq.init_task_queue(host, user, port, db_name, retry_threshold=100)
     time.sleep(random.randint(2, 5))
     eq.close()
 

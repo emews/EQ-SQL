@@ -90,7 +90,7 @@ class PoolTests(unittest.TestCase):
         self.assertEqual(JobState.ACTIVE, state)
 
         try:
-            self.eq_sql = eq.init_eqsql(host, user, port, db_name)
+            self.eq_sql = eq.init_task_queue(host, user, port, db_name)
             clear_db(self.eq_sql.db.conn)
             exp_id = '1'
 

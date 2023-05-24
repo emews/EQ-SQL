@@ -165,7 +165,7 @@ class Future:
 _log_id = 1
 
 
-def init_eqsql(host: str, user: str, port: int, db_name: str, retry_threshold=0, log_level=logging.WARN):
+def init_task_queue(host: str, user: str, port: int, db_name: str, retry_threshold=0, log_level=logging.WARN):
     """Initializes and returns an EQSQL class instance with the specified parameters.
 
     Args:

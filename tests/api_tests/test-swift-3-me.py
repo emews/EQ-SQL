@@ -14,7 +14,7 @@ def _create_eqsql():
     user = os.getenv('DB_USER')
     port = int(os.getenv('DB_PORT'))
     db_name = os.getenv('DB_NAME')
-    return eq.init_eqsql(host, user, port, db_name)
+    return eq.init_task_queue(host, user, port, db_name)
 
 
 def run():

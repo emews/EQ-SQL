@@ -11,7 +11,7 @@ host = os.getenv('DB_HOST')
 user = os.getenv('DB_USER')
 port = int(os.getenv('DB_PORT'))
 db_name = os.getenv('DB_NAME')
-eq_sql = eq.init_eqsql(host, user, port, db_name)
+eq_sql = eq.init_task_queue(host, user, port, db_name)
 
 success = True
 
