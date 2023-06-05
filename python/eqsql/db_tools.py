@@ -1,5 +1,10 @@
 import logging
 import os
+import subprocess
+import colorama
+import shutil
+from typing import List
+import psycopg2
 
 
 def setup_log(log_name, log_level, procname=""):
@@ -189,3 +194,70 @@ class ConnectionException(Exception):
     def __init__(self, cause):
         """ cause: another Exception """
         self.cause = cause
+
+
+def _run_cmd(cmd: List, start_msg, failure_msg, end_msg=None, print_result=True):
+    try:
+        print(colorama.Fore.GREEN + start_msg)
+        result = subprocess.run(cmd, stdout=subprocess.PIPE,
+                                stderr=subprocess.STDOUT, check=True)
+        result_str = result.stdout.decode('utf-8')
+        if end_msg is not None:
+            print(colorama.Fore.GREEN + end_msg)
+        if print_result:
+            print(result_str)
+    except subprocess.CalledProcessError as ex:
+        if ex.stdout is None:
+            print(colorama.Fore.RED + failure_msg)
+        else:
+            print(colorama.Fore.RED + failure_msg + ex.stdout.decode('utf-8'))
+        raise ValueError()
+
+
+def create_eqsql_tables(sql_file, db_user='eqsql_user', db_name='EQ_SQL', db_host='localhost',
+                        db_port=None):
+
+    conn = psycopg2.connect(f'dbname={db_name}', user=db_user, host=db_host, db_port=db_port)
+    with conn:
+        with conn.cursor() as cur:
+            with open(sql_file, 'r') as sql:
+                cur.execute(sql.read())
+
+            cur.execute("SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'")
+            print("Tables:")
+            for row in cur.fetchall():
+                print(f'\t{row[0]}')
+
+    conn.close()
+
+
+def create_eqsql_db(db_path: str, create_db_sql_file, db_user='eqsql_user', db_name='EQ_SQL'):
+    colorama.init(autoreset=True)
+    try:
+        _run_cmd(['which', 'initdb'], 'Checking for initdb ...',
+                 'EQ/SQL create database failed: "initdb" command not found',
+                 print_result=True)
+        _run_cmd(['initdb', '-D', db_path], f'Initializing database directory:\n\t{db_path} ...',
+                 'EQ/SQL create database failed:', 'Database directory initialized',
+                 False)
+        _run_cmd(['pg_ctl', '-D', db_path, '-l', 'db.log', 'start'],
+                 f'\nStarting database with log:\n\t{db_path}/db.log',
+                 'EQ/SQL create database failed: error starting database server', 'Database server started', False)
+        _run_cmd(['createuser', '-w', db_user],
+                 f'\nCreating database user {db_user}',
+                 'EQ/SQL create database failed: error creating user', 'User created', False)
+        _run_cmd(['createdb', f'--owner={db_user}', db_name],
+                 f'\nCreating {db_name} database',
+                 'EQ/SQL create database failed: error creating user', 'Database created', True)
+
+        print("\nCreating EQ/SQL database tables")
+        create_eqsql_tables(create_db_sql_file, db_name=db_name, db_user=db_user)
+
+    except ValueError:
+        pass
+
+    finally:
+        try:
+            _run_cmd(['pg_ctl', '-D', db_path, '-l', 'db.log', 'stop'], '\nStopping database server', '', '', True)
+        except ValueError:
+            pass
