@@ -1,6 +1,7 @@
 *.log
 *.out
 *.pyc
+*.egg-info
 *.tic
 .vscode
 
