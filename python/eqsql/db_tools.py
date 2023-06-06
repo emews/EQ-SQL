@@ -2,7 +2,8 @@ import logging
 import os
 import subprocess
 import colorama
-import shutil
+from typing import Tuple
+from importlib import resources
 from typing import List
 import psycopg2
 
@@ -231,7 +232,8 @@ def create_eqsql_tables(sql_file, db_user='eqsql_user', db_name='EQ_SQL', db_hos
     conn.close()
 
 
-def create_eqsql_db(db_path: str, create_db_sql_file, db_user='eqsql_user', db_name='EQ_SQL'):
+def init_eqsql_db(db_path: str, create_db_sql_file=None, db_user='eqsql_user', db_name='EQ_SQL', 
+                  db_port=None) -> Tuple:
     colorama.init(autoreset=True)
     try:
         _run_cmd(['which', 'initdb'], 'Checking for initdb ...',
@@ -240,8 +242,11 @@ def create_eqsql_db(db_path: str, create_db_sql_file, db_user='eqsql_user', db_n
         _run_cmd(['initdb', '-D', db_path], f'Initializing database directory:\n\t{db_path} ...',
                  'EQ/SQL create database failed:', 'Database directory initialized',
                  False)
-        _run_cmd(['pg_ctl', '-D', db_path, '-l', 'db.log', 'start'],
-                 f'\nStarting database with log:\n\t{db_path}/db.log',
+        if db_port is None:
+            cmd = ['pg_ctl', '-D', db_path, '-l', f'{db_path}/db.log', '-o', '-F', 'start']
+        else:
+            cmd = ['pg_ctl', '-D', db_path, '-l', f'{db_path}/db.log' '-o' '"-F', '-p', f'{db_port}"', 'start']
+        _run_cmd(cmd, f'\nStarting database with log:\n\t{db_path}/db.log',
                  'EQ/SQL create database failed: error starting database server', 'Database server started', False)
         _run_cmd(['createuser', '-w', db_user],
                  f'\nCreating database user {db_user}',
@@ -251,13 +256,42 @@ def create_eqsql_db(db_path: str, create_db_sql_file, db_user='eqsql_user', db_n
                  'EQ/SQL create database failed: error creating user', 'Database created', True)
 
         print("\nCreating EQ/SQL database tables")
+        if create_db_sql_file is None:
+            create_db_sql_file = resources.files('eqsql').joinpath('workflow.sql')
         create_eqsql_tables(create_db_sql_file, db_name=db_name, db_user=db_user)
+
+        return db_path, db_user, db_name, db_port
 
     except ValueError:
         pass
 
     finally:
         try:
-            _run_cmd(['pg_ctl', '-D', db_path, '-l', 'db.log', 'stop'], '\nStopping database server', '', '', True)
+            _run_cmd(['pg_ctl', '-D', db_path, 'stop'], '\nStopping database server', '', '', True)
         except ValueError:
             pass
+
+
+def start_db(db_path, db_port=None):
+    try:
+        if db_port is None:
+            cmd = ['pg_ctl', '-D', db_path, '-l', f'{db_path}/db.log', '-o', '-F', 'start']
+        else:
+            cmd = ['pg_ctl', '-D', db_path, '-l', f'{db_path}/db.log' '-o' '"-F', '-p', f'{db_port}"', 'start']
+        _run_cmd(cmd,
+                 f'\nStarting database with log:\n\t{db_path}/db.log',
+                 'EQ/SQL create database failed: error starting database server', 'Database server started', False)
+    except ValueError:
+        pass
+
+
+def stop_db(db_path, db_port=None):
+    try:
+        if db_port is None:
+            cmd = ['pg_ctl', '-D', db_path, 'stop']
+        else:
+            cmd = ['pg_ctl', '-D', db_path, '"-F', '-p', f'{db_port}"', 'stop']
+        _run_cmd(cmd, '\nStopping database server', '', '', True)
+
+    except ValueError:
+        pass
