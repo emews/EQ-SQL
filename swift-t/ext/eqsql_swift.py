@@ -14,7 +14,10 @@ ABORT_MSG = {'type': 'status', 'payload': eq.EQ_ABORT}
 def _create_eqsql(retry_threshold: int = 0, log_level=logging.WARN):
     host = os.getenv('DB_HOST')
     user = os.getenv('DB_USER')
-    port = int(os.getenv('DB_PORT'))
+    if os.getenv('DB_PORT') is None or os.getenv('DB_PORT') == '':
+        port = None
+    else:
+        port = int(os.getenv('DB_PORT'))
     db_name = os.getenv('DB_NAME')
     return eq.init_task_queue(host, user, port, db_name, retry_threshold, log_level)
 

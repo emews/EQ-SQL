@@ -76,10 +76,15 @@ class WorkflowSQL:
         if self.conn is None:
             self.info(f"connect(): connecting to {self.host} {self.port} as {self.user}")
             try:
-                self.conn = psycopg2.connect("dbname="+self.dbname,
-                                             host=self.host,
-                                             port=self.port,
-                                             user=self.user)
+                if self.port is None:
+                    self.conn = psycopg2.connect(f"dbname={self.dbname}",
+                                                 host=self.host,
+                                                 user=self.user)
+                else:
+                    self.conn = psycopg2.connect(f"dbname={self.dbname}",
+                                                 host=self.host,
+                                                 port=self.port,
+                                                 user=self.user)
             except psycopg2.OperationalError as e:
                 self.info("connect(): could not connect!")
                 raise ConnectionException(e)
