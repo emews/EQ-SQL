@@ -14,7 +14,7 @@ type message {
 
 string code_get = """
 import os
-import eq_swift
+import eqsql_swift
 
 eq_work_type = %i
 worker_pool_id = '%s'
@@ -30,7 +30,7 @@ except ValueError as e:
     print("ENV VAR: EQ_DB_RETRY_THRESHOLD must be a float")
     raise e
 
-result_str = eq_swift.query_task(eq_work_type, worker_pool=worker_pool_id, query_timeout=query_timeout, retry_threshold=retry_threshold)
+result_str = eqsql_swift.query_task(eq_work_type, worker_pool=worker_pool_id, query_timeout=query_timeout, retry_threshold=retry_threshold)
 """;
 
 (message msg) eq_task_query(int eq_type, string worker_pool_id) {
@@ -48,7 +48,7 @@ result_str = eq_swift.query_task(eq_work_type, worker_pool=worker_pool_id, query
 
 string code_put = """
 import os
-import eq_swift
+import eqsql_swift
 
 try:
     retry_threshold = int(os.environ.get('EQ_DB_RETRY_THRESHOLD', 10))
@@ -60,7 +60,7 @@ eq_task_id = %i
 eq_type = %i
 payload = r'%s'
 
-eq_swift.report_task(eq_task_id, eq_type, payload, retry_threshold=retry_threshold)
+eqsql_swift.report_task(eq_task_id, eq_type, payload, retry_threshold=retry_threshold)
 """;
 
 (void v) eq_task_report(int eq_task_id, int eq_type, string result_payload) {
@@ -79,7 +79,7 @@ eq_swift.report_task(eq_task_id, eq_type, payload, retry_threshold=retry_thresho
     [ "set <<output>> [ turbine::python 1 1 <<code>> <<expr>> ]" ];
 
 string init_querier_string = """
-import eq_swift
+import eqsql_swift
 import os
 
 try:
@@ -88,7 +88,7 @@ except ValueError as e:
     print("ENV VAR: EQ_DB_RETRY_THRESHOLD must be an integer")
     raise e
 
-eq_swift.init_task_querier('%s', %d, %d, %d, retry_threshold)
+eqsql_swift.init_task_querier('%s', %d, %d, %d, retry_threshold)
 """;
 
 (void v) eq_init_batch_querier(location loc, string worker_pool, int batch_size, int threshold, int work_type) {
@@ -99,12 +99,12 @@ eq_swift.init_task_querier('%s', %d, %d, %d, retry_threshold)
 }
 
 (void v) eq_stop_batch_querier(location loc){
-    stop_string = "eq_swift.stop_task_querier()";
+    stop_string = "eqsql_swift.stop_task_querier()";
     @location=loc _void_py(stop_string) => v = propagate();
 }
 
 
-string get_string = "result = eq_swift.get_tasks_n()";
+string get_string = "result = eqsql_swift.get_tasks_n()";
 
 (message msgs[]) eq_batch_task_query(location loc) {
     //printf("EQPy_get called");
