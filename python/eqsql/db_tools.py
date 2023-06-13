@@ -278,6 +278,7 @@ def init_eqsql_db(db_path: str, create_db_sql_file=None, db_user='eqsql_user', d
 
 
 def start_db(db_path, db_port=None):
+    colorama.init(autoreset=True)
     try:
         if db_port is None:
             cmd = ['pg_ctl', '-D', db_path, '-l', f'{db_path}/db.log', '-o', '-F', 'start']
@@ -291,6 +292,7 @@ def start_db(db_path, db_port=None):
 
 
 def stop_db(db_path, db_port=None):
+    colorama.init(autoreset=True)
     try:
         if db_port is None:
             cmd = ['pg_ctl', '-D', db_path, 'stop']
