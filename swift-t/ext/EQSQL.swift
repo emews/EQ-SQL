@@ -1,8 +1,3 @@
-
-/*
-   EMEWS EQ.swift for SQL
-*/
-
 import location;
 pragma worktypedef resident_work;
 
@@ -92,9 +87,8 @@ eqsql_swift.init_task_querier('%s', %d, %d, %d, retry_threshold)
 """;
 
 (void v) eq_init_batch_querier(location loc, string worker_pool, int batch_size, int threshold, int work_type) {
-    //printf("EQPy_init_package(%s) ...", packageName);
-    string code = init_querier_string % (worker_pool, batch_size, threshold, work_type); //,packageName);
-    //printf("Code is: \n%s", code);
+    string code = init_querier_string % (worker_pool, batch_size, threshold, work_type);
+    // printf("Code is: \n%s", code);
     @location=loc _void_py(code) => v = propagate();
 }
 
@@ -107,7 +101,7 @@ eqsql_swift.init_task_querier('%s', %d, %d, %d, retry_threshold)
 string get_string = "result = eqsql_swift.get_tasks_n()";
 
 (message msgs[]) eq_batch_task_query(location loc) {
-    //printf("EQPy_get called");
+    //printf("eq_batch_task_query called");
     //printf("Code is: \n%s", code);
     result = @location=loc _string_py(get_string, "result");
     string msg_strs[] = split(result, ";");
