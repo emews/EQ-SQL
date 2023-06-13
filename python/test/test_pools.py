@@ -3,6 +3,7 @@ import yaml
 import funcx
 from time import sleep
 import json
+import os
 
 from psij.job_state import JobState
 
@@ -39,6 +40,22 @@ CFG_PROCS: $(( CFG_NODES * CFG_PPN ))
 
 
 class PoolTests(unittest.TestCase):
+
+    def test_cfgf_to_dict(self):
+        exp = yaml.safe_load(scheduled_pool_yaml)
+        del exp['start_pool_script']
+        fname = './test_data/tmp.cfg'
+        with open(fname, 'w') as fout:
+            for k, v in exp.items():
+                fout.write(f'{k}={v}\n')
+
+        params = worker_pool.cfg_file_to_dict(fname)
+        self.assertEqual(len(params), len(exp))
+        for p in params:
+            self.assertTrue(p in exp)
+            self.assertEqual(exp[p], params[p])
+
+        os.remove(fname)
 
     def test_scheduled_pool(self):
         params = yaml.safe_load(scheduled_pool_yaml)

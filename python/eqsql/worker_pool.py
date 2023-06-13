@@ -106,14 +106,39 @@ def cfg_tofile(cfg_params: Dict) -> str:
     fd, fname = tempfile.mkstemp(text=True)
     with os.fdopen(fd, 'w') as f:
         for k, v in cfg_params.items():
-            if k.startswith('CFG'):
-                f.write(f'{k}={v}\n')
+            f.write(f'{k}={v}\n')
     return fname
+
+
+def _coerce(value: str):
+    try:
+        v = float(value)
+        if int(v) == v:
+            v = int(v)
+        return v
+    except ValueError:
+        return value
+
+
+def cfg_file_to_dict(cfg_file: str) -> Dict:
+    """Reads a bash cfg file into a dictionary"""
+    params = {}
+    with open(cfg_file) as fin:
+        for line in fin.readlines():
+            line = line.strip()
+            if not line.startswith('#'):
+                kv = line.split('=')
+                if len(kv) == 2:
+                    k, v = kv
+                    params[k] = _coerce(v)
+
+    return params
 
 
 def start_local_pool(name, launch_script, exp_id, cfg_params):
     cfg_params['CFG_POOL_ID'] = name
     cfg_fname = cfg_tofile(cfg_params)
+    exp_id = format_pool_exp_id(exp_id, name)
     proc = Popen([launch_script, str(exp_id), cfg_fname], stdout=PIPE,
                  stderr=STDOUT)
     for _ in range(4):
@@ -139,6 +164,7 @@ def start_scheduled_pool(fx, name, launch_script, exp_id, cfg_params, scheduler)
         fname = worker_pool.cfg_tofile(cfg_params)
         try:
             cwd = os.path.dirname(launch_script)
+            exp_id = format_pool_exp_id(exp_id, name)
             result = subprocess.run([launch_script, str(exp_id), fname], stdout=subprocess.PIPE,
                                     stderr=subprocess.STDOUT, cwd=cwd, check=True)
             result_str = result.stdout.decode('utf-8')
