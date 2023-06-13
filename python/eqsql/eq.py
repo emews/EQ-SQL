@@ -558,7 +558,8 @@ class EQSQL:
             self.logger.error(f'stop_worker_pool error {traceback.format_exc()}')
             return ResultStatus.FAILURE
 
-    def submit_task(self, exp_id: str, eq_type: int, payload: str, priority: int = 0, tag: str = None) -> Future:
+    def submit_task(self, exp_id: str, eq_type: int, payload: str, priority: int = 0,
+                    tag: str = None) -> Tuple[ResultStatus, Union[Future, None]]:
         """Submits work of the specified type and priority with the specified
         payload, returning the status and the Future encapsulating the submission.
 
