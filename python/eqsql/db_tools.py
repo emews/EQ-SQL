@@ -11,8 +11,8 @@ import psycopg2
 def setup_log(log_name, log_level, procname=""):
     logger = logging.getLogger(log_name)
     handlr = logging.StreamHandler()
-    formtr = logging.Formatter("%(asctime)s " + procname +
-                               " %(name)-9s %(message)s",
+    formtr = logging.Formatter("%(asctime)s " + procname
+                               + " %(name)-9s %(message)s",
                                datefmt="%Y-%m-%d %H:%M:%S")
     handlr.setFormatter(formtr)
     logger.addHandler(handlr)
@@ -34,9 +34,9 @@ class WorkflowSQL:
         features and studies tables
         envs: If True, self-configure based on the environment
         """
-        self.conn   = None
-        self.host   = host
-        self.port   = port
+        self.conn = None
+        self.host = host
+        self.port = port
         self.dbname = dbname
         self.user = user
         if envs:
@@ -64,8 +64,8 @@ class WorkflowSQL:
                 port_string = os.getenv("DB_PORT")
                 self.port = int(port_string)
             except ValueError as e:
-                self.logger.fatal("DB_PORT is not an integer: " +
-                                  "got: '%s'" % port_string)
+                self.logger.fatal("DB_PORT is not an integer: "
+                                  + "got: '%s'" % port_string)
                 raise e
 
         if env_has("DB_NAME"):
@@ -237,7 +237,7 @@ def create_eqsql_tables(sql_file, db_user='eqsql_user', db_name='EQ_SQL', db_hos
     conn.close()
 
 
-def init_eqsql_db(db_path: str, create_db_sql_file=None, db_user='eqsql_user', db_name='EQ_SQL', 
+def init_eqsql_db(db_path: str, create_db_sql_file=None, db_user='eqsql_user', db_name='EQ_SQL',
                   db_port=None) -> Tuple:
     colorama.init(autoreset=True)
     try:
