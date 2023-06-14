@@ -47,7 +47,6 @@ class Future:
         self.tag = tag
         self.eq_sql = eq_sql
         self._result = None
-        self._status = None
         self._pool = None
 
     def result(self, delay: float = 0.5, timeout: float = 2.0) -> Tuple[ResultStatus, str]:
@@ -88,16 +87,11 @@ class Future:
             One of eq.TaskStatus.QUEUED, eq.TaskStatus.RUNNING, eq.TaskStatus.COMPLETE,
             eq.TaskStatus.CANCELED or None if the status query fails.
         """
-        if self._status is not None:
-            return self._status
-
         result = self.eq_sql.query_status([self.eq_task_id])
         if result is None:
             return result
         else:
             ts = result[0][1]
-            if ts == TaskStatus.COMPLETE or ts == TaskStatus.CANCELED:
-                self._status = ts
             return ts
 
     @property
@@ -123,7 +117,7 @@ class Future:
         Returns:
             True if the task is canceled, otherwise False.
         """
-        if self._status is not None and self._status == TaskStatus.CANCELED:
+        if self.status == TaskStatus.CANCELED:
             return True
 
         status, row_count = self.eq_sql._cancel_tasks([self.eq_task_id])
@@ -757,6 +751,24 @@ class EQSQL:
                         empty = False
 
         return empty
+
+    def clear_queues(self):
+        """Clears the input and output queues and sets the status of those tasks in the
+        tasks table to CANCELED.
+
+        NOTE: this is only a convenience method for resetting the queues to a coherent
+        starting state, and should NOT be used to cancel tasks.
+        """
+        with self.db.conn:
+            with self.db.conn.cursor() as cur:
+                tables = ["emews_queue_in", "emews_queue_out"]
+                for table in tables:
+                    # postgres specific SQL
+                    update_query = f'update eq_tasks set eq_status = {TaskStatus.CANCELED.value} from '\
+                        f'(select eq_task_id from {table}) as cleared_tasks where '\
+                        'eq_tasks.eq_task_id = cleared_tasks.eq_task_id'
+                    cur.execute(update_query)
+                    cur.execute(f'delete from {table}')
 
     def query_status(self, eq_task_ids: Iterable[int]) -> List[Tuple[int, TaskStatus]]:
         """Queries for the status (queued, running, etc.) of the specified tasks

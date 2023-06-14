@@ -230,7 +230,7 @@ def _exec_sql(sql_file: Union[str, bytes, os.PathLike], db_user: str = 'eqsql_us
         db_host: the hostname where the database server is located
         db_port: the port of the database server.
     """
-    conn = psycopg2.connect(f'dbname={db_name}', user=db_user, host=db_host, db_port=db_port)
+    conn = psycopg2.connect(f'dbname={db_name}', user=db_user, host=db_host, port=db_port)
     with conn:
         with conn.cursor() as cur:
             with open(sql_file, 'r') as sql:
@@ -336,3 +336,31 @@ def stop_db(db_path: Union[str, bytes, os.PathLike], db_port: int = None):
 
     except ValueError:
         pass
+
+
+def reset_db(db_user: str = 'eqsql_user', db_name: str = 'EQ_SQL', db_host: str = 'localhost',
+             db_port: int = None):
+    """Resets the database by deleting all the eqsql tables and restarting
+    the emews task id generator sequence.
+
+    Args:
+        db_user: the database user name
+        db_name: the name of the database
+        db_host: the hostname where the database server is located
+        db_port: the port of the database server.
+    """
+    clear_db_sql = """
+        delete from eq_exp_id_tasks;
+        delete from eq_tasks;
+        delete from emews_queue_OUT;
+        delete from emews_queue_IN;
+        delete from eq_task_tags;
+        alter sequence emews_id_generator restart;
+    """
+
+    conn = psycopg2.connect(f'dbname={db_name}', user=db_user, host=db_host, port=db_port)
+    with conn:
+        with conn.cursor() as cur:
+            cur.execute(clear_db_sql)
+
+    conn.close()
