@@ -1,8 +1,7 @@
 import logging
 import os
 import subprocess
-import colorama
-from typing import Tuple
+from typing import Union
 from importlib import resources
 from typing import List
 import psycopg2
@@ -204,25 +203,33 @@ class ConnectionException(Exception):
 
 def _run_cmd(cmd: List, start_msg, failure_msg, end_msg=None, print_result=True):
     try:
-        print(colorama.Fore.GREEN + start_msg)
+        print(start_msg)
         result = subprocess.run(cmd, stdout=subprocess.PIPE,
                                 stderr=subprocess.STDOUT, check=True)
         result_str = result.stdout.decode('utf-8')
         if end_msg is not None:
-            print(colorama.Fore.GREEN + end_msg)
+            print(end_msg)
         if print_result:
             print(result_str)
     except subprocess.CalledProcessError as ex:
         if ex.stdout is None:
-            print(colorama.Fore.RED + failure_msg)
+            print(failure_msg)
         else:
-            print(colorama.Fore.RED + failure_msg + ex.stdout.decode('utf-8'))
+            print(failure_msg + ex.stdout.decode('utf-8'))
         raise ValueError()
 
 
-def create_eqsql_tables(sql_file, db_user='eqsql_user', db_name='EQ_SQL', db_host='localhost',
-                        db_port=None):
+def _exec_sql(sql_file: Union[str, bytes, os.PathLike], db_user: str = 'eqsql_user',
+              db_name: str = 'EQ_SQL', db_host: str = 'localhost', db_port: int = None):
+    """Executes the SQL commands in the specified sql_file.
 
+    Args:
+        sql_file: a file containing the SQL to execute
+        db_user: the database user name
+        db_name: the name of the database
+        db_host: the hostname where the database server is located
+        db_port: the port of the database server.
+    """
     conn = psycopg2.connect(f'dbname={db_name}', user=db_user, host=db_host, db_port=db_port)
     with conn:
         with conn.cursor() as cur:
@@ -237,9 +244,28 @@ def create_eqsql_tables(sql_file, db_user='eqsql_user', db_name='EQ_SQL', db_hos
     conn.close()
 
 
-def init_eqsql_db(db_path: str, create_db_sql_file=None, db_user='eqsql_user', db_name='EQ_SQL',
-                  db_port=None) -> Tuple:
-    colorama.init(autoreset=True)
+def init_eqsql_db(db_path: str, create_db_sql_file: Union[str, bytes, os.PathLike] = None,
+                  db_user='eqsql_user', db_name='EQ_SQL', db_port=None):
+    """Creates and initialized an EQ/SQL postgresql database.
+
+    This will:
+        1. Create a database "cluster" at the specified path.
+        2. Start the server instance using that cluster.
+        3. Create the specified user.
+        4. Create the specified database in that cluster.
+        5. Populate that database with tables etc. by executing the commands in the
+        specified file.
+        6. Stop the database server.
+
+    Args:
+        db_path: the file path for the database cluster. This must not exist.
+        create_db_sql_file: a file containing the SQL to execute to create the database tables etc.
+        If this is None (the default) the default EQSQL SQL commands will be used.
+        db_user: the database user name
+        db_name: the name of the database
+        db_host: the hostname where the database server is located
+        db_port: the port of the database server.
+    """
     try:
         _run_cmd(['which', 'initdb'], 'Checking for initdb ...',
                  'EQ/SQL create database failed: "initdb" command not found',
@@ -263,9 +289,7 @@ def init_eqsql_db(db_path: str, create_db_sql_file=None, db_user='eqsql_user', d
         print("\nCreating EQ/SQL database tables")
         if create_db_sql_file is None:
             create_db_sql_file = resources.files('eqsql').joinpath('workflow.sql')
-        create_eqsql_tables(create_db_sql_file, db_name=db_name, db_user=db_user)
-
-        return db_path, db_user, db_name, db_port
+        _exec_sql(create_db_sql_file, db_name=db_name, db_user=db_user)
 
     except ValueError:
         pass
@@ -277,8 +301,13 @@ def init_eqsql_db(db_path: str, create_db_sql_file=None, db_user='eqsql_user', d
             pass
 
 
-def start_db(db_path, db_port=None):
-    colorama.init(autoreset=True)
+def start_db(db_path: Union[str, bytes, os.PathLike], db_port: int = None):
+    """Starts the postgresql database cluster on the specified path
+
+    Args:
+        db_path: the file path for the database cluster to start
+        db_port: the port number to start the db on
+    """
     try:
         if db_port is None:
             cmd = ['pg_ctl', '-D', db_path, '-l', f'{db_path}/db.log', '-o', '-F', 'start']
@@ -291,8 +320,13 @@ def start_db(db_path, db_port=None):
         pass
 
 
-def stop_db(db_path, db_port=None):
-    colorama.init(autoreset=True)
+def stop_db(db_path: Union[str, bytes, os.PathLike], db_port: int = None):
+    """Stops the postgresql database cluster on the specified path
+
+    Args:
+        db_path: the file path for the database cluster to stop
+        db_port: the port number to stop the db on
+    """
     try:
         if db_port is None:
             cmd = ['pg_ctl', '-D', db_path, 'stop']
