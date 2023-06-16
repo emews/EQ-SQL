@@ -270,14 +270,14 @@ def init_eqsql_db(db_path: str, create_db_sql_file: Union[str, bytes, os.PathLik
         _run_cmd(['which', 'initdb'], 'Checking for initdb ...',
                  'EQ/SQL create database failed: "initdb" command not found',
                  print_result=True)
-        _run_cmd(['initdb', '-D', db_path], f'Initializing database directory:\n\t{db_path} ...',
+        _run_cmd(['initdb', '-D', db_path], f'Initializing database directory: {db_path} ...',
                  'EQ/SQL create database failed:', 'Database directory initialized',
                  False)
         if db_port is None:
             cmd = ['pg_ctl', '-D', db_path, '-l', f'{db_path}/db.log', '-o', '-F', 'start']
         else:
             cmd = ['pg_ctl', '-D', db_path, '-l', f'{db_path}/db.log' '-o' '"-F', '-p', f'{db_port}"', 'start']
-        _run_cmd(cmd, f'\nStarting database with log:\n\t{db_path}/db.log',
+        _run_cmd(cmd, f'Starting database with log: {db_path}/db.log',
                  'EQ/SQL create database failed: error starting database server', 'Database server started', False)
         _run_cmd(['createuser', '-w', db_user],
                  f'\nCreating database user {db_user}',
@@ -314,7 +314,7 @@ def start_db(db_path: Union[str, bytes, os.PathLike], db_port: int = None):
         else:
             cmd = ['pg_ctl', '-D', db_path, '-l', f'{db_path}/db.log' '-o' '"-F', '-p', f'{db_port}"', 'start']
         _run_cmd(cmd,
-                 f'\nStarting database with log:\n\t{db_path}/db.log',
+                 f'\nStarting database with log:{db_path}/db.log',
                  'EQ/SQL create database failed: error starting database server', 'Database server started', False)
     except ValueError:
         pass
