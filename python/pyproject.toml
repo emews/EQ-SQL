@@ -6,6 +6,7 @@ requires = [
     "proxystore",
     "psycopg2",
     "paramiko",
-    "funcx"
+    "funcx",
+    "psutil"
 ]
 build-backend = "setuptools.build_meta"

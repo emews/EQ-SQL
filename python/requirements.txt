@@ -1,2 +1,3 @@
 psycopg2
 psij-python
+psutil
