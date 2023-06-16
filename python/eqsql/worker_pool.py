@@ -38,7 +38,7 @@ def _cancel_pool(job_id, scheduler, poll_period=5):
 
 class LocalPool:
 
-    def __init__(self, name, proc, cfg_file):
+    def __init__(self, name, proc: Popen, cfg_file):
         self.name = name
         self.proc = proc
         self.cfg_file = cfg_file
@@ -46,10 +46,16 @@ class LocalPool:
 
     def cancel(self, timeout=10):
         p = psutil.Process(self.proc.pid)
+
         with self.proc:
-            for child_process in p.children(recursive=True):
-                child_process.send_signal(15)
-            self.proc.terminate()
+            if p.is_running():
+                for child_process in p.children(recursive=True):
+                    if child_process.is_running():
+                        child_process.send_signal(15)
+
+            # may have terminated during the above
+            if p.is_running():
+                self.proc.terminate()
 
             retry_count = 0
             sleep_val = 0.25
