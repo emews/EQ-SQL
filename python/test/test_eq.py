@@ -637,6 +637,19 @@ class EQTests(unittest.TestCase):
             self.assertEqual(eq.ResultStatus.SUCCESS, report_result)
 
         self.assertFalse(self.eq_sql.are_queues_empty())
+        clear_db()
+
+        self.assertTrue(self.eq_sql.are_queues_empty())
+
+        # Add to output queue
+        for i in range(5):
+            payload = create_payload(i)
+            submit_status, _ = self.eq_sql.submit_task('eq_test', 0, payload, priority=0)
+            self.assertEqual(eq.ResultStatus.SUCCESS, submit_status)
+
+        self.assertTrue(self.eq_sql.are_queues_empty(eq_type=1))
+        self.eq_sql.submit_task('eq_test', 1, create_payload(5), priority=0)
+        self.assertFalse(self.eq_sql.are_queues_empty(eq_type=1))
 
     def test_clear_queues(self):
         self.eq_sql = eq.init_task_queue(host, user, port, db_name)

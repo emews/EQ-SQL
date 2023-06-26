@@ -732,18 +732,25 @@ class EQSQL:
             self.logger.error(f'report_task error {traceback.format_exc()}')
             return ResultStatus.FAILURE
 
-    def are_queues_empty(self) -> bool:
-        """Gets whether or not either of the input or output queues are empty.
+    def are_queues_empty(self, eq_type: int = None) -> bool:
+        """Gets whether or not either of the input or output queues are empty,
+        optionally of a specified task type.
+
+        Args:
+            eq_type: the optional task type to check for.
 
         Returns:
             True if the queues are empty, otherwise False.
         """
         empty = True
+        suffix = ''
+        if eq_type is not None:
+            suffix = f' where eq_task_type = {eq_type}'
         with self.db.conn:
             with self.db.conn.cursor() as cur:
                 tables = ["emews_queue_in", "emews_queue_out"]
                 for table in tables:
-                    cur.execute(f"select count(eq_task_id) from {table};")
+                    cur.execute(f"select count(eq_task_id) from {table}{suffix};")
                     rs = cur.fetchone()
                     count = rs[0]
                     if count > 0:
