@@ -22,7 +22,7 @@ except ValueError as e:
 try:
     query_timeout = float(os.environ.get('EQ_QUERY_TASK_TIMEOUT', 120.0))
 except ValueError as e:
-    print("ENV VAR: EQ_DB_RETRY_THRESHOLD must be a float")
+    print("ENV VAR: EQ_QUERY_TASK_TIMEOUT must be a float")
     raise e
 
 result_str = eqsql_swift.query_task(eq_work_type, worker_pool=worker_pool_id, query_timeout=query_timeout, retry_threshold=retry_threshold)
