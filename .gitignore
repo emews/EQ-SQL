@@ -13,3 +13,8 @@ turbine-output
 __pycache__
 .Rproj.user
 .lintr
+
+# Installed software:
+Miniconda*.sh
+emews-project-creator
+sfw
