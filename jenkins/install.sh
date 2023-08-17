@@ -7,6 +7,11 @@ set -eu
 # environment variable WORKSPACE to the EQ-SQL clone
 # Provide -m to skip the Miniconda (re-)installation
 
+if [[ ${WORKSPACE:-} == "" ]] {
+  print "Set WORKSPACE!"
+  return 1
+}
+
 renice --priority 19 --pid $$
 
 zparseopts -D -E m=M
