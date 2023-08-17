@@ -41,6 +41,10 @@ cd python
 pip install -e .
 cd -
 
+if [[ -d emews-project-creator ]]
+then
+  rm -rf emews-project-creator
+fi
 git clone https://github.com/emews/emews-project-creator.git
 cd emews-project-creator
 pip install -e .
