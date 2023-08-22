@@ -12,6 +12,8 @@ if [[ ${WORKSPACE:-} == "" ]] {
   return 1
 }
 
+   set -x
+   echo pid $$
 renice --priority 19 --pid $$
 
 zparseopts -D -E m=M
