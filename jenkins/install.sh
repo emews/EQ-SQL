@@ -12,8 +12,11 @@ if [[ ${WORKSPACE:-} == "" ]] {
   return 1
 }
 
-   set -x
-   ps
+set -x
+if ! ps
+then
+  echo ps failed
+fi
    echo pid $$
    which renice
 renice --priority 19 --pid $$
