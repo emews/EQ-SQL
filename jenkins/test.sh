@@ -6,7 +6,7 @@ set -eu
 
 set -x
 EMEWS_INSTALL=$( cd $WORKSPACE/../EMEWS-Install ; pwd -P )
-PATH=$EMEWS_INSTALL:$PATH
+PATH=$EMEWS_INSTALL/sfw/Miniconda/bin:$PATH
 
 set -x
 which emewscreator
