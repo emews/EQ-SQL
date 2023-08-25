@@ -11,14 +11,8 @@ if [[ ${WORKSPACE:-} == "" ]] {
   print "Set WORKSPACE!"
   return 1
 }
+cd $WORKSPACE
 
-set -x
-if ! ps
-then
-  echo ps failed
-fi
-   echo pid $$
-   which renice
 renice --priority 19 --pid $$
 
 zparseopts -D -E m=M
