@@ -40,7 +40,12 @@ PATH=$WORKSPACE/sfw/Miniconda/bin:$PATH
 
 set -x
 which conda
-conda install --yes -c swift-t -c conda-forge swift-t postgresql
+PKGS=(
+  swift-t
+  postgresql
+  psycopg2
+)
+conda install --yes -c swift-t -c conda-forge $PKGS
 # conda install -c swift-t swift-t-r
 
 cd python
