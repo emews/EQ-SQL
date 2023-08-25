@@ -4,6 +4,7 @@ set -eu
 # TEST SH
 # Run this after ./install.sh
 
+set -x
 EMEWS_INSTALL=$( cd $WORKSPACE/../EMEWS-Install ; pwd -P )
 PATH=$EMEWS_INSTALL:$PATH
 
