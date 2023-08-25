@@ -7,6 +7,8 @@
 
 # A Postgres database directory for testing (DB_DATA)
 DB/
+# DB variable logs
+db_env_vars_*
 
 # R-generated package
 *.tar.gz
