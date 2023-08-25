@@ -5,6 +5,9 @@
 *.tic
 .vscode
 
+# A Postgres database directory for testing (DB_DATA)
+DB/
+
 # R-generated package
 *.tar.gz
 scratch/
