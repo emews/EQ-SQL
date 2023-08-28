@@ -2,7 +2,8 @@ import dill
 import codecs
 import json
 from typing import Dict
-import proxystore
+from proxystore.store import Store
+from proxystore.connectors.file import FileConnector
 
 store = None
 
@@ -10,7 +11,7 @@ store = None
 def init(name, store_dir='/tmp/proxystore-dump'):
     global store
     if store is None:
-        store = proxystore.store.init_store('file', name=name, store_dir=store_dir)
+        store = Store(name, FileConnector(store_dir))
 
 
 def dump_proxies(**kwargs):
