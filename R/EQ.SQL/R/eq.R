@@ -26,8 +26,12 @@ init_eqsql <- function(python_path = NULL, eqsql_path = NULL) {
     
     if (is.null(eqsql_path)) {
         eqsql <- import('eqsql')
+        import('eqsql.eq')
+        import('eqsql.db_tools')
     } else {
         eqsql <- import_from_path('eqsql', path = eqsql_path)
+        import_from_path('eqsql.eq', path = eqsql_path)
+        import_from_path('eqsql.db_tools', path = eqsql_path)
     }
 
     eqsql
