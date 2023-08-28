@@ -138,4 +138,4 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Show stats for EXPID")
     parser.add_argument('work_type', type=int)
     args = parser.parse_args()
-    run(args['work_type'])
+    run(args.work_type)
