@@ -291,6 +291,8 @@ def init_eqsql_db(db_path: str, create_db_sql_file: Union[str, bytes, os.PathLik
             create_db_sql_file = resources.files('eqsql').joinpath('workflow.sql')
         _exec_sql(create_db_sql_file, db_name=db_name, db_user=db_user)
 
+        return (db_path, db_user, db_name, db_port)
+
     except ValueError:
         pass
 
