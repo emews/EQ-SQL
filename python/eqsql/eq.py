@@ -562,6 +562,7 @@ class EQSQL:
             eq_type: the type of work
             payload: the work payload
             priority: the priority of this work
+            tag: an optional metadata tag for the task
 
         Returns:
             A tuple containing the status (ResultStatus.FAILURE or ResultStatus.SUCCESS) of the submission
@@ -578,6 +579,33 @@ class EQSQL:
         except Exception:
             self.logger.error(f'submit_task error {traceback.format_exc()}')
             return (ResultStatus.FAILURE, None)
+
+    def submit_tasks(self, exp_id: str, eq_type: int, payload: List[str], priority: int = 0,
+                     tag: str = None) -> Tuple[ResultStatus, List[Future]]:
+        """Submits work of the specified type and priority with the specified
+        payloads, returning the status and the Futures encapsulating the submission.
+        This is essentially a convenience wrapper around `submit_task` for submitting
+        a list of payloads.
+
+        Args:
+            exp_id: the id of the experiment of which the work is part.
+            eq_type: the type of work
+            payload: a list of the work payloads
+            priority: the priority of this work
+            tag: an optional metadata tag for the tasks
+
+        Returns:
+            A tuple containing the status (ResultStatus.FAILURE or ResultStatus.SUCCESS) of the submission
+            and the list of Futures for the submitted tasks. If the submission fails, the list of Futures
+            will contain the the Futures that submitted sucessfully.
+        """
+        fts = []
+        for task in payload:
+            rs, ft = self.submit_task(exp_id, eq_type, task, priority, tag)
+            if rs != ResultStatus.SUCCESS:
+                break
+            fts.append(ft)
+        return (rs, fts)
 
     def query_more_tasks(self, eq_type: int, eq_task_ids: Iterable[int], batch_size: int, threshold: int = 1,
                          worker_pool: str = 'default', delay: float = 0.5, timeout: float = 2.0) -> Tuple[List[int], List[Dict]]:
@@ -1097,7 +1125,7 @@ def update_priority(futures: List[Future], new_priority: Union[int, List[int]]) 
         new_priority: the priority to update to. If this is a single integer then
             all the specified tasks are updated with that priority. If this is a
             List of ints then each task is updated with the corresponding priority, i.e.,
-            the first task in the eq_task_ids is updated with the first priority in the new_priority
+            the first task in the futures is updated with the first priority in the new_priority
             List.
 
     Returns:
