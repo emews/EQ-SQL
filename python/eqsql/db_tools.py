@@ -303,7 +303,8 @@ def init_eqsql_db(db_path: str, create_db_sql_file: Union[str, bytes, os.PathLik
             pass
 
 
-def start_db(db_path: Union[str, bytes, os.PathLike], db_port: int = None):
+def start_db(db_path: Union[str, bytes, os.PathLike], pg_ctl: Union[str, bytes, os.PathLike] = 'pg_ctl',
+             db_port: int = None):
     """Starts the postgresql database cluster on the specified path
 
     Args:
@@ -312,9 +313,9 @@ def start_db(db_path: Union[str, bytes, os.PathLike], db_port: int = None):
     """
     try:
         if db_port is None:
-            cmd = ['pg_ctl', '-D', db_path, '-l', f'{db_path}/db.log', '-o', '-F', 'start']
+            cmd = [pg_ctl, '-D', db_path, '-l', f'{db_path}/db.log', '-o', '-F', 'start']
         else:
-            cmd = ['pg_ctl', '-D', db_path, '-l', f'{db_path}/db.log' '-o' '"-F', '-p', f'{db_port}"', 'start']
+            cmd = [pg_ctl, '-D', db_path, '-l', f'{db_path}/db.log' '-o' '"-F', '-p', f'{db_port}"', 'start']
         _run_cmd(cmd,
                  f'\nStarting database with log:{db_path}/db.log',
                  'EQ/SQL create database failed: error starting database server', 'Database server started', False)
@@ -322,7 +323,8 @@ def start_db(db_path: Union[str, bytes, os.PathLike], db_port: int = None):
         pass
 
 
-def stop_db(db_path: Union[str, bytes, os.PathLike], db_port: int = None):
+def stop_db(db_path: Union[str, bytes, os.PathLike], pg_ctl: Union[str, bytes, os.PathLike] = 'pg_ctl',
+            db_port: int = None):
     """Stops the postgresql database cluster on the specified path
 
     Args:
@@ -331,9 +333,9 @@ def stop_db(db_path: Union[str, bytes, os.PathLike], db_port: int = None):
     """
     try:
         if db_port is None:
-            cmd = ['pg_ctl', '-D', db_path, 'stop']
+            cmd = [pg_ctl, '-D', db_path, 'stop']
         else:
-            cmd = ['pg_ctl', '-D', db_path, '"-F', '-p', f'{db_port}"', 'stop']
+            cmd = [pg_ctl, '-D', db_path, '"-F', '-p', f'{db_port}"', 'stop']
         _run_cmd(cmd, '\nStopping database server', '', '', True)
 
     except ValueError:
