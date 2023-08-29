@@ -1,6 +1,7 @@
 import logging
 import os
 import subprocess
+import socket
 from typing import Union
 from importlib import resources
 from typing import List
@@ -276,22 +277,29 @@ def init_eqsql_db(db_path: str, create_db_sql_file: Union[str, bytes, os.PathLik
         if db_port is None:
             cmd = ['pg_ctl', '-D', db_path, '-l', f'{db_path}/db.log', '-o', '-F', 'start']
         else:
-            cmd = ['pg_ctl', '-D', db_path, '-l', f'{db_path}/db.log' '-o' '"-F', '-p', f'{db_port}"', 'start']
+            cmd = ['pg_ctl', '-D', db_path, '-l', f'{db_path}/db.log', f'-o -F -p {db_port}', 'start']
         _run_cmd(cmd, f'Starting database with log: {db_path}/db.log',
                  'EQ/SQL create database failed: error starting database server', 'Database server started', False)
-        _run_cmd(['createuser', '-w', db_user],
+
+        port_arg = []
+        args = ['createuser', '-w', db_user]
+        if db_port is not None:
+            port_arg = ['-p', f'{db_port}']
+        _run_cmd(args + port_arg,
                  f'\nCreating database user {db_user}',
                  'EQ/SQL create database failed: error creating user', 'User created', False)
-        _run_cmd(['createdb', f'--owner={db_user}', db_name],
+
+        args = ['createdb', f'--owner={db_user}', db_name]
+        _run_cmd(args + port_arg,
                  f'\nCreating {db_name} database',
                  'EQ/SQL create database failed: error creating user', 'Database created', True)
 
         print("\nCreating EQ/SQL database tables")
         if create_db_sql_file is None:
             create_db_sql_file = resources.files('eqsql').joinpath('workflow.sql')
-        _exec_sql(create_db_sql_file, db_name=db_name, db_user=db_user)
+        _exec_sql(create_db_sql_file, db_name=db_name, db_user=db_user, db_port=db_port)
 
-        return (db_path, db_user, db_name, db_port)
+        return (db_path, db_user, db_name, socket.getfqdn(), db_port)
 
     except ValueError:
         pass
