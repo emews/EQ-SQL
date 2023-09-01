@@ -27,7 +27,7 @@ install-miniconda()
   rm -fr $WORKSPACE/sfw/Miniconda
 
   (
-    # Download and install both Minicondas:
+    # Download and install Miniconda:
     set -x
     wget  https://repo.anaconda.com/miniconda/$MINICONDA  # --no-verbose
     bash $MINICONDA -b -p $WORKSPACE/sfw/Miniconda
