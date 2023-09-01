@@ -323,7 +323,7 @@ def start_db(db_path: Union[str, bytes, os.PathLike], pg_ctl: Union[str, bytes, 
         if db_port is None:
             cmd = [pg_ctl, '-D', db_path, '-l', f'{db_path}/db.log', '-o', '-F', 'start']
         else:
-            cmd = [pg_ctl, '-D', db_path, '-l', f'{db_path}/db.log' '-o' '"-F', '-p', f'{db_port}"', 'start']
+            cmd = [pg_ctl, '-D', db_path, '-l', f'{db_path}/db.log' '-o' f'-o -F -p {db_port}', 'start']
         _run_cmd(cmd,
                  f'\nStarting database with log:{db_path}/db.log',
                  'EQ/SQL create database failed: error starting database server', 'Database server started', False)
@@ -343,7 +343,7 @@ def stop_db(db_path: Union[str, bytes, os.PathLike], pg_ctl: Union[str, bytes, o
         if db_port is None:
             cmd = [pg_ctl, '-D', db_path, 'stop']
         else:
-            cmd = [pg_ctl, '-D', db_path, '"-F', '-p', f'{db_port}"', 'stop']
+            cmd = [pg_ctl, '-D', db_path, f'-o -F -p {db_port}', 'stop']
         _run_cmd(cmd, '\nStopping database server', '', '', True)
 
     except ValueError:
