@@ -91,8 +91,11 @@ class ScheduledPool:
         self.fx = fx
 
     def cancel(self, timeout=60):
-        ft = self.fx.submit(_cancel_pool, self.job_id, self.scheduler)
-        ft.result()
+        if self.fx is None:
+            _cancel_pool(self.job_id, self.scheduler)
+        else:
+            ft = self.fx.submit(_cancel_pool, self.job_id, self.scheduler)
+            ft.result()
 
         retry_count = 0
         sleep_val = 0.25
@@ -102,8 +105,11 @@ class ScheduledPool:
             retry_count += 1
 
     def status(self, timeout=60):
-        ft = self.fx.submit(_pool_status, self.job_id, self.scheduler)
-        return ft.result(timeout=timeout)
+        if self.fx is None:
+            return _pool_status(self.job_id, self.scheduler)
+        else:
+            ft = self.fx.submit(_pool_status, self.job_id, self.scheduler)
+            return ft.result(timeout=timeout)
 
 
 def cfg_tofile(cfg_params: Dict) -> str:
@@ -141,7 +147,7 @@ def cfg_file_to_dict(cfg_file: str) -> Dict:
     return params
 
 
-def start_local_pool(name, launch_script, exp_id, cfg_params):
+def start_local_pool(name, launch_script, exp_id, cfg_params: Dict):
     cfg_params['CFG_POOL_ID'] = name
     cfg_fname = cfg_tofile(cfg_params)
     exp_id = format_pool_exp_id(exp_id, name)
@@ -158,8 +164,19 @@ def start_local_pool(name, launch_script, exp_id, cfg_params):
     return LocalPool(name, proc, cfg_fname)
 
 
-def start_scheduled_pool(fx, name, launch_script, exp_id, cfg_params, scheduler):
-    def _start_scheduled_pool(launch_script, exp_id, cfg_params, scheduler):
+def start_scheduled_pool(name, launch_script, exp_id, cfg_params, scheduler, fx):
+    """Starts a worker pool on a scheduled resource, i.e., a resource that queues jobs
+    using some sort of scheduler, e.g., slurm.
+
+    Args:
+    fx: a FuncXExecutor instance. If this is None, then the assumption is that the call
+        to this function is running on the resource where the pool is to be launched. If 
+        this is not None, then the FuncXExcutor will be used to launch the pool remotely.
+
+    Returns:
+        An instance of a ScheduledPool object.
+    """
+    def _start_scheduled_pool(launch_script, exp_id, cfg_params):
         # imports here for funcx
         import os
         import subprocess
@@ -184,6 +201,9 @@ def start_scheduled_pool(fx, name, launch_script, exp_id, cfg_params, scheduler)
             raise ValueError(f'start_scheduled_pool failed with {traceback.format_exc()}')
 
     cfg_params['CFG_POOL_ID'] = name
-    ft = fx.submit(_start_scheduled_pool, launch_script, exp_id, cfg_params, scheduler)
-    job_id, cfg_file = ft.result()
+    if fx is None:
+        job_id, cfg_file = _start_scheduled_pool(launch_script, exp_id, cfg_params)
+    else:
+        ft = fx.submit(_start_scheduled_pool, launch_script, exp_id, cfg_params)
+        job_id, cfg_file = ft.result()
     return ScheduledPool(name, job_id, scheduler, fx, cfg_file)

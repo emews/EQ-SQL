@@ -1,6 +1,5 @@
 import unittest
 import yaml
-import funcx
 from time import sleep
 import json
 import os
@@ -8,7 +7,7 @@ import os
 from psij.job_state import JobState
 
 from eqsql import worker_pool, eq
-from utils import clear_db
+from .utils import clear_db
 
 # Assumes the existence of a testing database
 # with these characteristics
@@ -58,11 +57,12 @@ class PoolTests(unittest.TestCase):
         os.remove(fname)
 
     def test_scheduled_pool(self):
+        import funcx
         params = yaml.safe_load(scheduled_pool_yaml)
         exp_id = worker_pool.format_pool_exp_id('t1', 'bebop1')
         with funcx.FuncXExecutor(endpoint_id=bebop_ep) as fx:
-            pool = worker_pool.start_scheduled_pool(fx, 'bebop1', params['start_pool_script'],
-                                                    exp_id, params, 'slurm')
+            pool = worker_pool.start_scheduled_pool('bebop1', params['start_pool_script'],
+                                                    exp_id, params, 'slurm', fx)
             self.assertEqual('bebop1', pool.name)
             self.assertIsNotNone(pool.job_id)
             # 2 should be good for a while
@@ -73,6 +73,23 @@ class PoolTests(unittest.TestCase):
             # sleep needs longer than this
             # sleep(10)
             # self.assertEqual(JobState.CANCELED, pool.status(fx).state)
+
+    def test_scheduled_pool_local(self):
+        params = yaml.safe_load(scheduled_pool_yaml)
+        exp_id = worker_pool.format_pool_exp_id('t1', 'bebop1')
+        pool = worker_pool.start_scheduled_pool('bebop1', params['start_pool_script'],
+                                                exp_id, params, 'slurm', fx=None)
+        self.assertEqual('bebop1', pool.name)
+        self.assertIsNotNone(pool.job_id)
+        # 2 should be good for a while
+        self.assertTrue(pool.job_id.startswith('2'))
+        sleep(30)
+        self.assertEqual(JobState.ACTIVE, pool.status().state)
+        pool.cancel()
+            # sleep needs longer than this
+            # sleep(10)
+            # self.assertEqual(JobState.CANCELED, pool.status(fx).state)
+
 
     def test_local_pool(self):
         # make sure swift-t in path
