@@ -27,11 +27,9 @@ echo "--------------------------"
 # echo "WALLTIME:              $CFG_WALLTIME"
 echo "PROCS:                 $CFG_PROCS"
 echo "PPN:                   $CFG_PPN"
-echo "DB_HOST:               $CFG_DB_HOST"
-echo "DB_USER:               $CFG_DB_USER"
-echo "TASK_TYPE:             $CFG_TASK_TYPE"
 echo "--------------------------"
 
+export TURBINE_LAUNCHER=srun
 export PROJECT=$CFG_PROJECT
 export QUEUE=$CFG_QUEUE
 export WALLTIME=$CFG_WALLTIME
@@ -39,5 +37,7 @@ export WALLTIME=$CFG_WALLTIME
 export PROCS=$CFG_PROCS
 export PPN=$CFG_PPN
 export TURBINE_JOBNAME="${EXPID}_job"
+
+export PATH=/lcrc/project/EMEWS/bebop/sfw/swift-t-9ad37bb/stc/bin:$PATH
 
 swift-t -m slurm -i sys -E 'sleep(600) => trace("DONE");'
