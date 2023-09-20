@@ -159,50 +159,22 @@ class Future:
 _log_id = 1
 
 
-def init_task_queue(host: str, user: str, port: int, db_name: str, retry_threshold=0, log_level=logging.WARN):
-    """Initializes and returns an EQSQL class instance with the specified parameters.
-
-    Args:
-        host: the eqsql database host
-        user: the eqsql database user
-        port: the eqsql database port
-        db_name: the eqsql database name
-        retry_threshold: if a DB connection cannot be established
-            (e.g, there are currently too many connections),
-            then retry "retry_threshold" many times to establish a connection. There
-            will be random few second delay betwen each retry.
-        log_level: the logging threshold level.
-    """
-
-    global _log_id
-    log_name = f'{__name__}-{_log_id}'
-    _log_id += 1
-    logger = db_tools.setup_log(log_name, log_level)
-
-    retries = 0
-    while True:
-        try:
-            db = db_tools.WorkflowSQL(host=host, user=user, port=port, dbname=db_name, log_level=log_level, envs=False)
-            db.connect()
-            break
-        except db_tools.ConnectionException as e:
-            retries += 1
-            if retries > retry_threshold:
-                raise e
-            time.sleep(random() * 4)
-
-    return EQSQL(db, logger)
-
-
 class EQSQL:
 
     def __init__(self, db: WorkflowSQL, logger: logging.Logger):
+        """Creates an EQSQL task queue connected to the specified database, logging to
+        the specified logger. EQSQL tasks queues should be created with
+        :py:func:`init_task_queue`.
+
+        Args:
+            db: the database to submit and retrieve tasks from
+            logger: the logger to use for logging
+        """
         self.db = db
         self.logger = logger
 
     def close(self):
-        """Closes the DB connection. eq.init_sql() is required to re-create a new EQSQL
-        before calling any other functions.
+        """Closes the DB connection, and terminates this :py:class:`EQSQL` instance.
         """
         if self.db:
             self.db.close()
@@ -275,7 +247,7 @@ class EQSQL:
         This call repeatedly polls for a task of the specified type. The polling
         interval is specified by
         the delay such that the first interval is defined by the initial delay value
-        which is increased exponentionally after the first poll. The polling will
+        which is then incremented after each poll. The polling will
         timeout after the amount of time specified by the timout value is has elapsed.
 
         Args:
@@ -299,16 +271,17 @@ class EQSQL:
         self.logger.debug(f'pop_out_queue: {res}')
         return res
 
-    def pop_in_queue(self, cur, eq_task_id: int, delay, timeout) -> Tuple[ResultStatus, Union[int, str]]:
+    def pop_in_queue(self, cur, eq_task_id: int, delay: float, timeout: float) -> Tuple[ResultStatus, Union[int, str]]:
         """Pops the specified task off of the db in queue.
 
-        This call repeatedly polls for a task with specified id. The polling
+        This call repeatedly polls for a task with the specified id. The polling
         interval is specified by
         the delay such that the first interval is defined by the initial delay value
-        which is increased exponentionally after the first poll. The polling will
+        which is then incremented after each poll. The polling will
         timeout after the amount of time specified by the timout value is has elapsed.
 
         Args:
+            cur: the database cursor
             eq_task_id: id of the task to pop
             delay: the initial polling delay value
             timeout: the duration after which this call will timeout
@@ -333,7 +306,7 @@ class EQSQL:
         the operation completes or the timeout duration has passed. The polling
         interval is specified by
         the delay such that the first interval is defined by the initial delay value
-        which is increased after the first poll. The polling will
+        which is then incremented after each poll. The polling will
         timeout after the amount of time specified by the timout value is has elapsed.
 
         Args:
@@ -610,16 +583,17 @@ class EQSQL:
     def query_more_tasks(self, eq_type: int, eq_task_ids: Iterable[int], batch_size: int, threshold: int = 1,
                          worker_pool: str = 'default', delay: float = 0.5, timeout: float = 2.0) -> Tuple[List[int], List[Dict]]:
         """Queries for tasks of the specified type, returning up to batch_size number of tasks. The
-        exact number of task to return is batch_size - X where X is the number of currently running tasks
-        in the tasks in eq_task_ids. The intention here is that worker pool may have a limited amount
-        of capacity and shouldn't get more work than that. eq_task_ids keeps track of the number
+        exact number of task to return is batch_size - *X* where *X* is the number of currently running tasks
+        from those in eq_task_ids. The intention here is that a worker pool may have a limited amount
+        of capacity and should not get more tasks than that capacity. eq_task_ids keeps track of the number
         tasks the worker pool is working on and batch_size is the maximum amount of work (tasks)
         the worker pool wants to execute. When the difference between batch size and the number of
         running tasks is greater than the threshold then query for tasks.
 
-        The query repeatedly polls for tasks. The polling interval is specified by
+        The query repeatedly polls for tasks. The polling
+        interval is specified by
         the delay such that the first interval is defined by the initial delay value
-        which is increased exponentionally after the first poll. The polling will
+        which is then incremented after each poll. The polling will
         timeout after the amount of time specified by the timout value is has elapsed.
 
         Args:
@@ -629,7 +603,7 @@ class EQSQL:
             threshold: the number of free "slots" (difference between running workers and batch_size)
                 that must be available before tasks are queried for. This must be less than or equal to
                 batch size.
-            worker_pool: the id of the worker pool query for the tasks
+            worker_pool: the id of the worker pool querying for the tasks
             delay: the initial polling delay value
             timeout: the duration after which the query will timeout. If timeout is None, there is no limit to
                 the wait time.
@@ -638,7 +612,7 @@ class EQSQL:
         Returns:
             A two element Tuple where the first element is a List of the ids of the currently running tasks
             from those specified in eq_task_ids plus the ids of any new tasks, and the second element
-            is a List of Dictionaries as returned by :func: `~eqsql.eq.query_task`.
+            is a List of Dictionaries as returned by :py:func:`~EQSQL.query_task`.
         """
         if threshold < 1:
             raise ValueError(f'Invalid threshold: threshold must be greater than 0: threshold = {threshold}')
@@ -683,9 +657,10 @@ class EQSQL:
     def query_task(self, eq_type: int, n: int = 1, worker_pool: str = 'default', delay: float = 0.5, timeout: float = 2.0) -> Union[List[Dict], Dict]:
         """Queries for the highest priority task of the specified type.
 
-        The query repeatedly polls for n number of tasks. The polling interval is specified by
+        The query repeatedly polls for n number of tasks. The polling
+        interval is specified by
         the delay such that the first interval is defined by the initial delay value
-        which is increased exponentionally after the first poll. The polling will
+        which is then incremented after each poll. The polling will
         timeout after the amount of time specified by the timout value is has elapsed.
 
         Args:
@@ -697,14 +672,14 @@ class EQSQL:
                 the wait time.
 
         Returns:
-            If n == 1, a single dictionary will be returned, otherwise
+            If ``n == 1``, a single dictionary will be returned, otherwise
             a List of dictionaries will be returned. In both cases, the
             dictionary(ies) contain the following. If the query results in a
             status update, the dictionary will have the following format:
-            {'type': 'status', 'payload': P} where P is one of 'EQ_STOP',
-            'EQ_ABORT', or 'EQ_TIMEOUT'. If the query finds work to be done
-            then the dictionary will be:  {'type': 'work', 'eq_task_id': eq_task_id,
-            'payload': P} where P is the parameters for the work to be done.
+            ``{'type': 'status', 'payload': P}`` where ``P`` is one of ``'EQ_STOP'``,
+            ``'EQ_ABORT'``, or ``'EQ_TIMEOUT'``. If the query finds work to be done
+            then the dictionary will be:  ``{'type': 'work', 'eq_task_id': eq_task_id,
+            'payload': P}`` where ``P`` is the parameters for the work to be done.
         """
         try:
             with self.db.conn:
@@ -761,7 +736,7 @@ class EQSQL:
             return ResultStatus.FAILURE
 
     def are_queues_empty(self, eq_type: int = None) -> bool:
-        """Gets whether or not either of the input or output queues are empty,
+        """Returns whether or not either of the input or output queues are empty,
         optionally of a specified task type.
 
         Args:
@@ -791,8 +766,8 @@ class EQSQL:
         """Clears the input and output queues and sets the status of those tasks in the
         tasks table to CANCELED.
 
-        NOTE: this is only a convenience method for resetting the queues to a coherent
-        starting state, and should NOT be used to cancel tasks.
+        **NOTE**: this is only a convenience method for resetting the queues to a coherent
+        starting state, and should **NOT** be used to cancel tasks.
         """
         with self.db.conn:
             with self.db.conn.cursor() as cur:
@@ -1024,6 +999,44 @@ class EQSQL:
         except Exception:
             self.logger.error(f'query_result error {traceback.format_exc()}')
             return (ResultStatus.FAILURE, EQ_ABORT)
+
+
+def init_task_queue(host: str, user: str, port: int, db_name: str, retry_threshold=0,
+                    log_level=logging.WARN) -> EQSQL:
+    """Initializes and returns an :py:class:`EQSQL` class instance with the specified parameters.
+
+    Args:
+        host: the eqsql database host
+        user: the eqsql database user
+        port: the eqsql database port
+        db_name: the eqsql database name
+        retry_threshold: if a DB connection cannot be established
+            (e.g, there are currently too many connections),
+            then retry "retry_threshold" many times to establish a connection. There
+            will be random few second delay betwen each retry.
+        log_level: the logging threshold level.
+    Returns:
+        An :py:class:`EQSQL` instance
+    """
+
+    global _log_id
+    log_name = f'{__name__}-{_log_id}'
+    _log_id += 1
+    logger = db_tools.setup_log(log_name, log_level)
+
+    retries = 0
+    while True:
+        try:
+            db = db_tools.WorkflowSQL(host=host, user=user, port=port, dbname=db_name, log_level=log_level, envs=False)
+            db.connect()
+            break
+        except db_tools.ConnectionException as e:
+            retries += 1
+            if retries > retry_threshold:
+                raise e
+            time.sleep(random() * 4)
+
+    return EQSQL(db, logger)
 
 
 class EQEnvironment:

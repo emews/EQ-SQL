@@ -255,13 +255,13 @@ def init_eqsql_db(db_path: str, create_db_sql_file: Union[str, bytes, os.PathLik
         3. Create the specified user.
         4. Create the specified database in that cluster.
         5. Populate that database with tables etc. by executing the commands in the
-        specified file.
+           specified file.
         6. Stop the database server.
 
     Args:
         db_path: the file path for the database cluster. This must not exist.
-        create_db_sql_file: a file containing the SQL to execute to create the database tables etc.
-        If this is None (the default) the default EQSQL SQL commands will be used.
+            create_db_sql_file: a file containing the SQL to execute to create the database tables etc.
+            If this is None (the default) the default EQSQL SQL commands will be used.
         db_user: the database user name
         db_name: the name of the database
         db_host: the hostname where the database server is located
@@ -317,6 +317,7 @@ def start_db(db_path: Union[str, bytes, os.PathLike], pg_ctl: Union[str, bytes, 
 
     Args:
         db_path: the file path for the database cluster to start
+        pg_ctl: path to postgresql's pg_ctl executable
         db_port: the port number to start the db on
     """
     try:
@@ -337,6 +338,7 @@ def stop_db(db_path: Union[str, bytes, os.PathLike], pg_ctl: Union[str, bytes, o
 
     Args:
         db_path: the file path for the database cluster to stop
+        pg_ctl: path to postgresql's pg_ctl executable
         db_port: the port number to stop the db on
     """
     try:
