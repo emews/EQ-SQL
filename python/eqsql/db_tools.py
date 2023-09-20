@@ -247,7 +247,7 @@ def _exec_sql(sql_file: Union[str, bytes, os.PathLike], db_user: str = 'eqsql_us
 
 def init_eqsql_db(db_path: str, create_db_sql_file: Union[str, bytes, os.PathLike] = None,
                   db_user='eqsql_user', db_name='EQ_SQL', db_port=None):
-    """Creates and initialized an EQ/SQL postgresql database.
+    """Creates and initialized an EQSQL postgresql database.
 
     This will:
         1. Create a database "cluster" at the specified path.
@@ -260,8 +260,8 @@ def init_eqsql_db(db_path: str, create_db_sql_file: Union[str, bytes, os.PathLik
 
     Args:
         db_path: the file path for the database cluster. This must not exist.
-            create_db_sql_file: a file containing the SQL to execute to create the database tables etc.
-            If this is None (the default) the default EQSQL SQL commands will be used.
+        create_db_sql_file: a file containing the SQL to execute to create the database tables etc.
+            If this is None (the default) the default EQSQL SQL schema will be used.
         db_user: the database user name
         db_name: the name of the database
         db_host: the hostname where the database server is located
@@ -339,7 +339,7 @@ def stop_db(db_path: Union[str, bytes, os.PathLike], pg_ctl: Union[str, bytes, o
     Args:
         db_path: the file path for the database cluster to stop
         pg_ctl: path to postgresql's pg_ctl executable
-        db_port: the port number to stop the db on
+        db_port: the port number of the database to stop
     """
     try:
         if db_port is None:
@@ -354,7 +354,7 @@ def stop_db(db_path: Union[str, bytes, os.PathLike], pg_ctl: Union[str, bytes, o
 
 def reset_db(db_user: str = 'eqsql_user', db_name: str = 'EQ_SQL', db_host: str = 'localhost',
              db_port: int = None):
-    """Resets the database by deleting all the eqsql tables and restarting
+    """Resets the database by deleting the contents of all the eqsql tables and restarting
     the emews task id generator sequence.
 
     Args:
