@@ -578,7 +578,7 @@ class EQSQL:
 
         Returns:
             A tuple containing the status (:py:class:`ResultStatus.FAILURE` or :py:class:`ResultStatus.SUCCESS`)
-            of the submission and the list of :py:class:`futures <Future>` for the submitted tasks. If the submission fails, 
+            of the submission and the list of :py:class:`futures <Future>` for the submitted tasks. If the submission fails,
             the list of :py:class:`futures <Future>` will contain the :py:class:`futures <Future>` that submitted sucessfully.
         """
         fts = []
@@ -1077,7 +1077,7 @@ def as_completed(futures: List[Future], pop: bool = False, timeout: float = None
         timeout: if the time taken for futures to completed is greater than this value, then
             raise :py:class:`TimeoutError`.
         n: yield this many completed Futures and then stop iteration.
-        stop_condition: this Callable will be called after each check of all the futures and 
+        stop_condition: this Callable will be called after each check of all the futures and
             if the return value is True, then iteration will stop.
         sleep: the time, in seconds, to sleep between each iteration over all the Futures.
 
