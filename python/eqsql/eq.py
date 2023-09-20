@@ -13,7 +13,7 @@ from .worker_pool import LocalPool, ScheduledPool
 
 
 class ResultStatus(IntEnum):
-    """Enum defining the status (success / failure) of an eq database
+    """Enum defining the status (success or failure) of an EQSQL database
     operation.
     """
     SUCCESS = 0
@@ -26,8 +26,9 @@ EQ_STOP = 'EQ_STOP'
 
 
 class TaskStatus(IntEnum):
-    """Enum defining the status of a task: queued, etc. A database row is updated
-    with these values as appropriate."""
+    """Enum defining the status of a task: queued, etc. These are used
+    in the database to store the status of a task.
+    """
     QUEUED = 0
     RUNNING = 1
     COMPLETE = 2
@@ -41,8 +42,15 @@ ABORT_JSON_MSG = json.dumps({'type': 'status', 'payload': EQ_ABORT})
 class Future:
 
     def __init__(self, eq_sql, eq_task_id: int, tag: str = None):
-        """Represents the eventual result of an EQ/SQL task. Future
-        instances are created by eq.EQSQL.submit_task."""
+        """Represents the eventual result of an EQSQL task. Future
+        instances are returned by the :py:class:`EQSQL.submit_task`, and
+        :py:class:`EQSQL.submit_tasks` methods.
+
+        Args:
+            eq_sql: the EQSQL instance that created this Future.
+            eq_task_id: the task id
+            tag: an optional metadata tag
+        """
         self.eq_task_id = eq_task_id
         self.tag = tag
         self.eq_sql = eq_sql
@@ -64,9 +72,9 @@ class Future:
 
     Returns:
         A tuple whose first element indicates the status of the query:
-        ResultStatus.SUCCESS or ResultStatus.FAILURE, and whose second element
+        :py:class:`ResultStatus.SUCCESS` or :py:class:`ResultStatus.FAILURE`, and whose second element
         is either the result of the task, or in the case of failure the reason
-        for the failure (EQ_TIMEOUT, or EQ_ABORT)
+        for the failure (``EQ_TIMEOUT``, or ``EQ_ABORT``)
         """
         # retry after an abort
         if self._result is None or self._result[1] == EQ_ABORT:
@@ -80,12 +88,12 @@ class Future:
 
     @property
     def status(self) -> TaskStatus:
-        """Gets the current status of this Future, one of: eq.TaskStatus.QUEUED,
-        eq.TaskStatus.RUNNING, eq.TaskStatus.COMPLETE, or eq.TaskStatus.CANCELED.
+        """Gets the current status of this Future, one of :py:class:`TaskStatus.QUEUED`,
+        :py:class:`TaskStatus.RUNNING`, :py:class:`TaskStatus.COMPLETE`, or :py:class:`TaskStatus.CANCELED`.
 
         Returns:
-            One of eq.TaskStatus.QUEUED, eq.TaskStatus.RUNNING, eq.TaskStatus.COMPLETE,
-            eq.TaskStatus.CANCELED or None if the status query fails.
+            One of :py:class:`TaskStatus.QUEUED`, :py:class:`TaskStatus.RUNNING`, :py:class:`TaskStatus.COMPLETE`,
+            :py:class:`TaskStatus.CANCELED`, or ``None`` if the status query fails.
         """
         result = self.eq_sql.query_status([self.eq_task_id])
         if result is None:
@@ -96,12 +104,12 @@ class Future:
 
     @property
     def worker_pool(self) -> Union[str, None]:
-        """Gets the id of the worker pool, if any, that this future task is
+        """Gets the id of the worker pool, if any, that this Future task is
         running on.
 
         Returns:
             The id of the worker pool that this Future task is
-            running on, or None if the task hasn't been selected
+            running on, or ``None`` if the task hasn't been selected
             by a worker pool yet.
         """
         if self._pool is None:
@@ -110,8 +118,8 @@ class Future:
         return self._pool
 
     def cancel(self):
-        """Cancels this future task by removing this Future's task id from the output queue.
-        Cancelation can fail if this future task has been popped from the output queue
+        """Cancels this Future's task by removing this Future's task id from the output queue.
+        Cancelation can fail if this Future task has been popped from the output queue
         before this call completes. Calling this on an already canceled task will return True.
 
         Returns:
@@ -418,9 +426,9 @@ class EQSQL:
         return eq_task_id
 
     def select_task_payload(self, cur, eq_task_ids: Iterable[int], worker_pool_id: str = 'default') -> List[Tuple[int, str]]:
-        """Selects the 'json_out' payload associated with the specified task ids in
-        the eq_tasks table, setting the start time of the tasks to
-        the current time, the status of the tasks to TaskStatus.RUNNING, and the
+        """Selects the ``json_out`` payload associated with the specified task ids in
+        the ``eq_tasks`` table, setting the start time of the tasks to
+        the current time, the status of the tasks to :py:class:`TaskStatus.RUNNING`, and the
         worker_pool to the specified worker_pool.
 
         Args:
@@ -429,8 +437,8 @@ class EQSQL:
             worker_pool_id: the id of the worker pool asking for the payload
 
         Returns:
-            If successful, a list of tuples containing an eq_task_id and
-            the json_out payload, otherwise raise an exception.
+            If successful, a list of tuples containing an ``eq_task_id`` and
+            the ``json_out`` payload, otherwise raise an exception.
         """
 
         placeholders = ', '.join(['%s'] * len(eq_task_ids))
@@ -451,8 +459,8 @@ class EQSQL:
             raise e
 
     def select_task_result(self, cur, eq_task_id: int) -> str:
-        """Selects the result ('json_in') payload associated with the specified task id in
-        the eq_tasks table.
+        """Selects the result (``json_in``) payload associated with the specified task id in
+        the ``eq_tasks`` table.
 
         Args:
             eq_task_id: the id of the task to get the json_in for
@@ -484,8 +492,8 @@ class EQSQL:
             return (ResultStatus.FAILURE, [])
 
     def update_task(self, cur, eq_task_id: int, payload: str):
-        """Updates the specified task in the eq_tasks table with the specified
-        result ('json_in') payload. This also updates the 'time_stop'
+        """Updates the specified task in the ``eq_tasks`` table with the specified
+        result payload (the ``json_in``). This also updates the ``time_stop``
         to the time when the update occurred.
 
         Args:
@@ -503,13 +511,13 @@ class EQSQL:
 
     def stop_worker_pool(self, eq_type: int) -> ResultStatus:
         """Stops any workers pools associated with the specified work type by
-        pusing EQ_STOP into the queue.
+        pushing ``EQ_STOP`` into the queue.
 
         Args:
             eq_type: the work type for the pools to stop
         Returns:
-            ResultStatus.SUCCESS if the stop message was successfully pushed, otherwise
-            ResultStatus.FAILURE.
+            :py:class:`ResultStatus.SUCCESS` if the stop message was successfully pushed, otherwise
+            :py:class:`ResultStatus.FAILURE`.
         """
         try:
             with self.db.conn:
@@ -528,7 +536,7 @@ class EQSQL:
     def submit_task(self, exp_id: str, eq_type: int, payload: str, priority: int = 0,
                     tag: str = None) -> Tuple[ResultStatus, Union[Future, None]]:
         """Submits work of the specified type and priority with the specified
-        payload, returning the status and the Future encapsulating the submission.
+        payload, returning the :py:class:`status <ResultStatus>` and the :py:class:`Future` encapsulating the submission.
 
         Args:
             exp_id: the id of the experiment of which the work is part.
@@ -538,8 +546,8 @@ class EQSQL:
             tag: an optional metadata tag for the task
 
         Returns:
-            A tuple containing the status (ResultStatus.FAILURE or ResultStatus.SUCCESS) of the submission
-            and if successful, a Future representing the submitted task otherwise None.
+            A tuple containing the status (:py:class:`ResultStatus.FAILURE` or :py:class:`ResultStatus.SUCCESS`) of the submission
+            and if successful, a :py:class:`Future` representing the submitted task otherwise None.
         """
         try:
             with self.db.conn:
@@ -556,8 +564,9 @@ class EQSQL:
     def submit_tasks(self, exp_id: str, eq_type: int, payload: List[str], priority: int = 0,
                      tag: str = None) -> Tuple[ResultStatus, List[Future]]:
         """Submits work of the specified type and priority with the specified
-        payloads, returning the status and the Futures encapsulating the submission.
-        This is essentially a convenience wrapper around `submit_task` for submitting
+        payloads, returning the :py:class:`status <ResultStatus>` and the :py:class:`futures <Future>`
+        encapsulating the submission.
+        This is essentially a convenience wrapper around :py:func:`~EQSQL.submit_task` for submitting
         a list of payloads.
 
         Args:
@@ -568,9 +577,9 @@ class EQSQL:
             tag: an optional metadata tag for the tasks
 
         Returns:
-            A tuple containing the status (ResultStatus.FAILURE or ResultStatus.SUCCESS) of the submission
-            and the list of Futures for the submitted tasks. If the submission fails, the list of Futures
-            will contain the the Futures that submitted sucessfully.
+            A tuple containing the status (:py:class:`ResultStatus.FAILURE` or :py:class:`ResultStatus.SUCCESS`)
+            of the submission and the list of :py:class:`futures <Future>` for the submitted tasks. If the submission fails, 
+            the list of :py:class:`futures <Future>` will contain the :py:class:`futures <Future>` that submitted sucessfully.
         """
         fts = []
         for task in payload:
@@ -714,8 +723,8 @@ class EQSQL:
             eq_type: the type of the task whose results are being reported.
             result: the result of the task.
         Returns:
-            ResultStatus.SUCCESS if the task was successfully reported, otherwise
-            ResultStatus.FAILURE.
+            :py:class:`ResultStatus.SUCCESS` if the task was successfully reported, otherwise
+            :py:class:`ResultStatus.FAILURE`.
         """
         # We do this is in two transactions so if push_in_queue fails, we don't
         # rollback update_task and lose a task result.
@@ -789,7 +798,7 @@ class EQSQL:
         Returns:
             A List of Tuples containing the status of the tasks. The first element
             of the tuple will be the task id, and the second element will be the
-            status of that task as a TaskStatus object.
+            status of that task as a :py:class:`TaskStatus` object.
         """
         ids = tuple(eq_task_ids)
         placeholders = ', '.join(['%s'] * len(ids))
@@ -810,7 +819,7 @@ class EQSQL:
 
         Returns:
             A list of two element tuples. The first element is the task id, and the
-            second is that task's worker pool, or None, if the task hasn't been
+            second is that task's worker pool id, or None, if the task hasn't been
             selected for execution yet.
         """
         ids = tuple(eq_task_ids)
@@ -984,9 +993,9 @@ class EQSQL:
 
         Returns:
             A tuple whose first element indicates the status of the query:
-            ResultStatus.SUCCESS or ResultStatus.FAILURE, and whose second element
+            ``ResultStatus.SUCCESS`` or ``ResultStatus.FAILURE``, and whose second element
             is either the result of the task, or in the case of failure the reason
-            for the failure (EQ_TIMEOUT, or EQ_ABORT)
+            for the failure (``EQ_TIMEOUT``, or ``EQ_ABORT``)
         """
         try:
             with self.db.conn:
@@ -1012,7 +1021,7 @@ def init_task_queue(host: str, user: str, port: int, db_name: str, retry_thresho
         db_name: the eqsql database name
         retry_threshold: if a DB connection cannot be established
             (e.g, there are currently too many connections),
-            then retry "retry_threshold" many times to establish a connection. There
+            then retry ``retry_threshold`` many times to establish a connection. There
             will be random few second delay betwen each retry.
         log_level: the logging threshold level.
     Returns:
@@ -1052,25 +1061,35 @@ class EQEnvironment:
 
 def as_completed(futures: List[Future], pop: bool = False, timeout: float = None, n: int = None,
                  stop_condition: Callable = None, sleep: float = 0) -> Generator[Future, None, None]:
-    """Returns a generator over the futures given by the futures argument that yields
-    futures as they complete. The futures are checked for completion by iterating over all of the
+    """Returns a generator over the :py:class:`Futures <Future>` in the ``futures`` argument that yields
+    Futures as they complete. The  :py:class:`Futures <Future>` are checked for completion by iterating over all of the
     ones that have not yet completed and checking for a result. At the end of each iteration, the
-    stop_condition and timeout are checked. Note that adding or removing Futures to or from the futures
-    argument List will have NO effect on this call as it operates on a copy of the futures List.
-    A TimeoutError will be raised if the futures do not complete within the specified timeout duration.
-    If the stop_condition is not None, it will be called after every iteration through the futures.
-    If it returns True, then a StopConditionException will be raised.
+    ``stop_condition`` and ``timeout`` are checked. Note that adding or removing :py:class:`Futures <Future>`
+    to or from the ``futures`` argument List while iterating have **NO** effect on this call as it operates
+    on a copy of the ``futures`` List.
+    A :py:class:`TimeoutError` will be raised if the futures do not complete within the specified ``timeout`` duration.
+    If the ``stop_condition`` is not ``None``, it will be called after every iteration through the :py:class:`Futures <Future>`.
+    If it returns True, then iteration will stop.
 
     Args:
-        futures: the List of Futures to iterate over and return as they complete.
+        futures: the List of  :py:class:`Futures <Future>` to iterate over and return as they complete.
         pop: if true, completed futures will be popped off of the futures argument List.
         timeout: if the time taken for futures to completed is greater than this value, then
-            raise TimeoutError.
-        n: yield up to this many completed Futures and then stop iteration.
-        stop_condition: this Callable will be called after each check of all the futures and a
-            StopConditionException will be raised if the return value is True.
+            raise :py:class:`TimeoutError`.
+        n: yield this many completed Futures and then stop iteration.
+        stop_condition: this Callable will be called after each check of all the futures and 
+            if the return value is True, then iteration will stop.
         sleep: the time, in seconds, to sleep between each iteration over all the Futures.
 
+    Yields:
+       :py:class:`Futures <Future>` in the ``futures`` argument as they complete.
+
+    Examples:
+        >>> futures = []
+            // submit some tasks and append the Future instances to futures
+            for ft in eq.as_completed(futures, timeout=5):
+                status, result = ft.result()
+                // do something with result
     """
     start_time = time.time()
     completed_tasks = set()
@@ -1099,30 +1118,34 @@ def as_completed(futures: List[Future], pop: bool = False, timeout: float = None
             time.sleep(sleep)
 
 
-def pop_completed(futures: List[Future], timeout=None, sleep: float = 0):
+def pop_completed(futures: List[Future], timeout=None, sleep: float = 0) -> Future:
     """Pops and returns the first completed future from the specified List
     of Futures.
 
     Args:
-        futures: the List of Futures to check for a completed one. The completed
-            future will be popped from this list.
-        timeout: a TimeoutError will be raised if a completed Future cannot be returned
+        futures: the List of :py:class:`Futures <Future>` to check for a completed one. The completed
+            :py:class:`Future` will be popped from this list.
+        timeout: a :py:class:`TimeoutError` will be raised if a completed Future cannot be returned
             by after this amount time.
         sleep: the time, in seconds, to sleep between each iteration over all the Futures,
             when looking for a completed one.
+
+    Returns:
+        The first completed :py:class:`Future` from the specified List
+        of :py:class:`Futures <Future>`.
     """
     f = next(as_completed(futures, pop=True, timeout=timeout, n=1, sleep=sleep))
     return f
 
 
-def cancel(futures: List[Future]) -> int:
-    """Cancels the specified Futures.
+def cancel(futures: List[Future]) -> Tuple[ResultStatus, int]:
+    """Cancels the specified :py:class:`Futures <Future>`.
 
     Args:
-        futures: the Futures to cancel.
+        futures: the :py:class:`Futures <Future>` to cancel.
 
     Returns:
-        The ResultStatus and number tasks successfully canceled.
+        A tuple containing the :py:class:`ResultStatus` and number of tasks successfully canceled.
     """
     if len(futures) > 0:
         return futures[0].eq_sql._cancel_tasks((f.eq_task_id for f in futures))
@@ -1130,20 +1153,20 @@ def cancel(futures: List[Future]) -> int:
     return (ResultStatus.SUCCESS, 0)
 
 
-def update_priority(futures: List[Future], new_priority: Union[int, List[int]]) -> int:
-    """Updates the priority of the specified Futures to the new_priority.
+def update_priority(futures: List[Future], new_priority: Union[int, List[int]]) -> Tuple[ResultStatus, int]:
+    """Updates the priority of the specified :py:class:`Futures <Future>` to the new_priority.
 
     Args:
-        futures: the Futures to update.
+        futures: the :py:class:`Futures <Future>` to update.
         new_priority: the priority to update to. If this is a single integer then
-            all the specified tasks are updated with that priority. If this is a
+            all the specified tasks are updated to that priority. If this is a
             List of ints then each task is updated with the corresponding priority, i.e.,
-            the first task in the futures is updated with the first priority in the new_priority
+            the first task in the ``futures`` is updated with the first priority in the new_priority
             List.
 
     Returns:
-        The ResultStatus and number tasks successfully whose priority was
-            successfully updated.
+        The :py:class:`ResultStatus` and number tasks whose priority was
+        successfully updated.
     """
     if len(futures) > 0:
         return futures[0].eq_sql._update_priorities((f.eq_task_id for f in futures), new_priority)
@@ -1152,13 +1175,13 @@ def update_priority(futures: List[Future], new_priority: Union[int, List[int]]) 
 
 
 def query_worker_pool(futures: List[Future]) -> List[Tuple[Future, Union[str, None]]]:
-    """Gets the worker pools on which the specified list of Futures are running, if any.
-    All the specified Futures must have been submitted by the same task queue (i.e., they
+    """Gets the worker pools on which the specified list of :py:class:`Futures <Future>` are running, if any.
+    All the specified :py:class:`Futures <Future>` must have been submitted by the same task queue (i.e., they
     are all in the same eqsql database).
 
     Returns:
-        A list of two element tuples. The first element is a Future, and the
-        second is that Future's worker pool, or None, if the Future hasn't been
+        A list of two element tuples. The first element is a :py:class:`Future`, and the
+        second is that :py:class:`Futures <Future>`'s worker pool, or None, if the :py:class:`Future` hasn't been
         selected for execution yet.
     """
     ids = {ft.eq_task_id: ft for ft in futures}
@@ -1169,7 +1192,7 @@ def query_worker_pool(futures: List[Future]) -> List[Tuple[Future, Union[str, No
 def cancel_worker_pool(pool: Union[LocalPool, ScheduledPool], env: EQEnvironment, task_queue, futures: List[Future] = None) -> List[Future]:
     """Cancels the specified worker pool and requeues any uncompleted tasks running on that worker
     pool using the specified task_queue instance. If the futures argument is not None, the uncompleted
-    tasks will be removed from that list of futures.
+    tasks will be removed from that list of :py:class:`Futures <Future>`.
 
     Args:
         pool: the worker pool to cancel
@@ -1177,10 +1200,10 @@ def cancel_worker_pool(pool: Union[LocalPool, ScheduledPool], env: EQEnvironment
             canceled pool
         eqsql: the eqsql instance on which to submit any uncompleted tasks running on that pool
         futures: if not None, then remove the requeued tasks from this list, and return the remaining
-        together with the new futures.
+            together with the new :py:class:`Futures <Future>`.
 
     Returns:
-        A tuple - (ResultStatus.SUCCESS, futures list) if success, otherwise (ResultStatus.FAILURE, [])
+        A tuple - (:py:class:`ResultStatus.SUCCESS`, futures list) if success, otherwise (:py:class:`ResultStatus.FAILURE`, [])
     """
     pool.cancel()
     pool_eqsql = env.queue_for_pool(pool)
@@ -1227,5 +1250,6 @@ class StopConditionException(Exception):
 
 class TimeoutError(Exception):
     def __init__(self, msg='TimeoutError', *args, **kwargs):
+        """Exception used to indicate that a query has timed out."""
         super().__init__(msg, *args, **kwargs)
         pass
