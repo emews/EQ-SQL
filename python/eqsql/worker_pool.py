@@ -1,9 +1,10 @@
 from datetime import datetime
-from typing import Dict
+from typing import Dict, Union
 from subprocess import Popen, STDOUT, PIPE
 from time import sleep
 from psij.job_status import JobStatus, JobState
 import psutil
+import os
 
 
 def format_pool_exp_id(exp_id: str, name: str):
@@ -38,13 +39,26 @@ def _cancel_pool(job_id, scheduler, poll_period=5):
 
 class LocalPool:
 
-    def __init__(self, name, proc: Popen, cfg_file):
+    def __init__(self, name: str, proc: Popen, cfg_file):
+        """Encapsulates a locally running  EQSQL worker pool. LocalPool
+        instances should **only** be created using :py:func:`start_local_pool`.
+
+        Args:
+            name: the name of the worker pool
+            proc: the POpen instance used to launch the pool.
+            cfg_file: the configuration file used to launch this pool
+        """
         self.name = name
         self.proc = proc
         self.cfg_file = cfg_file
         self.canceled = False
 
     def cancel(self, timeout=10):
+        """Cancels this worker pool.
+
+        Args:
+            timeout: the attempt to cancel will timeout after this duration.
+        """
         p = psutil.Process(self.proc.pid)
 
         with self.proc:
@@ -65,9 +79,16 @@ class LocalPool:
         self.canceled = True
 
     def status(self) -> JobStatus:
-        """
-        Returns: the current JobStatus of this LocalPool. Note only the JobState
-        attribute of the JobStatus will be set.
+        """Gets the status (active, completed, or canceled) of this LocalPool.
+
+        Returns:
+            The current JobStatus of this LocalPool with JobState
+            attribute set appropriately - ``JobState.CANCELED``,
+            ``JobState.ACTIVE``, or ``JobState.COMPLETE``.
+
+        Examples:
+            >>> pool.status().state
+            JobState.ACTIVE
         """
         if self.canceled:
             return JobStatus(JobState.CANCELED)
@@ -91,6 +112,11 @@ class ScheduledPool:
         self.fx = fx
 
     def cancel(self, timeout=60):
+        """Cancels this worker pool.
+
+        Args:
+            timeout: the attempt to cancel will timeout after this duration.
+        """
         if self.fx is None:
             _cancel_pool(self.job_id, self.scheduler)
         else:
@@ -105,6 +131,17 @@ class ScheduledPool:
             retry_count += 1
 
     def status(self, timeout=60):
+        """Gets the status (active, completed, or canceled) of this LocalPool.
+
+        Returns:
+            The current JobStatus of this LocalPool with JobState
+            attribute set appropriately - ``JobState.CANCELED``,
+            ``JobState.ACTIVE``, or ``JobState.COMPLETE``.
+
+        Examples:
+            >>> pool.status().state
+            JobState.ACTIVE
+        """
         if self.fx is None:
             return _pool_status(self.job_id, self.scheduler)
         else:
@@ -147,7 +184,19 @@ def cfg_file_to_dict(cfg_file: str) -> Dict:
     return params
 
 
-def start_local_pool(name, launch_script, exp_id, cfg_params: Dict):
+def start_local_pool(name: str, launch_script: Union[str, bytes, os.PathLike],
+                     exp_id: str, cfg_params: Dict) -> LocalPool:
+    """Starts a local worker pool and returns the LocalPool instance encapsulating
+    that worker pool.
+
+    Args:
+        name: the name of the worker pool
+        launch_script: the path to an executable script used to start the worker pool
+        exp_id: the experiment id for the experiment that is running the pool
+        cfg_params: the parameters used to start the pool
+    Returns:
+        A LocalPool instance.
+    """
     cfg_params['CFG_POOL_ID'] = name
     cfg_fname = cfg_tofile(cfg_params)
     exp_id = format_pool_exp_id(exp_id, name)
@@ -164,14 +213,20 @@ def start_local_pool(name, launch_script, exp_id, cfg_params: Dict):
     return LocalPool(name, proc, cfg_fname)
 
 
-def start_scheduled_pool(name, launch_script, exp_id, cfg_params, scheduler, fx):
+def start_scheduled_pool(name: str, launch_script: Union[str, bytes, os.PathLike],
+                         exp_id: str, cfg_params: Dict, scheduler: str, fx):
     """Starts a worker pool on a scheduled resource, i.e., a resource that queues jobs
     using some sort of scheduler, e.g., slurm.
 
     Args:
-    fx: a FuncXExecutor instance. If this is None, then the assumption is that the call
-        to this function is running on the resource where the pool is to be launched. If 
-        this is not None, then the FuncXExcutor will be used to launch the pool remotely.
+        name: the name of the worker pool
+        launch_script: the path to an executable script used to start the worker pool
+        exp_id: the experiment id for the experiment that is running the pool
+        cfg_params: the parameters used to start the pool
+        scheduler: scheduled resource schedule type - slurm, etc.
+        fx: a FuncXExecutor instance. If this is None, then the assumption is that the call
+            to this function is running on the resource where the pool is to be launched. If
+            this is not None, then the FuncXExcutor will be used to launch the pool remotely.
 
     Returns:
         An instance of a ScheduledPool object.
