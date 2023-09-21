@@ -12,3 +12,5 @@ cases a simple JSON list. On submission, the API creates a unique task identifie
 inserts that identifier, the experiment identifier, the work type, and the payload into the EMEWS DB tasks table,
 together with a task creation timestamp. That task identifier, priority and work type are then inserted into the EMEWS
 DB output queue table.
+
+API docs are [here](https://emews.github.io/eqsql/apidoc/)
