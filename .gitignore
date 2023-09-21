@@ -23,3 +23,5 @@ __pycache__
 Miniconda*.sh
 emews-project-creator
 sfw
+
+python/dist
