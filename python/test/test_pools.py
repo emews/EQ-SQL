@@ -81,8 +81,8 @@ class PoolTests(unittest.TestCase):
                                                 exp_id, params, 'slurm', gcx=None)
         self.assertEqual('bebop1', pool.name)
         self.assertIsNotNone(pool.job_id)
-        # 2 should be good for a while
-        self.assertTrue(pool.job_id.startswith('2'))
+        # 7 should be good for a while
+        self.assertEqual(7, len(pool.job_id))
         sleep(30)
         self.assertEqual(JobState.ACTIVE, pool.status().state)
         pool.cancel()
