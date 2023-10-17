@@ -16,7 +16,7 @@ user = 'eqsql_test_user'
 port = 5433
 db_name = 'eqsql_test_db'
 
-bebop_ep = 'd526418b-8920-4bc9-a9a0-3c97e1a10d3b'
+bebop_ep = '2b2fa624-9845-494b-8ba8-2750821d3716'
 
 scheduled_pool_yaml = '''
 start_pool_script: /lcrc/project/EMEWS/bebop/repos/EQ-SQL/python/test_data/test_swift_submit.sh
@@ -57,16 +57,16 @@ class PoolTests(unittest.TestCase):
         os.remove(fname)
 
     def test_scheduled_pool(self):
-        import funcx
+        from globus_compute_sdk import Executor
         params = yaml.safe_load(scheduled_pool_yaml)
         exp_id = worker_pool.format_pool_exp_id('t1', 'bebop1')
-        with funcx.FuncXExecutor(endpoint_id=bebop_ep) as fx:
+        with Executor(endpoint_id=bebop_ep) as gcx:
             pool = worker_pool.start_scheduled_pool('bebop1', params['start_pool_script'],
-                                                    exp_id, params, 'slurm', fx)
+                                                    exp_id, params, 'slurm', gcx)
             self.assertEqual('bebop1', pool.name)
             self.assertIsNotNone(pool.job_id)
-            # 2 should be good for a while
-            self.assertTrue(pool.job_id.startswith('2'))
+            # 7 should be good for a while
+            self.assertEqual(7, len(pool.job_id))
             sleep(4)
             self.assertEqual(JobState.ACTIVE, pool.status().state)
             pool.cancel()
@@ -78,7 +78,7 @@ class PoolTests(unittest.TestCase):
         params = yaml.safe_load(scheduled_pool_yaml)
         exp_id = worker_pool.format_pool_exp_id('t1', 'bebop1')
         pool = worker_pool.start_scheduled_pool('bebop1', params['start_pool_script'],
-                                                exp_id, params, 'slurm', fx=None)
+                                                exp_id, params, 'slurm', gcx=None)
         self.assertEqual('bebop1', pool.name)
         self.assertIsNotNone(pool.job_id)
         # 2 should be good for a while
@@ -86,10 +86,9 @@ class PoolTests(unittest.TestCase):
         sleep(30)
         self.assertEqual(JobState.ACTIVE, pool.status().state)
         pool.cancel()
-            # sleep needs longer than this
-            # sleep(10)
-            # self.assertEqual(JobState.CANCELED, pool.status(fx).state)
-
+        # sleep needs longer than this
+        # sleep(10)
+        # self.assertEqual(JobState.CANCELED, pool.status(fx).state)
 
     def test_local_pool(self):
         # make sure swift-t in path

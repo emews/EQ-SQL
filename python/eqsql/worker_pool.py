@@ -3,6 +3,8 @@ from typing import Dict, Union
 from subprocess import Popen, STDOUT, PIPE
 from time import sleep
 from psij.job_status import JobStatus, JobState
+from globus_compute_sdk import Executor
+
 import psutil
 import os
 
@@ -104,12 +106,12 @@ class LocalPool:
 
 class ScheduledPool:
 
-    def __init__(self, name, job_id, scheduler, fx, cfg_file):
+    def __init__(self, name, job_id, scheduler, gcx, cfg_file):
         self.job_id = job_id
         self.name = name
         self.scheduler = scheduler
         self.cfg_file = cfg_file
-        self.fx = fx
+        self.gcx = gcx
 
     def cancel(self, timeout=60):
         """Cancels this worker pool.
@@ -117,10 +119,10 @@ class ScheduledPool:
         Args:
             timeout: the attempt to cancel will timeout after this duration.
         """
-        if self.fx is None:
+        if self.gcx is None:
             _cancel_pool(self.job_id, self.scheduler)
         else:
-            ft = self.fx.submit(_cancel_pool, self.job_id, self.scheduler)
+            ft = self.gcx.submit(_cancel_pool, self.job_id, self.scheduler)
             ft.result()
 
         retry_count = 0
@@ -142,10 +144,10 @@ class ScheduledPool:
             >>> pool.status().state
             JobState.ACTIVE
         """
-        if self.fx is None:
+        if self.gcx is None:
             return _pool_status(self.job_id, self.scheduler)
         else:
-            ft = self.fx.submit(_pool_status, self.job_id, self.scheduler)
+            ft = self.gcx.submit(_pool_status, self.job_id, self.scheduler)
             return ft.result(timeout=timeout)
 
 
@@ -214,7 +216,7 @@ def start_local_pool(name: str, launch_script: Union[str, bytes, os.PathLike],
 
 
 def start_scheduled_pool(name: str, launch_script: Union[str, bytes, os.PathLike],
-                         exp_id: str, cfg_params: Dict, scheduler: str, fx):
+                         exp_id: str, cfg_params: Dict, scheduler: str, gcx: Executor):
     """Starts a worker pool on a scheduled resource, i.e., a resource that queues jobs
     using some sort of scheduler, e.g., slurm.
 
@@ -224,9 +226,9 @@ def start_scheduled_pool(name: str, launch_script: Union[str, bytes, os.PathLike
         exp_id: the experiment id for the experiment that is running the pool
         cfg_params: the parameters used to start the pool
         scheduler: scheduled resource schedule type - slurm, etc.
-        fx: a FuncXExecutor instance. If this is None, then the assumption is that the call
+        gcx: a globus compute Executor instance. If this is None, then the assumption is that the call
             to this function is running on the resource where the pool is to be launched. If
-            this is not None, then the FuncXExcutor will be used to launch the pool remotely.
+            this is not None, then the executor will be used to launch the pool remotely.
 
     Returns:
         An instance of a ScheduledPool object.
@@ -256,9 +258,9 @@ def start_scheduled_pool(name: str, launch_script: Union[str, bytes, os.PathLike
             raise ValueError(f'start_scheduled_pool failed with {traceback.format_exc()}')
 
     cfg_params['CFG_POOL_ID'] = name
-    if fx is None:
+    if gcx is None:
         job_id, cfg_file = _start_scheduled_pool(launch_script, exp_id, cfg_params)
     else:
-        ft = fx.submit(_start_scheduled_pool, launch_script, exp_id, cfg_params)
+        ft = gcx.submit(_start_scheduled_pool, launch_script, exp_id, cfg_params)
         job_id, cfg_file = ft.result()
-    return ScheduledPool(name, job_id, scheduler, fx, cfg_file)
+    return ScheduledPool(name, job_id, scheduler, gcx, cfg_file)
