@@ -13,7 +13,7 @@ from typing import Iterable, Tuple, Dict, List, Generator, Union
 
 from eqsql import db_tools
 from eqsql.db_tools import WorkflowSQL
-from eqsql.task_queues.common import ResultStatus, TaskStatus
+from eqsql.task_queues.common import ResultStatus, TaskStatus, TimeoutError
 from eqsql.task_queues.common import EQ_ABORT, EQ_STOP, EQ_TIMEOUT
 from eqsql.task_queues.protocols import Future, TaskQueue
 
@@ -23,7 +23,7 @@ ABORT_JSON_MSG = json.dumps({'type': 'status', 'payload': EQ_ABORT})
 
 class LocalFuture:
 
-    def __init__(self, eq_sql, eq_task_id: int, tag: str = None):
+    def __init__(self, eq_sql: TaskQueue, eq_task_id: int, tag: str = None):
         """Represents the eventual result of an LocalTaskQueue task. Future
         instances are returned by the :py:class:`LocalTaskQueue.submit_task`, and
         :py:class:`LocalTaskQueue.submit_tasks` methods.
@@ -77,7 +77,7 @@ class LocalFuture:
             One of :py:class:`TaskStatus.QUEUED`, :py:class:`TaskStatus.RUNNING`, :py:class:`TaskStatus.COMPLETE`,
             :py:class:`TaskStatus.CANCELED`, or ``None`` if the status query fails.
         """
-        result = self.eq_sql.query_status([self.eq_task_id])
+        result = self.eq_sql.get_status([self])
         if result is None:
             return result
         else:
@@ -95,7 +95,7 @@ class LocalFuture:
             by a worker pool yet.
         """
         if self._pool is None:
-            _, pool = self.eq_sql.query_worker_pool([self.eq_task_id])[0]
+            _, pool = self.eq_sql.get_worker_pools([self])[0]
             self._pool = pool
         return self._pool
 
@@ -110,7 +110,7 @@ class LocalFuture:
         if self.status == TaskStatus.CANCELED:
             return True
 
-        status, row_count = self.eq_sql._cancel_tasks([self.eq_task_id])
+        status, row_count = self.eq_sql.cancel_tasks([self])
         return status == ResultStatus.SUCCESS and row_count == 1
 
     def done(self):
@@ -127,7 +127,7 @@ class LocalFuture:
         Returns:
             The priority of this Future task.
         """
-        result = self.eq_sql._query_priority([self.eq_task_id])
+        result = self.eq_sql.get_priorities([self])
         if result is None:
             return result
         else:
@@ -142,7 +142,7 @@ class LocalFuture:
         Returns:
             ResultStatus.SUCCESS if the priority has been successfully updated, otherwise false.
         """
-        status, _ = self.eq_sql._update_priorities([self.eq_task_id], new_priority)
+        status, _ = self.eq_sql.update_priorities([self], new_priority)
         return status
 
 
@@ -617,7 +617,7 @@ class LocalTaskQueue:
 
         running_tasks = []
         if len(eq_task_ids) > 0:
-            statuses = self.query_status(eq_task_ids)
+            statuses = self._query_status(eq_task_ids)
             if statuses is None:
                 return ([], [{'type': 'status', 'payload': EQ_ABORT}])
 
@@ -771,7 +771,7 @@ class LocalTaskQueue:
                     cur.execute(update_query)
                     cur.execute(f'delete from {table}')
 
-    def query_status(self, eq_task_ids: Iterable[int]) -> List[Tuple[int, TaskStatus]]:
+    def _query_status(self, eq_task_ids: Iterable[int]) -> List[Tuple[int, TaskStatus]]:
         """Queries for the status (queued, running, etc.) of the specified tasks
 
         Args:
@@ -795,6 +795,23 @@ class LocalTaskQueue:
             return None
 
         return results
+
+    def get_status(self, futures: Iterable[Future]) -> List[Tuple[Future, TaskStatus]]:
+        """Gets the status (queued, running, etc.) of the specified tasks
+
+        Args:
+            futures: the futures of the tasks to get the status of.
+
+        Returns:
+            A List of Tuples containing the status of the tasks. The first element
+            of the tuple will be the task id, and the second element will be the
+            status of that task as a :py:class:`TaskStatus` object.
+        """
+        id_map = {ft.eq_task_id: ft for ft in futures}
+        result = self._query_status(id_map.keys())
+        if result is not None:
+            return [(id_map[item[0]], item[1]) for item in result]
+        return result
 
     def _cancel_tasks(self, eq_task_ids: Iterable[int]) -> Tuple[ResultStatus, int]:
         """Cancels the specified tasks by removing them from the output queue and
@@ -911,17 +928,35 @@ class LocalTaskQueue:
 
         return (ResultStatus.SUCCESS, affected_ids)
 
-    def _query_priority(self, eq_task_ids: Iterable[int]) -> List[Tuple[int, int]]:
+    def update_priorities(self, futures: List[Future], new_priority: Union[int, List[int]]) -> Tuple[ResultStatus, int]:
+        """Updates the priority of the specified :py:class:`Futures <Future>` to the new_priority.
+
+        Args:
+            futures: the :py:class:`Futures <Future>` to update.
+            new_priority: the priority to update to. If this is a single integer then
+                all the specified tasks are updated to that priority. If this is a
+                List of ints then each task is updated with the corresponding priority, i.e.,
+                the first task in the ``futures`` is updated with the first priority in the new_priority
+                List.
+
+        Returns:
+            The :py:class:`ResultStatus` and number tasks whose priority was
+            successfully updated.
+        """
+        return self._update_priorities((ft.eq_task_id for ft in futures), new_priority)
+
+    def get_priorities(self, futures: Iterable[Future]) -> List[Tuple[Future, int]]:
         """Gets the priorities of the specified tasks.
 
         Args:
-            eq_task_ids: the ids of the tasks whose priorities are returned.
+            futures: the futures of the tasks whose priorities are returned.
 
         Returns:
-            A List of tuples containing the task_id and priorty for each task, or None if the
+            A List of tuples containing the future and priorty for each task, or None if the
             query has failed.
         """
-        ids = tuple(eq_task_ids)
+        id_map = {ft.eq_task_id: ft for ft in futures}
+        ids = tuple(ft.eq_task_id for ft in futures)
         placeholders = ', '.join(['%s'] * len(ids))
         results = []
         try:
@@ -930,7 +965,7 @@ class LocalTaskQueue:
                     query = f'select eq_task_id, eq_priority from eq_tasks where eq_task_id in ({placeholders})'
                     cur.execute(query, ids)
                     for eq_task_id, priority in cur.fetchall():
-                        results.append((eq_task_id, priority))
+                        results.append((id_map[eq_task_id], priority))
         except Exception:
             self.logger.error(f'query_priority error: {traceback.format_exc()}')
             return None
@@ -979,23 +1014,6 @@ class LocalTaskQueue:
             A tuple containing the :py:class:`ResultStatus` and number of tasks successfully canceled.
         """
         return self._cancel_tasks(ft.eq_task_id for ft in futures)
-
-    def update_priorities(self, futures: List[Future], new_priority: Union[int, List[int]]) -> Tuple[ResultStatus, int]:
-        """Updates the priority of the specified :py:class:`Futures <Future>` to the new_priority.
-
-        Args:
-            futures: the :py:class:`Futures <Future>` to update.
-            new_priority: the priority to update to. If this is a single integer then
-                all the specified tasks are updated to that priority. If this is a
-                List of ints then each task is updated with the corresponding priority, i.e.,
-                the first task in the ``futures`` is updated with the first priority in the new_priority
-                List.
-
-        Returns:
-            The :py:class:`ResultStatus` and number tasks whose priority was
-            successfully updated.
-        """
-        self._update_priorities((ft.eq_task_id for ft in futures), new_priority)
 
     def get_worker_pools(self, futures: List[Future]) -> List[Tuple[Future, Union[str, None]]]:
         """Gets the worker pools on which the specified list of :py:class:`Futures <Future>` are running, if any.
@@ -1049,11 +1067,9 @@ class LocalTaskQueue:
         """Returns a generator over the :py:class:`Futures <Future>` in the ``futures`` argument that yields
         Futures as they complete. The  :py:class:`Futures <Future>` are checked for completion by iterating over all of the
         ones that have not yet completed and checking for a result. At the end of each iteration, the
-        ``stop_condition`` and ``timeout`` are checked. Note that adding or removing :py:class:`Futures <Future>`
+        ``timeout`` is checked. Note that adding or removing :py:class:`Futures <Future>`
         to or from the ``futures`` argument List while iterating may have no effect on this call.
         A :py:class:`TimeoutError` will be raised if the futures do not complete within the specified ``timeout`` duration.
-        If the ``stop_condition`` is not ``None``, it will be called after every iteration through the :py:class:`Futures <Future>`.
-        If it returns True, then iteration will stop.
 
         Args:
             futures: the List of  :py:class:`Futures <Future>` to iterate over and return as they complete.
@@ -1061,8 +1077,6 @@ class LocalTaskQueue:
             timeout: if the time taken for futures to completed is greater than this value, then
                 raise :py:class:`TimeoutError`.
             n: yield this many completed Futures and then stop iteration.
-            stop_condition: this Callable will be called after each check of all the futures and
-                if the return value is True, then iteration will stop.
             sleep: the time, in seconds, to sleep between each iteration over all the Futures.
 
         Yields:

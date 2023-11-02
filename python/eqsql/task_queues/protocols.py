@@ -1,5 +1,5 @@
 """Task Queue protocol and implementations"""
-from typing import Protocol, Tuple, Union, List, Generator
+from typing import Protocol, Tuple, Union, List, Generator, Iterable
 from typing import runtime_checkable
 
 from eqsql.task_queues.common import ResultStatus, TaskStatus
@@ -134,6 +134,17 @@ class TaskQueue(Protocol):
             A tuple containing the :py:class:`ResultStatus` and number of tasks successfully canceled.
         """
 
+    def get_priorities(self, eq_task_ids: Iterable[Future]) -> List[Tuple[Future, int]]:
+        """Gets the priorities of the specified tasks.
+
+        Args:
+            futures: the futures of the tasks whose priorities are returned.
+
+        Returns:
+            A List of tuples containing the future and priorty for each task, or None if the
+            query has failed.
+        """
+
     def update_priorities(self, futures: List[Future], new_priority: Union[int, List[int]]) -> Tuple[ResultStatus, int]:
         """Updates the priority of the specified :py:class:`Futures <Future>` to the new_priority.
 
@@ -148,6 +159,17 @@ class TaskQueue(Protocol):
         Returns:
             The :py:class:`ResultStatus` and number tasks whose priority was
             successfully updated.
+        """
+
+    def are_queues_empty(self, eq_type: int = None) -> bool:
+        """Returns whether or not either of the input or output queues are empty,
+        optionally of a specified task type.
+
+        Args:
+            eq_type: the optional task type to check for.
+
+        Returns:
+            True if the queues are empty, otherwise False.
         """
 
     def get_worker_pools(self, futures: List[Future]) -> List[Tuple[Future, Union[str, None]]]:
@@ -183,11 +205,9 @@ class TaskQueue(Protocol):
         """Returns a generator over the :py:class:`Futures <Future>` in the ``futures`` argument that yields
         Futures as they complete. The  :py:class:`Futures <Future>` are checked for completion by iterating over all of the
         ones that have not yet completed and checking for a result. At the end of each iteration, the
-        ``stop_condition`` and ``timeout`` are checked. Note that adding or removing :py:class:`Futures <Future>`
+        ``timeout`` is checked. Note that adding or removing :py:class:`Futures <Future>`
         to or from the ``futures`` argument List while iterating may have no effect on this call.
         A :py:class:`TimeoutError` will be raised if the futures do not complete within the specified ``timeout`` duration.
-        If the ``stop_condition`` is not ``None``, it will be called after every iteration through the :py:class:`Futures <Future>`.
-        If it returns True, then iteration will stop.
 
         Args:
             futures: the List of  :py:class:`Futures <Future>` to iterate over and return as they complete.
@@ -195,8 +215,6 @@ class TaskQueue(Protocol):
             timeout: if the time taken for futures to completed is greater than this value, then
                 raise :py:class:`TimeoutError`.
             n: yield this many completed Futures and then stop iteration.
-            stop_condition: this Callable will be called after each check of all the futures and
-                if the return value is True, then iteration will stop.
             sleep: the time, in seconds, to sleep between each iteration over all the Futures.
 
         Yields:
@@ -208,4 +226,16 @@ class TaskQueue(Protocol):
                 for ft in task_queue.as_completed(futures, timeout=5):
                     status, result = ft.result()
                     // do something with result
+        """
+
+    def get_status(self, futures: Iterable[Future]) -> List[Tuple[Future, TaskStatus]]:
+        """Gets the status (queued, running, etc.) of the specified tasks
+
+        Args:
+            futures: the futures of the tasks to get the status of.
+
+        Returns:
+            A List of Tuples containing the status of the tasks. The first element
+            of the tuple will be the task id, and the second element will be the
+            status of that task as a :py:class:`TaskStatus` object.
         """
