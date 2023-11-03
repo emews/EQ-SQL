@@ -8,7 +8,7 @@ import python;
 import string;
 import sys;
 
-import EQ;
+import EQSQL;
 import emews;
 
 int SIM_WORK_TYPE = 1;

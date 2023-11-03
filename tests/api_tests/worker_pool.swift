@@ -10,7 +10,7 @@ import string;
 import sys;
 import emews;
 
-import EQ;
+import EQSQL;
 
 /** The objective function */
 (string result)

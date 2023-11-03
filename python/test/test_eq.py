@@ -3,7 +3,7 @@ import json
 import logging
 
 from eqsql.task_queues import local
-from eqsql.task_queues.common import ResultStatus, TaskStatus, TimeoutError, StopConditionException
+from eqsql.task_queues.common import ResultStatus, TaskStatus, TimeoutError
 from eqsql.task_queues.common import EQ_TIMEOUT, EQ_STOP, EQ_ABORT
 from eqsql.db_tools import reset_db
 

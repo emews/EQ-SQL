@@ -14,7 +14,7 @@ from deap import creator
 from deap import tools
 from deap import algorithms
 
-from eqsql import eq
+from eqsql.task_queues import local, common
 from eqsql import proxies
 
 # Global variable names we are going to set from the JSON settings file
@@ -94,7 +94,7 @@ def queue_map(obj_func, pop: List[List]):
 
     status, ft = eq_sql.submit_task('test-swift-2', SIM_WORK_TYPE, payload)
     status, result_str = ft.result(timeout=4.0)
-    if status != eq.ResultStatus.SUCCESS:
+    if status != common.ResultStatus.SUCCESS:
         print(f'Aborting ME: {result_str}')
         return []
     # print("RESULT_STR: ", result_str, flush=True)
@@ -133,7 +133,7 @@ def _create_eqsql(retry_threshold: int = 0, log_level=logging.WARN):
     user = os.getenv('DB_USER')
     port = int(os.getenv('DB_PORT'))
     db_name = os.getenv('DB_NAME')
-    return eq.init_task_queue(host, user, port, db_name, retry_threshold, log_level)
+    return local.init_task_queue(host, user, port, db_name, retry_threshold, log_level)
 
 
 def run():

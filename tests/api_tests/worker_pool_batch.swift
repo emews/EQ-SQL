@@ -9,7 +9,7 @@ import python;
 import string;
 import sys;
 import unix;
-import EQ;
+import EQSQL;
 import emews;
 
 int resident_work_rank = string2int(getenv("RESIDENT_WORK_RANK"));

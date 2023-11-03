@@ -1,4 +1,5 @@
 from enum import IntEnum
+import json
 
 
 class ResultStatus(IntEnum):
@@ -12,6 +13,8 @@ class ResultStatus(IntEnum):
 EQ_ABORT = 'EQ_ABORT'
 EQ_TIMEOUT = 'EQ_TIMEOUT'
 EQ_STOP = 'EQ_STOP'
+
+ABORT_MSG = json.dumps({'type': 'status', 'payload': EQ_ABORT})
 
 
 class TaskStatus(IntEnum):

@@ -1,4 +1,4 @@
-from eqsql import eq
+from eqsql.task_queues import local
 import random
 import json
 import os
@@ -14,7 +14,7 @@ def _create_eqsql():
     user = os.getenv('DB_USER')
     port = int(os.getenv('DB_PORT'))
     db_name = os.getenv('DB_NAME')
-    return eq.init_task_queue(host, user, port, db_name)
+    return local.init_task_queue(host, user, port, db_name)
 
 
 def run():
@@ -33,7 +33,7 @@ def run():
         result_ids = []
         submitted = init_pts
         while pts_obs < num_obs:
-            ft = eq.pop_completed(fts)
+            ft = eq_sql.pop_completed(fts)
             pts_obs += 1
 
             _, result = ft.result()
@@ -56,7 +56,7 @@ def run():
         eq_sql.stop_worker_pool(0)
         # get the result of the last submit in order to
         # clear emews_queue_in
-        eq.pop_completed([ft])
+        eq_sql.pop_completed([ft])
 
     finally:
         eq_sql.close()

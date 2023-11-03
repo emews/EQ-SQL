@@ -7,7 +7,6 @@ from random import random
 import traceback
 import logging
 import time
-import json
 from datetime import datetime, timezone
 from typing import Iterable, Tuple, Dict, List, Generator, Union
 
@@ -16,9 +15,6 @@ from eqsql.db_tools import WorkflowSQL
 from eqsql.task_queues.common import ResultStatus, TaskStatus, TimeoutError
 from eqsql.task_queues.common import EQ_ABORT, EQ_STOP, EQ_TIMEOUT
 from eqsql.task_queues.protocols import Future, TaskQueue
-
-
-ABORT_JSON_MSG = json.dumps({'type': 'status', 'payload': EQ_ABORT})
 
 
 class LocalFuture:

@@ -6,9 +6,8 @@ import time
 import multiprocessing as mp
 import os
 
-from eqsql import eq
-
-ABORT_MSG = {'type': 'status', 'payload': eq.EQ_ABORT}
+from eqsql.task_queues import local
+from eqsql.task_queues.common import ABORT_MSG
 
 
 def _create_eqsql(retry_threshold: int = 0, log_level=logging.WARN):
@@ -19,12 +18,12 @@ def _create_eqsql(retry_threshold: int = 0, log_level=logging.WARN):
     else:
         port = int(os.getenv('DB_PORT'))
     db_name = os.getenv('DB_NAME')
-    return eq.init_task_queue(host, user, port, db_name, retry_threshold, log_level)
+    return local.init_task_queue(host, user, port, db_name, retry_threshold, log_level)
 
 
 def query_task(eq_work_type: int, worker_pool: str, query_timeout: float = 120.0,
                retry_threshold: int = 0, log_level=logging.WARN):
-    eq_sql = None
+    eq_sql: local.LocalTaskQueue = None
     try:
         eq_sql = _create_eqsql(retry_threshold, log_level)
         eq_sql.logger.debug('swift out_get')
