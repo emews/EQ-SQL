@@ -25,6 +25,14 @@ def _submit_tasks(db_params: DBParameters, exp_id: str, eq_type: int, payload: L
     return (result_status, [ft.eq_task_id for ft in fts])
 
 
+def _get_status(db_params: DBParameters, eq_task_ids: List[int]):
+    from eqsql.task_queues import local
+    task_queue = local.init_task_queue(db_params.host, db_params.user, db_params.port, db_params.db_name,
+                                       retry_threshold=db_params.retry_threshold)
+    result = task_queue._query_status(eq_task_ids)
+    return result
+
+
 class GCTaskQueue:
     """Task queue protocol for submitting, manipulating and
     retrieving tasks"""
@@ -203,7 +211,15 @@ class GCTaskQueue:
             of the tuple will be the task id, and the second element will be the
             status of that task as a :py:class:`TaskStatus` object.
         """
-        pass
+        ft_map = {ft.eq_task_id: ft for ft in futures}
+        task_ids = [ft.eq_task_id for ft in futures]
+        gc_ft = self.gcx.submit(_get_status, self.db_params, task_ids)
+        results = gc_ft.result()
+        if results is None:
+            # TODO: better error handling - logger would have reported error remotely
+            return None
+
+        return [(ft_map[result[0]], result[1]) for result in results]
 
 
 def init_task_queue(gcx: Executor, host: str, user: str, port: int, db_name: str, retry_threshold=0) -> GCTaskQueue:
