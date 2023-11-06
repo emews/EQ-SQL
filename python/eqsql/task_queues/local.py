@@ -799,7 +799,7 @@ class LocalTaskQueue:
 
         return (ResultStatus.SUCCESS, affected_ids)
 
-    def update_priorities(self, futures: List[Future], new_priority: Union[int, List[int]]) -> Tuple[ResultStatus, Future]:
+    def update_priorities(self, futures: List[Future], new_priority: Union[int, List[int]]) -> Tuple[ResultStatus, int]:
         """Updates the priority of the specified :py:class:`Futures <Future>` to the new_priority.
 
         Args:
@@ -817,7 +817,7 @@ class LocalTaskQueue:
         """
         return self._update_priorities((ft.eq_task_id for ft in futures), new_priority)
 
-    def _get_priorities(self, eq_task_ids: Iterable[int]) -> List[Tuple(int, int)]:
+    def _get_priorities(self, eq_task_ids: Iterable[int]) -> List[Tuple[int, int]]:
         ids = tuple(eq_task_ids)
         placeholders = ', '.join(['%s'] * len(ids))
         results = []
