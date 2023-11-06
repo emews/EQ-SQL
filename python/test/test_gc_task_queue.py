@@ -66,3 +66,78 @@ class GCTaskQueueTests(unittest.TestCase):
             self.assertEqual(TaskStatus.QUEUED, ft.status)
             self.assertFalse(ft.done())
             self.assertEqual('x', ft.tag)
+
+    def test_query_priority(self):
+        with Executor(endpoint_id=gcx_endpoint) as gcx:
+            self.eq_sql = remote.init_task_queue(gcx, host, user, port, db_name)
+            clear_db(gcx)
+            result_status, ft = self.eq_sql.submit_task('test_future', 0, create_payload(), priority=10, tag='x')
+            self.assertEqual(ResultStatus.SUCCESS, result_status)
+            self.assertEqual(TaskStatus.QUEUED, ft.status)
+            self.assertFalse(ft.done())
+            self.assertEqual('x', ft.tag)
+            self.assertEqual(10, ft.priority)
+
+            ft.priority = 20
+            self.assertEqual(TaskStatus.QUEUED, ft.status)
+            self.assertFalse(ft.done())
+            self.assertEqual('x', ft.tag)
+            self.assertEqual(20, ft.priority)
+
+    # def test_query_result(self):
+    #     with Executor(endpoint_id=gcx_endpoint) as gcx:
+    #         self.eq_sql = remote.init_task_queue(gcx, host, user, port, db_name)
+    #         clear_db(gcx)
+
+    #         # no task so query timesout
+    #         result = self.eq_sql.query_task(0, timeout=0.5)
+    #         self.assertEqual('status', result['type'])
+    #         self.assertEqual(EQ_TIMEOUT, result['payload'])
+
+    #         payload = create_payload()
+    #         _, ft = self.eq_sql.submit_task('test_future', 0, payload)
+    #         self.assertEqual(TaskStatus.QUEUED, ft.status)
+    #         self.assertIsNone(ft.worker_pool)
+    #         self.assertFalse(ft.done())
+    #         result_status, result = ft.result(timeout=0.5)
+    #         self.assertEqual(ResultStatus.FAILURE, result_status)
+    #         self.assertEqual(result, EQ_TIMEOUT)
+
+    #         result = self.eq_sql.query_task(0, timeout=0.5)
+    #         self.assertEqual('work', result['type'])
+    #         task_id = result['eq_task_id']
+    #         self.assertEqual(ft.eq_task_id, task_id)
+    #         self.assertEqual(payload, result['payload'])
+
+    #         # test result still failure, and status is running
+    #         result_status, result = ft.result(timeout=0.5)
+    #         self.assertEqual(ResultStatus.FAILURE, result_status)
+    #         self.assertEqual(result, EQ_TIMEOUT)
+    #         task_status = ft.status
+    #         self.assertEqual(TaskStatus.RUNNING, task_status)
+    #         self.assertEqual('default', ft.worker_pool)
+    #         self.assertFalse(ft.done())
+
+    #         # report task result
+    #         task_result = {'j': 3}
+    #         report_result = self.eq_sql.report_task(task_id, 0, json.dumps(task_result))
+    #         self.assertEqual(ResultStatus.SUCCESS, report_result)
+
+    #         # test get result
+    #         result_status, result = ft.result(timeout=0.5)
+    #         self.assertEqual(ResultStatus.SUCCESS, result_status)
+    #         self.assertEqual(task_result, json.loads(result))
+
+    #         # test status
+    #         task_status = ft.status
+    #         self.assertEqual(TaskStatus.COMPLETE, task_status)
+    #         self.assertTrue(ft.done())
+
+    #         # test eq stop
+    #         self.eq_sql.stop_worker_pool(0)
+    #         result = self.eq_sql.query_task(0, timeout=0.5)
+    #         self.assertEqual('status', result['type'])
+    #         self.assertEqual(EQ_STOP, result['payload'])
+
+    #         self.eq_sql.close()
+    #         self.assertIsNone(self.eq_sql.db)

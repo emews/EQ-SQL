@@ -799,7 +799,7 @@ class LocalTaskQueue:
 
         return (ResultStatus.SUCCESS, affected_ids)
 
-    def update_priorities(self, futures: List[Future], new_priority: Union[int, List[int]]) -> Tuple[ResultStatus, int]:
+    def update_priorities(self, futures: List[Future], new_priority: Union[int, List[int]]) -> Tuple[ResultStatus, Future]:
         """Updates the priority of the specified :py:class:`Futures <Future>` to the new_priority.
 
         Args:
@@ -811,10 +811,25 @@ class LocalTaskQueue:
                 List.
 
         Returns:
-            The :py:class:`ResultStatus` and number tasks whose priority was
-            successfully updated.
+            If the update is successful, the Tuple will contain ResultStatus.SUCCESS and
+                the eq_task_ids of the tasks whose priority was successfully updated,
+                otherwise (ResultStatus.FAILURE, []).
         """
         return self._update_priorities((ft.eq_task_id for ft in futures), new_priority)
+
+    def _get_priorities(self, eq_task_ids: Iterable[int]) -> List[Tuple(int, int)]:
+        ids = tuple(eq_task_ids)
+        placeholders = ', '.join(['%s'] * len(ids))
+        results = []
+
+        with self.db.conn:
+            with self.db.conn.cursor() as cur:
+                query = f'select eq_task_id, eq_priority from eq_tasks where eq_task_id in ({placeholders})'
+                cur.execute(query, ids)
+                for eq_task_id, priority in cur.fetchall():
+                    results.append((eq_task_id, priority))
+
+        return results
 
     def get_priorities(self, futures: Iterable[Future]) -> List[Tuple[Future, int]]:
         """Gets the priorities of the specified tasks.
@@ -827,21 +842,12 @@ class LocalTaskQueue:
             query has failed.
         """
         id_map = {ft.eq_task_id: ft for ft in futures}
-        ids = tuple(ft.eq_task_id for ft in futures)
-        placeholders = ', '.join(['%s'] * len(ids))
-        results = []
         try:
-            with self.db.conn:
-                with self.db.conn.cursor() as cur:
-                    query = f'select eq_task_id, eq_priority from eq_tasks where eq_task_id in ({placeholders})'
-                    cur.execute(query, ids)
-                    for eq_task_id, priority in cur.fetchall():
-                        results.append((id_map[eq_task_id], priority))
+            results = self._get_priorities(id_map.keys())
+            return [(id_map[eq_task_id], priority) for eq_task_id, priority in results]
         except Exception:
             self.logger.error(f'query_priority error: {traceback.format_exc()}')
             return None
-
-        return results
 
     def query_result(self, eq_task_id: int, delay: float = 0.5, timeout: float = 2.0) -> Tuple[ResultStatus, str]:
         """Queries for the result of the specified task.

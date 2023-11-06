@@ -33,6 +33,21 @@ def _get_status(db_params: DBParameters, eq_task_ids: List[int]):
     return result
 
 
+def _get_priorities(db_params: DBParameters, eq_task_ids: List[int]):
+    from eqsql.task_queues import local
+    task_queue = local.init_task_queue(db_params.host, db_params.user, db_params.port, db_params.db_name,
+                                       retry_threshold=db_params.retry_threshold)
+    result = task_queue._get_priorities(eq_task_ids)
+    return result
+
+
+def _update_priorities(db_params: DBParameters, eq_task_ids: List[int], new_priority: Union[int, List[int]]) -> Tuple[ResultStatus, int]:
+    from eqsql.task_queues import local
+    task_queue = local.init_task_queue(db_params.host, db_params.user, db_params.port, db_params.db_name,
+                                       retry_threshold=db_params.retry_threshold)
+    return task_queue._update_priorities(eq_task_ids, new_priority)
+
+
 class GCTaskQueue:
     """Task queue protocol for submitting, manipulating and
     retrieving tasks"""
@@ -100,7 +115,7 @@ class GCTaskQueue:
         """
         pass
 
-    def get_priorities(self, eq_task_ids: Iterable[Future]) -> List[Tuple[Future, int]]:
+    def get_priorities(self, futures: Iterable[Future]) -> List[Tuple[Future, int]]:
         """Gets the priorities of the specified tasks.
 
         Args:
@@ -110,7 +125,14 @@ class GCTaskQueue:
             A List of tuples containing the future and priorty for each task, or None if the
             query has failed.
         """
-        pass
+        id_map = {ft.eq_task_id: ft for ft in futures}
+        gc_ft = self.gcx.submit(_get_priorities, [ft.eq_task_id for ft in futures])
+        result = gc_ft.result()
+        if result is None:
+            # TODO: better error handling
+            return None
+
+        return [(id_map[eq_task_id], priority) for eq_task_id, priority in result]
 
     def update_priorities(self, futures: List[Future], new_priority: Union[int, List[int]]) -> Tuple[ResultStatus, int]:
         """Updates the priority of the specified :py:class:`Futures <Future>` to the new_priority.
@@ -124,10 +146,17 @@ class GCTaskQueue:
                 List.
 
         Returns:
-            The :py:class:`ResultStatus` and number tasks whose priority was
-            successfully updated.
+            If the update is successful, the Tuple will contain ResultStatus.SUCCESS and
+                the eq_task_ids of the tasks whose priority was successfully updated,
+                otherwise (ResultStatus.FAILURE, []).
         """
-        pass
+        gc_ft = self.gcx.submit(_update_priorities, [ft.eq_task_id for ft in futures], new_priority)
+        result = gc_ft.result()
+        if result is None:
+            # TODO: better error handling
+            return None
+
+        return result
 
     def are_queues_empty(self, eq_type: int = None) -> bool:
         """Returns whether or not either of the input or output queues are empty,

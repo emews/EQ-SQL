@@ -286,7 +286,7 @@ class TaskQueue(Protocol):
             A tuple containing the :py:class:`ResultStatus` and number of tasks successfully canceled.
         """
 
-    def get_priorities(self, eq_task_ids: Iterable[Future]) -> List[Tuple[Future, int]]:
+    def get_priorities(self, futures: Iterable[Future]) -> List[Tuple[Future, int]]:
         """Gets the priorities of the specified tasks.
 
         Args:
@@ -309,8 +309,9 @@ class TaskQueue(Protocol):
                 List.
 
         Returns:
-            The :py:class:`ResultStatus` and number tasks whose priority was
-            successfully updated.
+            If the update is successful, the Tuple will contain ResultStatus.SUCCESS and
+                the eq_task_ids of the tasks whose priority was successfully updated,
+                otherwise (ResultStatus.FAILURE, []).
         """
 
     def are_queues_empty(self, eq_type: int = None) -> bool:
