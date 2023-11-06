@@ -2,32 +2,82 @@
 from typing import Protocol, Tuple, Union, List, Generator, Iterable
 from typing import runtime_checkable
 
-from eqsql.task_queues.common import ResultStatus, TaskStatus
+from enum import IntEnum
+import json
 
 
-@runtime_checkable
-class Future(Protocol):
-    """Represents the eventual result of an EQSQL task."""
+class ResultStatus(IntEnum):
+    """Enum defining the status (success or failure) of an EQSQL database
+    operation.
+    """
+    SUCCESS = 0
+    FAILURE = 1
+
+
+EQ_ABORT = 'EQ_ABORT'
+EQ_TIMEOUT = 'EQ_TIMEOUT'
+EQ_STOP = 'EQ_STOP'
+
+ABORT_MSG = json.dumps({'type': 'status', 'payload': EQ_ABORT})
+
+
+class TaskStatus(IntEnum):
+    """Enum defining the status of a task: queued, etc. These are used
+    in the database to store the status of a task.
+    """
+    QUEUED = 0
+    RUNNING = 1
+    COMPLETE = 2
+    CANCELED = 3
+    REQUEUED = 4
+
+
+class Future:
+
+    def __init__(self, eq_sql: 'TaskQueue', eq_task_id: int, tag: str = None):
+        """Represents the eventual result of an LocalTaskQueue task. Future
+        instances are returned by the :py:class:`LocalTaskQueue.submit_task`, and
+        :py:class:`LocalTaskQueue.submit_tasks` methods.
+
+        Args:
+            eq_sql: the LocalTaskQueue instance that created this Future.
+            eq_task_id: the task id
+            tag: an optional metadata tag
+        """
+        self.eq_task_id = eq_task_id
+        self.tag = tag
+        self.eq_sql = eq_sql
+        self._result = None
+        self._pool = None
 
     def result(self, delay: float = 0.5, timeout: float = 2.0) -> Tuple[ResultStatus, str]:
         """Gets the result of this future task.
 
-        This repeatedly pools a DB for the task result. The polling interval is specified by
+        This repeatedly pools the DB for the task result. The polling interval is specified by
         the delay such that the first interval is defined by the initial delay value
         which is increased after the first poll. The polling will
         timeout after the amount of time specified by the timout value is has elapsed.
 
-        Args:
-            delay: the initial polling delay value
-            timeout: the duration after which the query will timeout.
-                If timeout is None, there is no limit to the wait time.
+    Args:
+        delay: the initial polling delay value
+        timeout: the duration after which the query will timeout.
+            If timeout is None, there is no limit to the wait time.
 
-        Returns:
-            A tuple whose first element indicates the status of the query:
-            :py:class:`ResultStatus.SUCCESS` or :py:class:`ResultStatus.FAILURE`, and whose second element
-            is either the result of the task, or in the case of failure the reason
-            for the failure (``EQ_TIMEOUT``, or ``EQ_ABORT``)
-            """
+    Returns:
+        A tuple whose first element indicates the status of the query:
+        :py:class:`ResultStatus.SUCCESS` or :py:class:`ResultStatus.FAILURE`, and whose second element
+        is either the result of the task, or in the case of failure the reason
+        for the failure (``EQ_TIMEOUT``, or ``EQ_ABORT``)
+        """
+        # retry after an abort
+        if self._result is None or self._result[1] == EQ_ABORT:
+            status_result = self.eq_sql.query_result(self.eq_task_id, delay, timeout=timeout)
+            if status_result[0] == ResultStatus.SUCCESS or status_result[1] == EQ_ABORT:
+                self._result = status_result
+
+            return status_result
+
+        return self._result
 
     @property
     def status(self) -> TaskStatus:
@@ -38,6 +88,12 @@ class Future(Protocol):
             One of :py:class:`TaskStatus.QUEUED`, :py:class:`TaskStatus.RUNNING`, :py:class:`TaskStatus.COMPLETE`,
             :py:class:`TaskStatus.CANCELED`, or ``None`` if the status query fails.
         """
+        result = self.eq_sql.get_status([self])
+        if result is None:
+            return result
+        else:
+            ts = result[0][1]
+            return ts
 
     @property
     def worker_pool(self) -> Union[str, None]:
@@ -49,8 +105,12 @@ class Future(Protocol):
             running on, or ``None`` if the task hasn't been selected
             by a worker pool yet.
         """
+        if self._pool is None:
+            _, pool = self.eq_sql.get_worker_pools([self])[0]
+            self._pool = pool
+        return self._pool
 
-    def cancel(self) -> bool:
+    def cancel(self):
         """Cancels this Future's task by removing this Future's task id from the output queue.
         Cancelation can fail if this Future task has been popped from the output queue
         before this call completes. Calling this on an already canceled task will return True.
@@ -58,11 +118,18 @@ class Future(Protocol):
         Returns:
             True if the task is canceled, otherwise False.
         """
+        if self.status == TaskStatus.CANCELED:
+            return True
 
-    def done(self) -> bool:
+        status, row_count = self.eq_sql.cancel_tasks([self])
+        return status == ResultStatus.SUCCESS and row_count == 1
+
+    def done(self):
         """Returns True if this Future task has been completed or canceled, otherwise
         False
         """
+        status = self.status
+        return status == TaskStatus.CANCELED or status == TaskStatus.COMPLETE
 
     @property
     def priority(self) -> int:
@@ -71,6 +138,11 @@ class Future(Protocol):
         Returns:
             The priority of this Future task.
         """
+        result = self.eq_sql.get_priorities([self])
+        if result is None:
+            return result
+        else:
+            return result[0][1]
 
     @priority.setter
     def priority(self, new_priority) -> ResultStatus:
@@ -81,6 +153,86 @@ class Future(Protocol):
         Returns:
             ResultStatus.SUCCESS if the priority has been successfully updated, otherwise false.
         """
+        status, _ = self.eq_sql.update_priorities([self], new_priority)
+        return status
+
+
+# @runtime_checkable
+# class Future(Protocol):
+#     """Represents the eventual result of an EQSQL task."""
+
+#     def result(self, delay: float = 0.5, timeout: float = 2.0) -> Tuple[ResultStatus, str]:
+#         """Gets the result of this future task.
+
+#         This repeatedly pools a DB for the task result. The polling interval is specified by
+#         the delay such that the first interval is defined by the initial delay value
+#         which is increased after the first poll. The polling will
+#         timeout after the amount of time specified by the timout value is has elapsed.
+
+#         Args:
+#             delay: the initial polling delay value
+#             timeout: the duration after which the query will timeout.
+#                 If timeout is None, there is no limit to the wait time.
+
+#         Returns:
+#             A tuple whose first element indicates the status of the query:
+#             :py:class:`ResultStatus.SUCCESS` or :py:class:`ResultStatus.FAILURE`, and whose second element
+#             is either the result of the task, or in the case of failure the reason
+#             for the failure (``EQ_TIMEOUT``, or ``EQ_ABORT``)
+#             """
+
+#     @property
+#     def status(self) -> TaskStatus:
+#         """Gets the current status of this Future, one of :py:class:`TaskStatus.QUEUED`,
+#         :py:class:`TaskStatus.RUNNING`, :py:class:`TaskStatus.COMPLETE`, or :py:class:`TaskStatus.CANCELED`.
+
+#         Returns:
+#             One of :py:class:`TaskStatus.QUEUED`, :py:class:`TaskStatus.RUNNING`, :py:class:`TaskStatus.COMPLETE`,
+#             :py:class:`TaskStatus.CANCELED`, or ``None`` if the status query fails.
+#         """
+
+#     @property
+#     def worker_pool(self) -> Union[str, None]:
+#         """Gets the id of the worker pool, if any, that this Future task is
+#         running on.
+
+#         Returns:
+#             The id of the worker pool that this Future task is
+#             running on, or ``None`` if the task hasn't been selected
+#             by a worker pool yet.
+#         """
+
+#     def cancel(self) -> bool:
+#         """Cancels this Future's task by removing this Future's task id from the output queue.
+#         Cancelation can fail if this Future task has been popped from the output queue
+#         before this call completes. Calling this on an already canceled task will return True.
+
+#         Returns:
+#             True if the task is canceled, otherwise False.
+#         """
+
+#     def done(self) -> bool:
+#         """Returns True if this Future task has been completed or canceled, otherwise
+#         False
+#         """
+
+#     @property
+#     def priority(self) -> int:
+#         """Gets the priority of this Future task.
+
+#         Returns:
+#             The priority of this Future task.
+#         """
+
+#     @priority.setter
+#     def priority(self, new_priority) -> ResultStatus:
+#         """Updates the priority of this Future task.
+
+#         Args:
+#             new_priority: the updated priority
+#         Returns:
+#             ResultStatus.SUCCESS if the priority has been successfully updated, otherwise false.
+#         """
 
 
 @runtime_checkable
@@ -239,3 +391,16 @@ class TaskQueue(Protocol):
             of the tuple will be the task id, and the second element will be the
             status of that task as a :py:class:`TaskStatus` object.
         """
+
+
+class StopConditionException(Exception):
+    def __init__(self, msg='StopIterationException', *args, **kwargs):
+        super().__init__(msg, *args, **kwargs)
+        pass
+
+
+class TimeoutError(Exception):
+    def __init__(self, msg='TimeoutError', *args, **kwargs):
+        """Exception used to indicate that a query has timed out."""
+        super().__init__(msg, *args, **kwargs)
+        pass

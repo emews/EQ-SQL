@@ -7,7 +7,7 @@ import multiprocessing as mp
 import os
 
 from eqsql.task_queues import local
-from eqsql.task_queues.common import ABORT_MSG
+from eqsql.task_queues.core import ABORT_MSG
 
 
 def _create_eqsql(retry_threshold: int = 0, log_level=logging.WARN):
