@@ -56,6 +56,13 @@ def _query_result(db_params: DBParameters, eq_task_id: int, delay: float = 0.5,
     return task_queue.query_result(eq_task_id, delay, timeout)
 
 
+def _get_worker_pools(db_params: DBParameters, eq_task_ids: Tuple[int]) -> List[Tuple[int, Union[str, None]]]:
+    from eqsql.task_queues import local
+    task_queue = local.init_task_queue(db_params.host, db_params.user, db_params.port, db_params.db_name,
+                                       retry_threshold=db_params.retry_threshold)
+    return task_queue._get_worker_pools(eq_task_ids)
+
+
 class GCTaskQueue:
     """Task queue protocol for submitting, manipulating and
     retrieving tasks"""
@@ -211,7 +218,10 @@ class GCTaskQueue:
             second is that :py:class:`Futures <Future>`'s worker pool, or None, if the :py:class:`Future` hasn't been
             selected for execution yet.
         """
-        pass
+        id_map = {ft.eq_task_id: ft for ft in futures}
+        ids = tuple(ft.eq_task_id for ft in futures)
+        gcx_result = self.gcx.submit(_get_worker_pools, self.db_params, ids)
+        return [(id_map[eq_task_id], worker_pool) for eq_task_id, worker_pool in gcx_result.result()]
 
     def pop_completed(self, futures: List[Future], timeout=None, sleep: float = 0) -> Future:
         """Pops and returns the first completed future from the specified List

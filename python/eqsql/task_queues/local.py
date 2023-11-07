@@ -892,6 +892,19 @@ class LocalTaskQueue:
         """
         return self._cancel_tasks(ft.eq_task_id for ft in futures)
 
+    def _get_worker_pools(self, eq_task_ids: Tuple[int],
+                          id_map: Dict[int, Future] = None) -> List[Tuple[Union[int, Future], Union[str, None]]]:
+
+        placeholders = ', '.join(['%s'] * len(eq_task_ids))
+        with self.db.conn:
+            with self.db.conn.cursor() as cur:
+                query = f'select eq_task_id, worker_pool from eq_tasks where eq_task_id in ({placeholders})'
+                cur.execute(query, eq_task_ids)
+                if id_map is None:
+                    return [(eq_task_id, wp) for eq_task_id, wp in cur.fetchall()]
+                else:
+                    return [(id_map[eq_task_id], wp) for eq_task_id, wp in cur.fetchall()]
+
     def get_worker_pools(self, futures: List[Future]) -> List[Tuple[Future, Union[str, None]]]:
         """Gets the worker pools on which the specified list of :py:class:`Futures <Future>` are running, if any.
         All the specified :py:class:`Futures <Future>` must have been submitted by the same task queue (i.e., they
@@ -904,21 +917,11 @@ class LocalTaskQueue:
         """
         id_map = {ft.eq_task_id: ft for ft in futures}
         ids = tuple(ft.eq_task_id for ft in futures)
-        placeholders = ', '.join(['%s'] * len(ids))
         try:
-            with self.db.conn:
-                with self.db.conn.cursor() as cur:
-                    query = f'select eq_task_id, worker_pool from eq_tasks where eq_task_id in ({placeholders})'
-                    cur.execute(query, ids)
-                    results = [(eq_task_id, wp) for eq_task_id, wp in cur.fetchall()]
+            return self._get_worker_pools(ids, id_map)
         except Exception:
             self.logger.error(f'query_worker_pool error: {traceback.format_exc()}')
-            results = None
-
-        if results is not None:
-            return [(id_map[task_id], pool) for task_id, pool in results]
-
-        return None
+            return None
 
     def pop_completed(self, futures: List[Future], timeout=None, sleep: float = 0) -> Future:
         """Pops and returns the first completed future from the specified List
