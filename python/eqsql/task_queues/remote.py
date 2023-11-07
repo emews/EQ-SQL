@@ -63,6 +63,13 @@ def _get_worker_pools(db_params: DBParameters, eq_task_ids: Tuple[int]) -> List[
     return task_queue._get_worker_pools(eq_task_ids)
 
 
+def _cancel_tasks(db_params: DBParameters, eq_task_ids: List[int]):
+    from eqsql.task_queues import local
+    task_queue = local.init_task_queue(db_params.host, db_params.user, db_params.port, db_params.db_name,
+                                       retry_threshold=db_params.retry_threshold)
+    return task_queue._cancel_tasks(eq_task_ids)
+
+
 class GCTaskQueue:
     """Task queue protocol for submitting, manipulating and
     retrieving tasks"""
@@ -128,7 +135,8 @@ class GCTaskQueue:
         Returns:
             A tuple containing the :py:class:`ResultStatus` and number of tasks successfully canceled.
         """
-        pass
+        gc_ft = self.gcx.submit(_cancel_tasks, self.db_params, [ft.eq_task_id for ft in futures])
+        return gc_ft.result()
 
     def query_result(self, eq_task_id: int, delay: float = 0.5, timeout: float = 2.0) -> Tuple[ResultStatus, str]:
         """Queries for the result of the specified task.

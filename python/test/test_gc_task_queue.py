@@ -144,3 +144,22 @@ class GCTaskQueueTests(unittest.TestCase):
             task_status = ft.status
             self.assertEqual(TaskStatus.COMPLETE, task_status)
             self.assertTrue(ft.done())
+
+    def test_cancel_tasks(self):
+        with Executor(endpoint_id=gcx_endpoint) as gcx:
+            self.eq_sql = remote.init_task_queue(gcx, host, user, port, db_name)
+            clear_db(gcx)
+
+            fs = []
+            for i in range(0, 200):
+                payload = create_payload(i)
+                submit_status, ft = self.eq_sql.submit_task('eq_test', 0, payload, priority=0)
+                self.assertEqual(ResultStatus.SUCCESS, submit_status)
+                fs.append(ft)
+
+            status, count = self.eq_sql.cancel_tasks(fs)
+            self.assertEqual(ResultStatus.SUCCESS, status)
+            self.assertEqual(200, count)
+
+            for f in fs:
+                self.assertEqual(TaskStatus.CANCELED, f.status)
