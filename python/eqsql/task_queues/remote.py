@@ -48,6 +48,14 @@ def _update_priorities(db_params: DBParameters, eq_task_ids: List[int], new_prio
     return task_queue._update_priorities(eq_task_ids, new_priority)
 
 
+def _query_result(db_params: DBParameters, eq_task_id: int, delay: float = 0.5,
+                  timeout: float = 2.0) -> Tuple[ResultStatus, str]:
+    from eqsql.task_queues import local
+    task_queue = local.init_task_queue(db_params.host, db_params.user, db_params.port, db_params.db_name,
+                                       retry_threshold=db_params.retry_threshold)
+    return task_queue.query_result(eq_task_id, delay, timeout)
+
+
 class GCTaskQueue:
     """Task queue protocol for submitting, manipulating and
     retrieving tasks"""
@@ -115,6 +123,29 @@ class GCTaskQueue:
         """
         pass
 
+    def query_result(self, eq_task_id: int, delay: float = 0.5, timeout: float = 2.0) -> Tuple[ResultStatus, str]:
+        """Queries for the result of the specified task.
+
+        The query repeatedly polls for a result. The polling interval is specified by
+        the delay such that the first interval is defined by the initial delay value
+        which is increased after the first poll. The polling will
+        timeout after the amount of time specified by the timout value is has elapsed.
+
+        Args:
+            eq_task_id: the id of the task to query
+            delay: the initial polling delay value
+            timeout: the duration after which the query will timeout. If timeout is None, there is no limit to
+                the wait time.
+
+        Returns:
+            A tuple whose first element indicates the status of the query:
+            ``ResultStatus.SUCCESS`` or ``ResultStatus.FAILURE``, and whose second element
+            is either the result of the task, or in the case of failure the reason
+            for the failure (``EQ_TIMEOUT``, or ``EQ_ABORT``)
+        """
+        gc_ft = self.gcx.submit(_query_result, self.db_params, eq_task_id, delay, timeout)
+        return gc_ft.result()
+
     def get_priorities(self, futures: Iterable[Future]) -> List[Tuple[Future, int]]:
         """Gets the priorities of the specified tasks.
 
@@ -126,7 +157,7 @@ class GCTaskQueue:
             query has failed.
         """
         id_map = {ft.eq_task_id: ft for ft in futures}
-        gc_ft = self.gcx.submit(_get_priorities, [ft.eq_task_id for ft in futures])
+        gc_ft = self.gcx.submit(_get_priorities, self.db_params, [ft.eq_task_id for ft in futures])
         result = gc_ft.result()
         if result is None:
             # TODO: better error handling
@@ -150,7 +181,7 @@ class GCTaskQueue:
                 the eq_task_ids of the tasks whose priority was successfully updated,
                 otherwise (ResultStatus.FAILURE, []).
         """
-        gc_ft = self.gcx.submit(_update_priorities, [ft.eq_task_id for ft in futures], new_priority)
+        gc_ft = self.gcx.submit(_update_priorities, self.db_params, [ft.eq_task_id for ft in futures], new_priority)
         result = gc_ft.result()
         if result is None:
             # TODO: better error handling
