@@ -72,11 +72,11 @@ def _cancel_tasks(db_params: DBParameters, eq_task_ids: List[int]):
     return task_queue._cancel_tasks(eq_task_ids)
 
 
-def _are_queues_empty(db_params: DBParameters):
+def _are_queues_empty(db_params: DBParameters, eq_type: int = None):
     from eqsql.task_queues import local
     task_queue = local.init_task_queue(db_params.host, db_params.user, db_params.port, db_params.db_name,
                                        retry_threshold=db_params.retry_threshold)
-    return task_queue.are_queues_empty()
+    return task_queue.are_queues_empty(eq_type)
 
 
 def _as_completed(db_params: DBParameters, eq_task_ids: List[int], timeout: float = None, n: int = None,
@@ -257,7 +257,7 @@ class GCTaskQueue:
         Returns:
             True if the queues are empty, otherwise False.
         """
-        gc_ft = self.gcx.submit(_are_queues_empty, self.db_params)
+        gc_ft = self.gcx.submit(_are_queues_empty, self.db_params, eq_type)
         return gc_ft.result()
 
     def get_worker_pools(self, futures: List[Future]) -> List[Tuple[Future, Union[str, None]]]:
