@@ -1,10 +1,11 @@
 """Remote task queue implementations."""
 from typing import Tuple, Union, List, Generator, Iterable
 from globus_compute_sdk import Executor
+from globus_compute_sdk.errors.error_types import TaskExecutionFailed
 from dataclasses import dataclass
 import time
 
-from eqsql.task_queues.core import ResultStatus, TaskStatus, Future, EQ_ABORT
+from eqsql.task_queues.core import ResultStatus, TaskStatus, Future, EQ_ABORT, TimeoutError
 
 
 @dataclass
@@ -88,7 +89,7 @@ def _as_completed(db_params: DBParameters, eq_task_ids: List[int], timeout: floa
                     completed_tasks.add(eq_task_id)
                     query_result = task_queue._query_status([eq_task_id])
                     task_status = None if query_result is None else query_result[0][1]
-                    results.append[(eq_task_id, task_status, result_status, result_str)]
+                    results.append((eq_task_id, task_status, result_status, result_str))
                 n_completed = len(completed_tasks)
                 if n_completed == n_tasks or n_completed == n:
                     return results
@@ -312,16 +313,23 @@ class GCTaskQueue:
                     status, result = ft.result()
                     // do something with result
         """
-        id_map = {ft.eq_task_id: ft for ft in futures}
-        eq_task_ids = [ft.eq_task_id for ft in futures]
-        gc_ft = self.gcx.submit(_as_completed, self.db_params, eq_task_ids, timeout, n, sleep)
-        for eq_task_id, task_status, result_status, result_str in gc_ft.result():
-            ft = id_map[eq_task_id]
-            ft._result = (result_status, result_str)
-            ft._task_status = TaskStatus.COMPLETE if task_status == TaskStatus.COMPLETE else None
-            if pop:
-                futures.remove(ft)
-            yield ft
+        try:
+            id_map = {ft.eq_task_id: ft for ft in futures}
+            eq_task_ids = [ft.eq_task_id for ft in futures]
+            gc_ft = self.gcx.submit(_as_completed, self.db_params, eq_task_ids, timeout, n, sleep)
+            for eq_task_id, task_status, result_status, result_str in gc_ft.result():
+                ft = id_map[eq_task_id]
+                ft._result = (result_status, result_str)
+                ft._task_status = TaskStatus.COMPLETE if task_status == TaskStatus.COMPLETE else None
+                if pop:
+                    futures.remove(ft)
+                yield ft
+        except TaskExecutionFailed as ex:
+            if 'TimeoutError' in ex.remote_data:
+                # from None swallows the TaskExecutionFailed parent, so TimeoutError can be caught
+                raise TimeoutError(f'as_completed timed out after {timeout} seconds') from None
+            else:
+                raise ex
 
         return
 
