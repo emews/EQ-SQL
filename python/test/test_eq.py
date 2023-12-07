@@ -680,5 +680,8 @@ class EQTests(unittest.TestCase):
         self.eq_sql.clear_queues()
         self.assertTrue(self.eq_sql.are_queues_empty())
 
+        # TODO: Only those that were in the queues are canceled
+        # so some are will be complete (via the code above)
         for ft in fts:
-            self.assertEqual(TaskStatus.CANCELED, ft.status)
+            exp_status = TaskStatus.COMPLETE if ft.eq_task_id < 4 else TaskStatus.CANCELED
+            self.assertEqual(exp_status, ft.status)
