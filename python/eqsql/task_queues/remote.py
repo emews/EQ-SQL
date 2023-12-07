@@ -2,8 +2,9 @@
 from typing import Tuple, Union, List, Generator, Iterable
 from globus_compute_sdk import Executor
 from dataclasses import dataclass
+import time
 
-from eqsql.task_queues.core import ResultStatus, TaskStatus, Future
+from eqsql.task_queues.core import ResultStatus, TaskStatus, Future, EQ_ABORT
 
 
 @dataclass
@@ -70,6 +71,35 @@ def _cancel_tasks(db_params: DBParameters, eq_task_ids: List[int]):
     return task_queue._cancel_tasks(eq_task_ids)
 
 
+def _as_completed(db_params: DBParameters, eq_task_ids: List[int], timeout: float = None, n: int = None,
+                  sleep: float = 0) -> List[Tuple[int, str]]:
+    from eqsql.task_queues import local
+    task_queue = local.init_task_queue(db_params.host, db_params.user, db_params.port, db_params.db_name,
+                                       retry_threshold=db_params.retry_threshold)
+    results = []
+    n_tasks = len(eq_task_ids)
+    completed_tasks = set()
+    start_time = time.time()
+    while True:
+        for eq_task_id in eq_task_ids:
+            if eq_task_id not in completed_tasks:
+                result_status, result_str = task_queue.query_result(eq_task_id, timeout=0.0)
+                if result_status == ResultStatus.SUCCESS or result_str == EQ_ABORT:
+                    completed_tasks.add(eq_task_id)
+                    query_result = task_queue._query_status([eq_task_id])
+                    task_status = None if query_result is None else query_result[0][1]
+                    results.append[(eq_task_id, task_status, result_status, result_str)]
+                n_completed = len(completed_tasks)
+                if n_completed == n_tasks or n_completed == n:
+                    return results
+
+            if timeout is not None and time.time() - start_time > timeout:
+                raise TimeoutError(f'as_completed timed out after {timeout} seconds')
+
+        if sleep > 0:
+            time.sleep(sleep)
+
+
 class GCTaskQueue:
     """Task queue protocol for submitting, manipulating and
     retrieving tasks"""
@@ -133,10 +163,15 @@ class GCTaskQueue:
             futures: the :py:class:`Futures <Future>` to cancel.
 
         Returns:
-            A tuple containing the :py:class:`ResultStatus` and number of tasks successfully canceled.
+            A tuple containing the :py:class:`ResultStatus` and the ids of the successfully canceled tasks.
         """
         gc_ft = self.gcx.submit(_cancel_tasks, self.db_params, [ft.eq_task_id for ft in futures])
-        return gc_ft.result()
+        ft_map = {ft.eq_task_id: ft for ft in futures}
+        result = gc_ft.result()
+        if result[0] == ResultStatus.SUCCESS:
+            for eq_task_id in result[1]:
+                ft_map[eq_task_id]._task_status = TaskStatus.CANCELED
+        return result
 
     def query_result(self, eq_task_id: int, delay: float = 0.5, timeout: float = 2.0) -> Tuple[ResultStatus, str]:
         """Queries for the result of the specified task.
@@ -247,7 +282,8 @@ class GCTaskQueue:
             The first completed :py:class:`Future` from the specified List
             of :py:class:`Futures <Future>`.
         """
-        pass
+        f = next(self.as_completed(futures, pop=True, timeout=timeout, n=1, sleep=sleep))
+        return f
 
     def as_completed(self, futures: List[Future], pop: bool = False, timeout: float = None, n: int = None,
                      sleep: float = 0) -> Generator[Future, None, None]:
@@ -276,7 +312,18 @@ class GCTaskQueue:
                     status, result = ft.result()
                     // do something with result
         """
-        pass
+        id_map = {ft.eq_task_id: ft for ft in futures}
+        eq_task_ids = [ft.eq_task_id for ft in futures]
+        gc_ft = self.gcx.submit(_as_completed, self.db_params, eq_task_ids, timeout, n, sleep)
+        for eq_task_id, task_status, result_status, result_str in gc_ft.result():
+            ft = id_map[eq_task_id]
+            ft._result = (result_status, result_str)
+            ft._task_status = TaskStatus.COMPLETE if task_status == TaskStatus.COMPLETE else None
+            if pop:
+                futures.remove(ft)
+            yield ft
+
+        return
 
     def get_status(self, futures: Iterable[Future]) -> List[Tuple[Future, TaskStatus]]:
         """Gets the status (queued, running, etc.) of the specified tasks
