@@ -693,26 +693,27 @@ class LocalTaskQueue:
 
         Returns:
             If the cancel is successful, the Tuple will contain ResultStatus.SUCCESS and
-            the number of tasks that were canceled, otherwise (ResultStatus.FAILURE, -1).
+            the ids of the canceled tasks, otherwise (ResultStatus.FAILURE, []).
         """
         ids = tuple(eq_task_ids)
         placeholders = ', '.join(['%s'] * len(ids))
         # delete should lock all the rows, so they can't be selected
-        update_query = f'update eq_tasks set eq_status = {TaskStatus.CANCELED.value} where '\
-            f'eq_task_id in  ({placeholders});'
-        delete_query = f'delete from emews_queue_out where eq_task_id in ({placeholders});'
+        delete_query = f'delete from emews_queue_out where eq_task_id in ({placeholders}) returning eq_task_id;'
         try:
             with self.db.conn:
                 with self.db.conn.cursor() as cur:
                     cur.execute(delete_query, ids)
-                    deleted_rows = cur.rowcount
-                    cur.execute(update_query, ids)
+                    deleted_ids = [row[0] for row in cur.fetchall()]
+                    deleted_placeholders = ', '.join(['%s'] * len(deleted_ids))
+                    update_query = f'update eq_tasks set eq_status = {TaskStatus.CANCELED.value} where '\
+                                   f'eq_task_id in  ({deleted_placeholders});'
+                    cur.execute(update_query, deleted_ids)
 
         except Exception:
             self.logger.error(f'cancel task error: {traceback.format_exc()}')
-            return (ResultStatus.FAILURE, -1)
+            return (ResultStatus.FAILURE, [])
 
-        return (ResultStatus.SUCCESS, deleted_rows)
+        return (ResultStatus.SUCCESS, deleted_ids)
 
     def _update_status(self, eq_task_ids: Iterable[int], status: TaskStatus):
         ids = tuple(eq_task_ids)
@@ -888,9 +889,15 @@ class LocalTaskQueue:
             futures: the :py:class:`Futures <Future>` to cancel.
 
         Returns:
-            A tuple containing the :py:class:`ResultStatus` and number of tasks successfully canceled.
+            A tuple containing the :py:class:`ResultStatus` and the ids of the successfully canceled tasks.
         """
-        return self._cancel_tasks(ft.eq_task_id for ft in futures)
+        result = self._cancel_tasks(ft.eq_task_id for ft in futures)
+        ft_map = {ft.eq_task_id: ft for ft in futures}
+        if result[0] == ResultStatus.SUCCESS:
+            for eq_task_id in result[1]:
+                ft_map[eq_task_id]._task_status = TaskStatus.CANCELED
+
+        return result
 
     def _get_worker_pools(self, eq_task_ids: Tuple[int],
                           id_map: Dict[int, Future] = None) -> List[Tuple[Union[int, Future], Union[str, None]]]:

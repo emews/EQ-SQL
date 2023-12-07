@@ -48,6 +48,7 @@ class Future:
         self.tag = tag
         self.eq_sql = eq_sql
         self._result = None
+        self._task_status: Union[TaskStatus, None] = None
         self._pool = None
 
     def result(self, delay: float = 0.5, timeout: float = 2.0) -> Tuple[ResultStatus, str]:
@@ -88,12 +89,17 @@ class Future:
             One of :py:class:`TaskStatus.QUEUED`, :py:class:`TaskStatus.RUNNING`, :py:class:`TaskStatus.COMPLETE`,
             :py:class:`TaskStatus.CANCELED`, or ``None`` if the status query fails.
         """
-        result = self.eq_sql.get_status([self])
-        if result is None:
-            return result
-        else:
-            ts = result[0][1]
-            return ts
+        if self._task_status is None:
+            result = self.eq_sql.get_status([self])
+            if result is None:
+                return result
+            else:
+                ts = result[0][1]
+                if ts == TaskStatus.COMPLETE or ts == TaskStatus.CANCELED:
+                    self._task_status = ts
+                return ts
+
+        return self._task_status
 
     @property
     def worker_pool(self) -> Union[str, None]:
@@ -121,8 +127,8 @@ class Future:
         if self.status == TaskStatus.CANCELED:
             return True
 
-        status, row_count = self.eq_sql.cancel_tasks([self])
-        return status == ResultStatus.SUCCESS and row_count == 1
+        status, ids = self.eq_sql.cancel_tasks([self])
+        return status == ResultStatus.SUCCESS and self.eq_task_id in ids
 
     def done(self):
         """Returns True if this Future task has been completed or canceled, otherwise
@@ -283,7 +289,7 @@ class TaskQueue(Protocol):
             futures: the :py:class:`Futures <Future>` to cancel.
 
         Returns:
-            A tuple containing the :py:class:`ResultStatus` and number of tasks successfully canceled.
+            A tuple containing the :py:class:`ResultStatus` and the ids of the successfully canceled tasks.
         """
 
     def query_result(self, eq_task_id: int, delay: float = 0.5, timeout: float = 2.0) -> Tuple[ResultStatus, str]:
