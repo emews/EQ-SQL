@@ -14,7 +14,7 @@ from deap import creator
 from deap import tools
 from deap import algorithms
 
-from eqsql.task_queues import local, core
+from eqsql.task_queues import core, local_queue
 from eqsql import proxies
 
 # Global variable names we are going to set from the JSON settings file
@@ -133,7 +133,7 @@ def _create_eqsql(retry_threshold: int = 0, log_level=logging.WARN):
     user = os.getenv('DB_USER')
     port = int(os.getenv('DB_PORT'))
     db_name = os.getenv('DB_NAME')
-    return local.init_task_queue(host, user, port, db_name, retry_threshold, log_level)
+    return local_queue.init_task_queue(host, user, port, db_name, retry_threshold, log_level)
 
 
 def run():

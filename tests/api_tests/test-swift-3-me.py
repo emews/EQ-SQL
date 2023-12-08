@@ -1,4 +1,4 @@
-from eqsql.task_queues import local
+from eqsql.task_queues import local_queue
 import random
 import json
 import os
@@ -14,7 +14,7 @@ def _create_eqsql():
     user = os.getenv('DB_USER')
     port = int(os.getenv('DB_PORT'))
     db_name = os.getenv('DB_NAME')
-    return local.init_task_queue(host, user, port, db_name)
+    return local_queue.init_task_queue(host, user, port, db_name)
 
 
 def run():
