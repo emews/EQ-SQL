@@ -6,6 +6,8 @@ from eqsql.task_queues import gcx_queue
 from eqsql.task_queues.core import ResultStatus, TaskStatus, TimeoutError
 from eqsql.task_queues.core import EQ_TIMEOUT
 
+from .common import create_payload, report_task, query_task
+
 # Database - DB_DATA: /lcrc/project/EMEWS/ncollier/eqsql_db
 # Postgres: /lcrc/project/EMEWS/bebop/sfw/gcc-7.1.0/postgres-14.2
 # Start db: nice -n 19 pg_ctl -D $DB_DATA -l $DB_DATA/db.log -o "-F -p 52718" start
@@ -13,7 +15,7 @@ from eqsql.task_queues.core import EQ_TIMEOUT
 
 # Assumes the existence of a testing database
 # with these characteristics
-host = 'beboplogin3'
+host = 'beboplogin1'
 user = 'eqsql_test_user'
 port = 52718
 db_name = 'eqsql_test_db'
@@ -21,28 +23,6 @@ db_name = 'eqsql_test_db'
 # conda environment - bebop gce_py3.10
 # globus compute endpoint - gce_py3.10 (same as environment)
 gcx_endpoint = '2b2fa624-9845-494b-8ba8-2750821d3716'
-
-
-def create_payload(x=1.2):
-    payload = {'x': x, 'y': 7.3, 'z': 'foo'}
-    return json.dumps(payload)
-
-
-# proxy for worker pool reporting back the result of the task
-def report_task(db_params, eq_task_id: int, eq_type: int, result: str) -> ResultStatus:
-    from eqsql.task_queues import local_queue
-    task_queue = local_queue.init_task_queue(db_params.host, db_params.user, db_params.port, db_params.db_name,
-                                       retry_threshold=db_params.retry_threshold)
-    return task_queue.report_task(eq_task_id, eq_type, result)
-
-
-# proxy for worker pool querying for tasks by type
-def query_task(db_params, eq_type, n: int = 1, worker_pool: str = 'default', delay: float = 0.5,
-               timeout: float = 2.0):
-    from eqsql.task_queues import local_queue
-    task_queue = local_queue.init_task_queue(db_params.host, db_params.user, db_params.port, db_params.db_name,
-                                       retry_threshold=db_params.retry_threshold)
-    return task_queue.query_task(eq_type, n, worker_pool, delay, timeout)
 
 
 def clear_db(gcx: Executor):

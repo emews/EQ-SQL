@@ -3,7 +3,7 @@ from typing import Tuple, Union, List
 from dataclasses import dataclass
 import time
 
-from eqsql.task_queues.core import ResultStatus, EQ_ABORT, TimeoutError
+from eqsql.task_queues.core import ResultStatus, EQ_ABORT, TimeoutError, TaskStatus
 
 
 @dataclass
@@ -25,7 +25,7 @@ class DBParameters:
 
 
 def _submit_tasks(db_params: DBParameters, exp_id: str, eq_type: int, payload: List[str], priority: int = 0,
-                  tag: str = None):
+                  tag: str = None) -> Tuple[ResultStatus, List[int]]:
     from eqsql.task_queues import local_queue
     task_queue = local_queue.init_task_queue(db_params.host, db_params.user, db_params.port, db_params.db_name,
                                              retry_threshold=db_params.retry_threshold)
@@ -34,7 +34,7 @@ def _submit_tasks(db_params: DBParameters, exp_id: str, eq_type: int, payload: L
     return (result_status, [ft.eq_task_id for ft in fts])
 
 
-def _get_status(db_params: DBParameters, eq_task_ids: List[int]):
+def _get_status(db_params: DBParameters, eq_task_ids: List[int]) -> List[Tuple[int, TaskStatus]]:
     from eqsql.task_queues import local_queue
     task_queue = local_queue.init_task_queue(db_params.host, db_params.user, db_params.port, db_params.db_name,
                                              retry_threshold=db_params.retry_threshold)
@@ -65,7 +65,7 @@ def _query_result(db_params: DBParameters, eq_task_id: int, delay: float = 0.5,
     return task_queue.query_result(eq_task_id, delay, timeout)
 
 
-def _get_worker_pools(db_params: DBParameters, eq_task_ids: Tuple[int]) -> List[Tuple[int, Union[str, None]]]:
+def _get_worker_pools(db_params: DBParameters, eq_task_ids: List[int]) -> List[Tuple[int, Union[str, None]]]:
     from eqsql.task_queues import local_queue
     task_queue = local_queue.init_task_queue(db_params.host, db_params.user, db_params.port, db_params.db_name,
                                              retry_threshold=db_params.retry_threshold)
@@ -79,7 +79,7 @@ def _cancel_tasks(db_params: DBParameters, eq_task_ids: List[int]):
     return task_queue._cancel_tasks(eq_task_ids)
 
 
-def _are_queues_empty(db_params: DBParameters, eq_type: int = None):
+def _are_queues_empty(db_params: DBParameters, eq_type: int = None) -> bool:
     from eqsql.task_queues import local_queue
     task_queue = local_queue.init_task_queue(db_params.host, db_params.user, db_params.port, db_params.db_name,
                                              retry_threshold=db_params.retry_threshold)
@@ -87,7 +87,10 @@ def _are_queues_empty(db_params: DBParameters, eq_type: int = None):
 
 
 def _as_completed(db_params: DBParameters, eq_task_ids: List[int], timeout: float = None, n: int = None,
-                  sleep: float = 0) -> List[Tuple[int, str]]:
+                  sleep: float = 0) -> List[Tuple[int, TaskStatus, ResultStatus, str]]:
+    # TODO: Uupdate to return 1, and up to N when called from service and gcx
+    # Add argument for batch so it will wait until n completed and then return n. 
+    # Pass current completed task ids back to this from client code
     from eqsql.task_queues import local_queue
     task_queue = local_queue.init_task_queue(db_params.host, db_params.user, db_params.port, db_params.db_name,
                                              retry_threshold=db_params.retry_threshold)

@@ -112,17 +112,14 @@ class GCTaskQueue:
             futures: the futures of the tasks whose priorities are returned.
 
         Returns:
-            A List of tuples containing the future and priorty for each task, or None if the
-            query has failed.
+           A List of tuples containing the future and priorty for each task, or ResultStatus.FAILURE
+           if the query has failed.
         """
         id_map = {ft.eq_task_id: ft for ft in futures}
         gc_ft = self.gcx.submit(_get_priorities, self.db_params, [ft.eq_task_id for ft in futures])
         result = gc_ft.result()
-        if result is None:
-            # TODO: better error handling
-            return None
 
-        return [(id_map[eq_task_id], priority) for eq_task_id, priority in result]
+        return result if result == ResultStatus.FAILURE else [(id_map[eq_task_id], priority) for eq_task_id, priority in result]
 
     def update_priorities(self, futures: List[Future], new_priority: Union[int, List[int]]) -> Tuple[ResultStatus, int]:
         """Updates the priority of the specified :py:class:`Futures <Future>` to the new_priority.
@@ -142,10 +139,6 @@ class GCTaskQueue:
         """
         gc_ft = self.gcx.submit(_update_priorities, self.db_params, [ft.eq_task_id for ft in futures], new_priority)
         result = gc_ft.result()
-        if result is None:
-            # TODO: better error handling
-            return None
-
         return result
 
     def are_queues_empty(self, eq_type: int = None) -> bool:

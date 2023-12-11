@@ -706,7 +706,7 @@ class LocalTaskQueue:
                     deleted_ids = [row[0] for row in cur.fetchall()]
                     deleted_placeholders = ', '.join(['%s'] * len(deleted_ids))
                     update_query = f'update eq_tasks set eq_status = {TaskStatus.CANCELED.value} where '\
-                                   f'eq_task_id in  ({deleted_placeholders});'
+                                   f'eq_task_id in ({deleted_placeholders});'
                     cur.execute(update_query, deleted_ids)
 
         except Exception:
@@ -823,12 +823,16 @@ class LocalTaskQueue:
         placeholders = ', '.join(['%s'] * len(ids))
         results = []
 
-        with self.db.conn:
-            with self.db.conn.cursor() as cur:
-                query = f'select eq_task_id, eq_priority from eq_tasks where eq_task_id in ({placeholders})'
-                cur.execute(query, ids)
-                for eq_task_id, priority in cur.fetchall():
-                    results.append((eq_task_id, priority))
+        try:
+            with self.db.conn:
+                with self.db.conn.cursor() as cur:
+                    query = f'select eq_task_id, eq_priority from eq_tasks where eq_task_id in ({placeholders})'
+                    cur.execute(query, ids)
+                    for eq_task_id, priority in cur.fetchall():
+                        results.append((eq_task_id, priority))
+        except Exception:
+            self.logger.error(f'query_priority error: {traceback.format_exc()}')
+            return None
 
         return results
 
@@ -839,16 +843,15 @@ class LocalTaskQueue:
             futures: the futures of the tasks whose priorities are returned.
 
         Returns:
-            A List of tuples containing the future and priorty for each task, or None if the
-            query has failed.
+            A List of tuples containing the future and priorty for each task, or ResultStatus.FAILURE
+            if the query has failed.
         """
         id_map = {ft.eq_task_id: ft for ft in futures}
-        try:
-            results = self._get_priorities(id_map.keys())
-            return [(id_map[eq_task_id], priority) for eq_task_id, priority in results]
-        except Exception:
-            self.logger.error(f'query_priority error: {traceback.format_exc()}')
-            return None
+        results = self._get_priorities(id_map.keys())
+        if results is None:
+            return ResultStatus.FAILURE
+
+        return [(id_map[eq_task_id], priority) for eq_task_id, priority in results]
 
     def query_result(self, eq_task_id: int, delay: float = 0.5, timeout: float = 2.0) -> Tuple[ResultStatus, str]:
         """Queries for the result of the specified task.

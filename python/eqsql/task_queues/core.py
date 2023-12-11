@@ -145,10 +145,7 @@ class Future:
             The priority of this Future task.
         """
         result = self.eq_sql.get_priorities([self])
-        if result is None:
-            return result
-        else:
-            return result[0][1]
+        return result if result == ResultStatus.FAILURE else result[0][1]
 
     @priority.setter
     def priority(self, new_priority) -> ResultStatus:
@@ -320,8 +317,8 @@ class TaskQueue(Protocol):
             futures: the futures of the tasks whose priorities are returned.
 
         Returns:
-            A List of tuples containing the future and priorty for each task, or None if the
-            query has failed.
+            A List of tuples containing the future and priorty for each task, or ResultStatus.FAILURE
+            if the query has failed.
         """
 
     def update_priorities(self, futures: List[Future], new_priority: Union[int, List[int]]) -> Tuple[ResultStatus, int]:
