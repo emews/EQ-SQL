@@ -86,30 +86,22 @@ def _are_queues_empty(db_params: DBParameters, eq_type: int = None) -> bool:
     return task_queue.are_queues_empty(eq_type)
 
 
-def _as_completed(db_params: DBParameters, eq_task_ids: List[int], timeout: float = None, n: int = None,
-                  sleep: float = 0) -> List[Tuple[int, TaskStatus, ResultStatus, str]]:
-    # TODO: Uupdate to return 1, and up to N when called from service and gcx
-    # Add argument for batch so it will wait until n completed and then return n. 
-    # Pass current completed task ids back to this from client code
+def _as_completed(db_params: DBParameters, eq_task_ids: List[int], completed_tasks: List[int],
+                  timeout: float = None, n: int = None,
+                  sleep: float = 0) -> Tuple[int, TaskStatus, ResultStatus, str]:
     from eqsql.task_queues import local_queue
     task_queue = local_queue.init_task_queue(db_params.host, db_params.user, db_params.port, db_params.db_name,
                                              retry_threshold=db_params.retry_threshold)
-    results = []
-    n_tasks = len(eq_task_ids)
-    completed_tasks = set()
+    completed_task_set = set(completed_tasks)
     start_time = time.time()
     while True:
         for eq_task_id in eq_task_ids:
-            if eq_task_id not in completed_tasks:
+            if eq_task_id not in completed_task_set:
                 result_status, result_str = task_queue.query_result(eq_task_id, timeout=0.0)
                 if result_status == ResultStatus.SUCCESS or result_str == EQ_ABORT:
-                    completed_tasks.add(eq_task_id)
                     query_result = task_queue._query_status([eq_task_id])
                     task_status = None if query_result is None else query_result[0][1]
-                    results.append((eq_task_id, task_status, result_status, result_str))
-                n_completed = len(completed_tasks)
-                if n_completed == n_tasks or n_completed == n:
-                    return results
+                    return (eq_task_id, task_status, result_status, result_str)
 
             if timeout is not None and time.time() - start_time > timeout:
                 raise TimeoutError(f'as_completed timed out after {timeout} seconds')

@@ -1,6 +1,7 @@
 from typing import Tuple, Union, List, Generator, Iterable
 import requests
 import json
+from random import shuffle
 
 
 from eqsql.task_queues.remote_funcs import DBParameters
@@ -234,25 +235,39 @@ class ServiceTaskQueue:
                     // do something with result
         """
         id_map = {ft.eq_task_id: ft for ft in futures}
-        eq_task_ids = [ft.eq_task_id for ft in futures]
-        msg = {'db_params': self.db_params, 'task_ids': eq_task_ids, 'timeout': timeout, 'n': n,
-               'sleep': sleep}
         api_url = f'{self.api_host}/as_completed'
-        response = requests.post(api_url, json=json.dumps(msg))
-        result = response.json()
-        if result['status'] == "timeout_error":
-            raise TimeoutError(f'as_completed timed out after {timeout} seconds')
+        n_completed = 0
+        n_futures = len(futures)
+        completed_tasks = []
 
-        result = result['result']
-        for eq_task_id, task_status, result_status, result_str in result:
-            ft = id_map[eq_task_id]
-            ft._result = (result_status, result_str)
+        while True:
+            eq_task_ids = [ft.eq_task_id for ft in futures]
+            # _as_completed iterates through the list of task_ids
+            # we shuffle so not biasing the members at the front of the list
+            shuffle(eq_task_ids)
+            msg = {'db_params': self.db_params, 'task_ids': eq_task_ids, 'timeout': timeout, 'n': n,
+                   'sleep': sleep, 'completed_tasks': completed_tasks}
+            response = requests.post(api_url, json=json.dumps(msg))
+            result = response.json()
+
+            if result['status'] == "timeout_error":
+                raise TimeoutError(f'as_completed timed out after {timeout} seconds')
+
+            task_results = result['result']
+            task_id, task_status, result_status, task_result = task_results
+            completed_tasks.append(task_id)
+
+            ft = id_map[task_id]
+            ft._result = (result_status, task_result)
             ft._task_status = TaskStatus.COMPLETE if task_status == TaskStatus.COMPLETE else None
             if pop:
                 futures.remove(ft)
             yield ft
 
-        return
+            n_completed += 1
+            if n_completed == n_futures or n_completed == n:
+                # Python docs: return rather than raise StopIteration
+                return
 
     def get_status(self, futures: Iterable[Future]) -> List[Tuple[Future, TaskStatus]]:
         """Gets the status (queued, running, etc.) of the specified tasks

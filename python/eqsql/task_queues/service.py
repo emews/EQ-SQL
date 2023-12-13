@@ -71,7 +71,8 @@ def as_completed():
     msg = json.loads(request.json)
     db_params = DBParameters.from_dict(msg['db_params'])
     try:
-        result = _as_completed(db_params, msg['task_ids'], msg['timeout'], msg['n'], msg['sleep'])
+        result = _as_completed(db_params, msg['task_ids'], msg['completed_tasks'],
+                               msg['timeout'], msg['n'], msg['sleep'])
     except TimeoutError:
         return {'status': 'timeout_error'}
     return {'status': 'ok', 'result': result}

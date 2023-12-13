@@ -1,5 +1,6 @@
 """Globus Compute task queue implementations."""
 from typing import Tuple, Union, List, Generator, Iterable
+from random import shuffle
 from globus_compute_sdk import Executor
 from globus_compute_sdk.errors.error_types import TaskExecutionFailed
 
@@ -215,17 +216,34 @@ class GCTaskQueue:
                     status, result = ft.result()
                     // do something with result
         """
+        id_map = {ft.eq_task_id: ft for ft in futures}
+        n_completed = 0
+        n_futures = len(futures)
+        completed_tasks = []
+
         try:
-            id_map = {ft.eq_task_id: ft for ft in futures}
-            eq_task_ids = [ft.eq_task_id for ft in futures]
-            gc_ft = self.gcx.submit(_as_completed, self.db_params, eq_task_ids, timeout, n, sleep)
-            for eq_task_id, task_status, result_status, result_str in gc_ft.result():
-                ft = id_map[eq_task_id]
-                ft._result = (result_status, result_str)
+            while True:
+                eq_task_ids = [ft.eq_task_id for ft in futures]
+                # _as_completed iterates through the list of task_ids
+                # we shuffle so not biasing the members at the front of the list
+                shuffle(eq_task_ids)
+                gc_ft = self.gcx.submit(_as_completed, self.db_params, eq_task_ids, completed_tasks,
+                                        timeout, n, sleep)
+                task_id, task_status, result_status, task_result = gc_ft.result()
+                completed_tasks.append(task_id)
+
+                ft = id_map[task_id]
+                ft._result = (result_status, task_result)
                 ft._task_status = TaskStatus.COMPLETE if task_status == TaskStatus.COMPLETE else None
                 if pop:
                     futures.remove(ft)
                 yield ft
+
+                n_completed += 1
+                if n_completed == n_futures or n_completed == n:
+                    # Python docs: return rather than raise StopIteration
+                    return
+
         except TaskExecutionFailed as ex:
             if 'TimeoutError' in ex.remote_data:
                 # from None swallows the TaskExecutionFailed parent, so TimeoutError can be caught
@@ -233,7 +251,27 @@ class GCTaskQueue:
             else:
                 raise ex
 
-        return
+
+        
+        # try:
+            
+        #     eq_task_ids = [ft.eq_task_id for ft in futures]
+        #     gc_ft = self.gcx.submit(_as_completed, self.db_params, eq_task_ids, timeout, n, sleep)
+        #     for eq_task_id, task_status, result_status, result_str in gc_ft.result():
+        #         ft = id_map[eq_task_id]
+        #         ft._result = (result_status, result_str)
+        #         ft._task_status = TaskStatus.COMPLETE if task_status == TaskStatus.COMPLETE else None
+        #         if pop:
+        #             futures.remove(ft)
+        #         yield ft
+        # except TaskExecutionFailed as ex:
+        #     if 'TimeoutError' in ex.remote_data:
+        #         # from None swallows the TaskExecutionFailed parent, so TimeoutError can be caught
+        #         raise TimeoutError(f'as_completed timed out after {timeout} seconds') from None
+        #     else:
+        #         raise ex
+
+        # return
 
     def get_status(self, futures: Iterable[Future]) -> List[Tuple[Future, TaskStatus]]:
         """Gets the status (queued, running, etc.) of the specified tasks
