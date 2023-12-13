@@ -251,28 +251,6 @@ class GCTaskQueue:
             else:
                 raise ex
 
-
-        
-        # try:
-            
-        #     eq_task_ids = [ft.eq_task_id for ft in futures]
-        #     gc_ft = self.gcx.submit(_as_completed, self.db_params, eq_task_ids, timeout, n, sleep)
-        #     for eq_task_id, task_status, result_status, result_str in gc_ft.result():
-        #         ft = id_map[eq_task_id]
-        #         ft._result = (result_status, result_str)
-        #         ft._task_status = TaskStatus.COMPLETE if task_status == TaskStatus.COMPLETE else None
-        #         if pop:
-        #             futures.remove(ft)
-        #         yield ft
-        # except TaskExecutionFailed as ex:
-        #     if 'TimeoutError' in ex.remote_data:
-        #         # from None swallows the TaskExecutionFailed parent, so TimeoutError can be caught
-        #         raise TimeoutError(f'as_completed timed out after {timeout} seconds') from None
-        #     else:
-        #         raise ex
-
-        # return
-
     def get_status(self, futures: Iterable[Future]) -> List[Tuple[Future, TaskStatus]]:
         """Gets the status (queued, running, etc.) of the specified tasks
 
