@@ -19,6 +19,7 @@ def _create_eqsql():
 
 def run():
     eq_sql = _create_eqsql()
+    eq_sql.clear_queues()
 
     try:
         init_pts = 7

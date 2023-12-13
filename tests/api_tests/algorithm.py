@@ -151,6 +151,7 @@ def run():
     # parse settings # num_iter, num_pop, seed,
     global eq_sql
     eq_sql = _create_eqsql()
+    eq_sql.clear_queues()
 
     if use_proxy:
         proxies.init('proxy_test', store_dir='/tmp/proxystore-dump')
