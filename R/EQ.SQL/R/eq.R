@@ -13,11 +13,6 @@ library(reticulate)
 #' NULL in which case the package is assumed to be installed with
 #' the specified Python.
 #' @return a reticulate Python package object.
-#' @examples
-#' eqsql <- init_eqsql()
-#' # get the ResultStatusSuccess value from the Python eq module
-#' # in the eqsql package
-#' success <- eqsql$eq$ResultStatus$SUCCESS
 #' @export
 init_eqsql <- function(python_path = NULL, eqsql_path = NULL) {
     if (!is.null(python_path)) {
@@ -26,11 +21,11 @@ init_eqsql <- function(python_path = NULL, eqsql_path = NULL) {
     
     if (is.null(eqsql_path)) {
         eqsql <- import('eqsql')
-        import('eqsql.eq')
         import('eqsql.db_tools')
+        import('eqsql.task_queues')
     } else {
         eqsql <- import_from_path('eqsql', path = eqsql_path)
-        import_from_path('eqsql.eq', path = eqsql_path)
+        import_from_path('eqsql.task_queues', path = eqsql_path)
         import_from_path('eqsql.db_tools', path = eqsql_path)
     }
 
@@ -38,21 +33,26 @@ init_eqsql <- function(python_path = NULL, eqsql_path = NULL) {
 }
 
 #' Initializes and returns a reticulate wrapped Python task_queue
-#' (an eqsql.eq.EQSQL class instance) with the specified parameters.
+#' with the specified parameters.
 #' See the reticulate R package documentation for more information about
 #' calling Python from R: https://rstudio.github.io/reticulate/index.html.
 #' 
+#' @param eqsql The eqsql python package instance
 #' @param db_port The port of the database to connect to. 
 #' @param db_name The name of the database to connect to. 
 #' @param db_host The host of the database to connect to. 
 #' @param db_user The user name to connect to the database with. 
 #' @param log_level the logging threshold level. Defaults to logger::WARN.
-#' @return a reticulate wrapped Python instance of an eqsql.eq.EQSQL class
+#' @param queue_type the type of task_queue to create - one of 'local', 'gcx', or 'service'.
+#' @return a reticulate wrapped Python instance of an eqsql.task_queues.core.TaskQueue
 #' that can be used as a task queue. 
 #' @export
 #'
 init_task_queue <- function(eqsql, db_host, db_user, db_port, db_name, retry_threshold = 0, 
-                       log_level=logger::WARN) {
+                            log_level=logger::WARN, queue_type='local', service_url = NULL, 
+                            gcx = NULL) {
+
+    match.arg(arg=queue_type, choices = c("local", "gcx", "service"))
     if (log_level == logger::TRACE || log_level == logger::DEBUG) {
         pylog <- 10
     } else if (log_level == logger::WARN) {
@@ -67,7 +67,15 @@ init_task_queue <- function(eqsql, db_host, db_user, db_port, db_name, retry_thr
         pylog <- 20
     }
 
-    task_queue <- eqsql$eq$init_task_queue(db_host, db_user, db_port, db_name, retry_threshold, log_level)
+    if (queue_type == 'local') {
+        task_queue <- eqsql$task_queues$local_queue$init_task_queue(db_host, db_user, db_port, db_name, retry_threshold, log_level)
+    } else if (queue_type == 'service') {
+        task_queue <- eqsql$task_queues$service_queue$init_task_queue(service_url, db_host, db_user, db_port, db_name, retry_threshold, log_level)
+    } else if (queue_type == 'gcx') {
+        task_queue <- eqsql$task_queues$gcx_queue$init_task_queue(gcx, db_host, db_user, db_port, db_name, retry_threshold, log_level)
+    }
+
+    task_queue
 }
 
 #' Applies the specified function to the specified list of futures as they
@@ -75,7 +83,7 @@ init_task_queue <- function(eqsql, db_host, db_user, db_port, db_name, retry_thr
 #' ones that have not yet completed and checking for a result. At the end of 
 #' each iteration, the timeout is checked. A TimeoutError will be raised if the 
 #' futures do not complete within the specified timeout duration.
-#' @param eqsql an eqsql Python package object as returned from init_eqsql.
+#' @param task_queue a Python eqsql TaskQueue instance as returned from init_eqsql.
 #' @param futures the list of Python eqsql.eq.Future objects to apply the
 #' function to
 #' @param func the function to be applied
@@ -89,9 +97,9 @@ init_task_queue <- function(eqsql, db_host, db_user, db_port, db_name, retry_thr
 #' the completed futures omitted if the pop argument is true, and f_results:
 #' a list containing the result of the function application.
 #' @export
-as_completed <- function(eqsql, futures, func, ..., pop = FALSE, n = NULL, timeout = NULL,
+as_completed <- function(task_queue, futures, func, ..., pop = FALSE, n = NULL, timeout = NULL,
                          sleep = 0.0) {
-  iter <- eqsql$eq$as_completed(futures, pop = pop, n = n, timeout = timeout, sleep = sleep)
+  iter <- task_queue$as_completed(futures, pop = pop, n = n, timeout = timeout, sleep = sleep)
   args <- list(...)
   completed_ids <- c()
   results <- c()
@@ -112,7 +120,7 @@ as_completed <- function(eqsql, futures, func, ..., pop = FALSE, n = NULL, timeo
 
 #' Pops and returns the first completed future from the specified List
 #' of Futures.
-#' @param eqsql an eqsql Python package object as returned from init_eqsql.
+#' @param task_queue a Python eqsql TaskQueue instance as returned from init_eqsql.
 #' @param futures the list of Python eqsql.eq.Future objects from which
 #' to get the first completed.
 #' @param timeout if the time taken for futures to completed is greater than 
@@ -120,8 +128,8 @@ as_completed <- function(eqsql, futures, func, ..., pop = FALSE, n = NULL, timeo
 #' @param sleep the time, in seconds, to sleep between each iteration over all the Futures.
 #' @return a list with two elements. fts: the futures argument list with
 #' the completed future omitted, and ft: the completed future.
-pop_completed <- function(eqsql, futures, timeout = NULL, sleep = 0.0) {
-  iter <- eqsql$eq$as_completed(futures, pop = T, n = 1, timeout = timeout, 
+pop_completed <- function(task_queue, futures, timeout = NULL, sleep = 0.0) {
+  iter <- task_queue$as_completed(futures, pop = T, n = 1, timeout = timeout, 
                                 sleep = sleep)
   ft <- iter_next(iter)
   fts <- discard(futures, function(x) x$eq_task_id == ft$eq_task_id)

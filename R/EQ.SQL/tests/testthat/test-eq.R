@@ -11,6 +11,8 @@ setup_task_queue <- function(eqsql, env = parent.frame()) {
   
   task_queue <- NULL
   task_queue <- init_task_queue(eqsql, host, user, port, db_name)
+  # api_url <- 'http://127.0.0.1:5000'
+  # task_queue <- init_task_queue(eqsql, host, user, port, db_name, api_url)
   
   eq_utils <- import_from_path('utils', path='/home/nick/Documents/repos/EQ-SQL/python/test')
   eq_utils$clear_db(task_queue$db$conn)
@@ -50,7 +52,7 @@ test_that("as_completed_n", {
   fts <- lapply(c(1:50), function(x) {
       payload <- create_payload(x)
       sub_result <- task_queue$submit_task('eq_test', 0, payload)
-      expect_equal(eqsql$eq$ResultStatus$SUCCESS, sub_result[[1]])
+      expect_equal(eqsql$task_queues$core$ResultStatus$SUCCESS, sub_result[[1]])
       sub_result[[2]]
   })
   
@@ -64,7 +66,7 @@ test_that("as_completed_n", {
     task_queue$report_task(task_id, 0, toJSON(task_result, auto_unbox = T))
   })
   
-  result <- as_completed(eqsql, fts, function(ft) {
+  result <- as_completed(task_queue, fts, function(ft) {
     expect_true(ft$done())
     expect_equal(ft$eq_task_id, fromJSON(ft$result()[[2]])$j)
     ft$eq_task_id
@@ -78,7 +80,7 @@ test_that("as_completed_n", {
   # to get the rest of the completed futures
   fts <- discard(fts, function(ft) ft$eq_task_id %in% completed_ids)
   expect_equal(length(fts), 40)
-  result <- as_completed(eqsql, fts, function(ft) {
+  result <- as_completed(task_queue, fts, function(ft) {
     expect_true(ft$done())
     expect_equal(ft$eq_task_id, fromJSON(ft$result()[[2]])$j)
     ft$eq_task_id
@@ -97,7 +99,7 @@ test_that("as_completed_pop", {
   fts <- lapply(c(1:50), function(x) {
     payload <- create_payload(x)
     sub_result <- task_queue$submit_task('eq_test', 0, payload)
-    expect_equal(eqsql$eq$ResultStatus$SUCCESS, sub_result[[1]])
+    expect_equal(eqsql$task_queues$core$ResultStatus$SUCCESS, sub_result[[1]])
     sub_result[[2]]
   })
   
@@ -111,7 +113,7 @@ test_that("as_completed_pop", {
     task_queue$report_task(task_id, 0, toJSON(task_result, auto_unbox = T))
   })
   
-  r <- as_completed(eqsql, fts, pop = T, n = 10, function(ft) {
+  r <- as_completed(task_queue, fts, pop = T, n = 10, function(ft) {
     expect_true(ft$done())
     expect_equal(ft$eq_task_id, fromJSON(ft$result()[[2]])$j)
     ft$eq_task_id
@@ -124,7 +126,7 @@ test_that("as_completed_pop", {
   uncompleted_ids <- lapply(fts, function(x) x$eq_task_id)
   expect_false(any(completed_ids %in% uncompleted_ids))
   
-  r <- as_completed(eqsql, fts, pop = T, n = 10, function(ft) {
+  r <- as_completed(task_queue, fts, pop = T, n = 10, function(ft) {
     expect_true(ft$done())
     expect_equal(ft$eq_task_id, fromJSON(ft$result()[[2]])$j)
     ft$eq_task_id
@@ -147,7 +149,7 @@ test_that("as_completed_timeout", {
   fts <- lapply(c(1:50), function(x) {
     payload <- create_payload(x)
     sub_result <- task_queue$submit_task('eq_test', 0, payload)
-    expect_equal(eqsql$eq$ResultStatus$SUCCESS, sub_result[[1]])
+    expect_equal(eqsql$task_queues$core$ResultStatus$SUCCESS, sub_result[[1]])
     sub_result[[2]]
   })
   
@@ -163,7 +165,7 @@ test_that("pop_completed", {
   fts <- lapply(c(1:50), function(x) {
     payload <- create_payload(x)
     sub_result <- task_queue$submit_task('eq_test', 0, payload, priority = x)
-    expect_equal(eqsql$eq$ResultStatus$SUCCESS, sub_result[[1]])
+    expect_equal(eqsql$task_queues$core$ResultStatus$SUCCESS, sub_result[[1]])
     sub_result[[2]]
   })
   
@@ -175,8 +177,7 @@ test_that("pop_completed", {
   task_result = list(j=task_id)
   task_queue$report_task(task_id, 0, toJSON(task_result, auto_unbox = T))
   
-  
-  result <- pop_completed(eqsql, fts)
+  result <- pop_completed(task_queue, fts)
   ft <- result[[2]]
   expect_false(is.null(ft))
   expect_equal(ft$eq_task_id, 50)
