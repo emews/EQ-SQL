@@ -2,7 +2,7 @@ import unittest
 import json
 from globus_compute_sdk import Executor
 
-from eqsql.task_queues import gcx_queue
+from eqsql.task_queues import gc_queue
 from eqsql.task_queues.core import ResultStatus, TaskStatus, TimeoutError
 from eqsql.task_queues.core import EQ_TIMEOUT
 
@@ -63,7 +63,7 @@ class GCTaskQueueTests(unittest.TestCase):
     def test_submit_task(self):
         with Executor(endpoint_id=gcx_endpoint) as gcx:
             clear_db(gcx)
-            self.tq = gcx_queue.init_task_queue(gcx, host, user, port, db_name)
+            self.tq = gc_queue.init_task_queue(gcx, host, user, port, db_name)
             result_status, ft = self.tq.submit_task('test_future', 0, create_payload(), tag='x')
             self.assertEqual(ResultStatus.SUCCESS, result_status)
             self.assertEqual(TaskStatus.QUEUED, ft.status)
@@ -72,7 +72,7 @@ class GCTaskQueueTests(unittest.TestCase):
 
     def test_query_priority(self):
         with Executor(endpoint_id=gcx_endpoint) as gcx:
-            self.eq_sql = gcx_queue.init_task_queue(gcx, host, user, port, db_name)
+            self.eq_sql = gc_queue.init_task_queue(gcx, host, user, port, db_name)
             clear_db(gcx)
             result_status, ft = self.eq_sql.submit_task('test_future', 0, create_payload(), priority=10, tag='x')
             self.assertEqual(ResultStatus.SUCCESS, result_status)
@@ -89,7 +89,7 @@ class GCTaskQueueTests(unittest.TestCase):
 
     def test_update_priorities(self):
         with Executor(endpoint_id=gcx_endpoint) as gcx:
-            self.eq_sql = gcx_queue.init_task_queue(gcx, host, user, port, db_name)
+            self.eq_sql = gc_queue.init_task_queue(gcx, host, user, port, db_name)
             clear_db(gcx)
 
             payloads = [create_payload(i) for i in range(5)]
@@ -112,7 +112,7 @@ class GCTaskQueueTests(unittest.TestCase):
 
     def test_query_result(self):
         with Executor(endpoint_id=gcx_endpoint) as gcx:
-            self.eq_sql = gcx_queue.init_task_queue(gcx, host, user, port, db_name)
+            self.eq_sql = gc_queue.init_task_queue(gcx, host, user, port, db_name)
             clear_db(gcx)
 
             payload = create_payload()
@@ -160,7 +160,7 @@ class GCTaskQueueTests(unittest.TestCase):
         # from datetime import datetime
         with Executor(endpoint_id=gcx_endpoint) as gcx:
             # print(f'a: {datetime.now()}', flush=True)
-            self.eq_sql = gcx_queue.init_task_queue(gcx, host, user, port, db_name)
+            self.eq_sql = gc_queue.init_task_queue(gcx, host, user, port, db_name)
             # print(f'b: {datetime.now()}', flush=True)
             clear_db(gcx)
             # print(f'c: {datetime.now()}', flush=True)
@@ -182,7 +182,7 @@ class GCTaskQueueTests(unittest.TestCase):
 
     def test_get_worker_pools(self):
         with Executor(endpoint_id=gcx_endpoint) as gcx:
-            self.eq_sql = gcx_queue.init_task_queue(gcx, host, user, port, db_name)
+            self.eq_sql = gc_queue.init_task_queue(gcx, host, user, port, db_name)
             clear_db(gcx)
 
             payloads = [create_payload(i) for i in range(8)]
@@ -214,7 +214,7 @@ class GCTaskQueueTests(unittest.TestCase):
 
     def test_as_completed(self):
         with Executor(endpoint_id=gcx_endpoint) as gcx:
-            self.eq_sql = gcx_queue.init_task_queue(gcx, host, user, port, db_name)
+            self.eq_sql = gc_queue.init_task_queue(gcx, host, user, port, db_name)
             clear_db(gcx)
 
             payloads = [create_payload(i) for i in range(0, 30)]
@@ -279,7 +279,7 @@ class GCTaskQueueTests(unittest.TestCase):
 
     def test_as_completed_pop(self):
         with Executor(endpoint_id=gcx_endpoint) as gcx:
-            self.eq_sql = gcx_queue.init_task_queue(gcx, host, user, port, db_name)
+            self.eq_sql = gc_queue.init_task_queue(gcx, host, user, port, db_name)
             clear_db(gcx)
 
             payloads = [create_payload(i) for i in range(0, 30)]
@@ -310,7 +310,7 @@ class GCTaskQueueTests(unittest.TestCase):
 
     def test_queues_empty(self):
         with Executor(endpoint_id=gcx_endpoint) as gcx:
-            self.eq_sql = gcx_queue.init_task_queue(gcx, host, user, port, db_name)
+            self.eq_sql = gc_queue.init_task_queue(gcx, host, user, port, db_name)
             clear_db(gcx)
 
             self.assertTrue(self.eq_sql.are_queues_empty())
