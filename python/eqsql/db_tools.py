@@ -264,7 +264,6 @@ def init_eqsql_db(db_path: str, create_db_sql_file: Union[str, bytes, os.PathLik
             If this is None (the default) the default EQSQL SQL schema will be used.
         db_user: the database user name
         db_name: the name of the database
-        db_host: the hostname where the database server is located
         db_port: the port of the database server.
     """
     try:
