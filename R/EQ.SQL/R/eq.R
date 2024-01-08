@@ -48,7 +48,7 @@ init_eqsql <- function(python_path = NULL, eqsql_path = NULL) {
 #' that can be used as a task queue. 
 #' @export
 #'
-init_task_queue <- function(eqsql, db_host, db_user, db_port, db_name, retry_threshold = 0, 
+init_task_queue <- function(eqsql, db_host, db_user, db_port, db_name, password=NULL, retry_threshold = 0, 
                             log_level=logger::WARN, queue_type='local', service_url = NULL, 
                             gcx = NULL) {
 
@@ -68,11 +68,11 @@ init_task_queue <- function(eqsql, db_host, db_user, db_port, db_name, retry_thr
     }
 
     if (queue_type == 'local') {
-        task_queue <- eqsql$task_queues$local_queue$init_task_queue(db_host, db_user, db_port, db_name, retry_threshold, log_level)
+        task_queue <- eqsql$task_queues$local_queue$init_task_queue(db_host, db_user, db_port, db_name, password, retry_threshold, log_level)
     } else if (queue_type == 'service') {
-        task_queue <- eqsql$task_queues$service_queue$init_task_queue(service_url, db_host, db_user, db_port, db_name, retry_threshold, log_level)
+        task_queue <- eqsql$task_queues$service_queue$init_task_queue(service_url, db_host, db_user, db_port, db_name, password, retry_threshold, log_level)
     } else if (queue_type == 'gcx') {
-        task_queue <- eqsql$task_queues$gcx_queue$init_task_queue(gcx, db_host, db_user, db_port, db_name, retry_threshold, log_level)
+        task_queue <- eqsql$task_queues$gcx_queue$init_task_queue(gcx, db_host, db_user, db_port, db_name, password, retry_threshold, log_level)
     }
 
     task_queue
