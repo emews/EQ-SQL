@@ -273,7 +273,8 @@ class GCTaskQueue:
         return [(ft_map[result[0]], result[1]) for result in results]
 
 
-def init_task_queue(gcx: Executor, host: str, user: str, port: int, db_name: str, retry_threshold=0) -> GCTaskQueue:
+def init_task_queue(gcx: Executor, host: str, user: str, port: int, db_name: str,
+                    password: str = None, retry_threshold=0) -> GCTaskQueue:
     """Initializes and returns an :py:class:`LocalTaskQueue` class instance with the specified parameters.
 
     Args:
@@ -281,6 +282,7 @@ def init_task_queue(gcx: Executor, host: str, user: str, port: int, db_name: str
         user: the eqsql database user
         port: the eqsql database port
         db_name: the eqsql database name
+        password: the eqdql database password (if there is one)
         retry_threshold: if a DB connection cannot be established
             (e.g, there are currently too many connections),
             then retry ``retry_threshold`` many times to establish a connection. There
@@ -288,5 +290,5 @@ def init_task_queue(gcx: Executor, host: str, user: str, port: int, db_name: str
     Returns:
         An :py:class:`GCTaskQueue` instance
     """
-    db_params = DBParameters(user, host, db_name, port, retry_threshold)
+    db_params = DBParameters(user, host, db_name, password, port, retry_threshold)
     return GCTaskQueue(gcx, db_params)

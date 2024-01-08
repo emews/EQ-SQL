@@ -1004,7 +1004,7 @@ class LocalTaskQueue:
                 time.sleep(sleep)
 
 
-def init_task_queue(host: str, user: str, port: int, db_name: str, retry_threshold=0,
+def init_task_queue(host: str, user: str, port: int, db_name: str, password: str = None, retry_threshold=0,
                     log_level=logging.WARN) -> TaskQueue:
     """Initializes and returns an :py:class:`LocalTaskQueue` class instance with the specified parameters.
 
@@ -1013,6 +1013,7 @@ def init_task_queue(host: str, user: str, port: int, db_name: str, retry_thresho
         user: the eqsql database user
         port: the eqsql database port
         db_name: the eqsql database name
+        password: the eqdql database password (if there is one)
         retry_threshold: if a DB connection cannot be established
             (e.g, there are currently too many connections),
             then retry ``retry_threshold`` many times to establish a connection. There
@@ -1030,7 +1031,8 @@ def init_task_queue(host: str, user: str, port: int, db_name: str, retry_thresho
     retries = 0
     while True:
         try:
-            db = db_tools.WorkflowSQL(host=host, user=user, port=port, dbname=db_name, log_level=log_level, envs=False)
+            db = db_tools.WorkflowSQL(host=host, user=user, port=port, dbname=db_name, password=password,
+                                      log_level=log_level, envs=False)
             db.connect()
             break
         except db_tools.ConnectionException as e:

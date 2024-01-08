@@ -12,7 +12,7 @@ def create_payload(x=1.2):
 def report_task(db_params, eq_task_id: int, eq_type: int, result: str) -> ResultStatus:
     from eqsql.task_queues import local_queue
     task_queue = local_queue.init_task_queue(db_params.host, db_params.user, db_params.port, db_params.db_name,
-                                             retry_threshold=db_params.retry_threshold)
+                                             password=db_params.password, retry_threshold=db_params.retry_threshold)
     return task_queue.report_task(eq_task_id, eq_type, result)
 
 
@@ -21,5 +21,5 @@ def query_task(db_params, eq_type, n: int = 1, worker_pool: str = 'default', del
                timeout: float = 2.0):
     from eqsql.task_queues import local_queue
     task_queue = local_queue.init_task_queue(db_params.host, db_params.user, db_params.port, db_params.db_name,
-                                             retry_threshold=db_params.retry_threshold)
+                                             password=db_params.password, retry_threshold=db_params.retry_threshold)
     return task_queue.query_task(eq_type, n, worker_pool, delay, timeout)

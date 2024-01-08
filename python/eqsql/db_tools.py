@@ -24,6 +24,7 @@ class WorkflowSQL:
 
     def __init__(self, host="127.0.0.1", port=5432,
                  user=os.environ['USER'],
+                 password=None,
                  dbname="EQ_SQL",
                  envs=False,
                  log_level=logging.WARN,
@@ -39,6 +40,7 @@ class WorkflowSQL:
         self.port = port
         self.dbname = dbname
         self.user = user
+        self.password = password
         if envs:
             self.configure_envs()
         self.autoclose = True
@@ -59,6 +61,8 @@ class WorkflowSQL:
             self.host = os.getenv("DB_HOST")
         if env_has('DB_USER'):
             self.user = os.getenv('DB_USER')
+        if env_has('DB_PASSWORD'):
+            self.password = os.getenv('DB_PASSWORD')
         if env_has("DB_PORT"):
             try:
                 port_string = os.getenv("DB_PORT")
@@ -77,14 +81,28 @@ class WorkflowSQL:
             self.info(f"connect(): connecting to {self.host} {self.port} as {self.user}")
             try:
                 if self.port is None:
-                    self.conn = psycopg2.connect(f"dbname={self.dbname}",
-                                                 host=self.host,
-                                                 user=self.user)
+                    if self.password is None:
+                        self.conn = psycopg2.connect(f"dbname={self.dbname}",
+                                                     host=self.host,
+                                                     user=self.user)
+                    else:
+                        self.conn = psycopg2.connect(f"dbname={self.dbname}",
+                                                     host=self.host,
+                                                     user=self.user,
+                                                     password=self.password)
+
                 else:
-                    self.conn = psycopg2.connect(f"dbname={self.dbname}",
-                                                 host=self.host,
-                                                 port=self.port,
-                                                 user=self.user)
+                    if self.password is None:
+                        self.conn = psycopg2.connect(f"dbname={self.dbname}",
+                                                     host=self.host,
+                                                     port=self.port,
+                                                     user=self.user)
+                    else:
+                        self.conn = psycopg2.connect(f"dbname={self.dbname}",
+                                                     host=self.host,
+                                                     port=self.port,
+                                                     user=self.user,
+                                                     password=self.password)
             except psycopg2.OperationalError as e:
                 self.info("connect(): could not connect!")
                 raise ConnectionException(e)

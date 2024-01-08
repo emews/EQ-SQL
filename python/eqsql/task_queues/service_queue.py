@@ -303,7 +303,7 @@ class ServiceTaskQueue:
 
 
 def init_task_queue(service_url: str, db_host: str, db_user: str, db_port: int,
-                    db_name: str, retry_threshold=0) -> ServiceTaskQueue:
+                    db_name: str, password: str = None, retry_threshold=0) -> ServiceTaskQueue:
     """Initializes and returns an :py:class:`LocalTaskQueue` class instance with the specified parameters.
 
     Args:
@@ -311,6 +311,7 @@ def init_task_queue(service_url: str, db_host: str, db_user: str, db_port: int,
         user: the eqsql database user
         port: the eqsql database port
         db_name: the eqsql database name
+        password: the eqdql database password (if there is one)
         retry_threshold: if a DB connection cannot be established
             (e.g, there are currently too many connections),
             then retry ``retry_threshold`` many times to establish a connection. There
@@ -318,5 +319,5 @@ def init_task_queue(service_url: str, db_host: str, db_user: str, db_port: int,
     Returns:
         An :py:class:`ServiceTaskQueue` instance
     """
-    db_params = DBParameters(db_user, db_host, db_name, db_port, retry_threshold)
+    db_params = DBParameters(db_user, db_host, db_name, password, db_port, retry_threshold)
     return ServiceTaskQueue(service_url, db_params)

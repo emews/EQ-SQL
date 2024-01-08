@@ -17,8 +17,13 @@ def _create_eqsql(retry_threshold: int = 0, log_level=logging.WARN):
         port = None
     else:
         port = int(os.getenv('DB_PORT'))
+
+    if os.getenv('DB_PASSWORD') is None or os.getenv('DB_PASSWORD') == '':
+        password = None
+    else:
+        password = os.getenv('DB_PASSWORD')
     db_name = os.getenv('DB_NAME')
-    return local_queue.init_task_queue(host, user, port, db_name, retry_threshold, log_level)
+    return local_queue.init_task_queue(host, user, port, db_name, password, retry_threshold, log_level)
 
 
 def query_task(eq_work_type: int, worker_pool: str, query_timeout: float = 120.0,
