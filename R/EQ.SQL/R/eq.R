@@ -106,12 +106,15 @@ as_completed <- function(task_queue, futures, func, ..., pop = FALSE, n = NULL, 
   iter <- task_queue$as_completed(futures, pop = pop, n = n, timeout = timeout, sleep = sleep)
   args <- list(...)
   completed_ids <- c()
-  results <- c()
+  results <- list()
+
+  i <- 1
   while (T) {
     ft <- iter_next(iter, completed = NULL)
     if (is.null(ft)) break
     r <- do.call(func, c(ft, args))
-    results <- append(results, r)
+    results[[i]] <- r
+    i <- i + 1
     completed_ids <- append(completed_ids, ft$eq_task_id)
   }
   
