@@ -370,7 +370,7 @@ def stop_db(db_path: Union[str, bytes, os.PathLike], pg_ctl: Union[str, bytes, o
 
 
 def reset_db(db_user: str = 'eqsql_user', db_name: str = 'EQ_SQL', db_host: str = 'localhost',
-             db_port: int = None):
+             db_port: int = None, db_password: str = None):
     """Resets the database by deleting the contents of all the eqsql tables and restarting
     the emews task id generator sequence.
 
@@ -389,7 +389,7 @@ def reset_db(db_user: str = 'eqsql_user', db_name: str = 'EQ_SQL', db_host: str 
         alter sequence emews_id_generator restart;
     """
 
-    conn = psycopg2.connect(f'dbname={db_name}', user=db_user, host=db_host, port=db_port)
+    conn = psycopg2.connect(f'dbname={db_name}', user=db_user, host=db_host, port=db_port, password=db_password)
     with conn:
         with conn.cursor() as cur:
             cur.execute(clear_db_sql)

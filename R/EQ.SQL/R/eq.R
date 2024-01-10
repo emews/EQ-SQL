@@ -38,17 +38,21 @@ init_eqsql <- function(python_path = NULL, eqsql_path = NULL) {
 #' calling Python from R: https://rstudio.github.io/reticulate/index.html.
 #' 
 #' @param eqsql The eqsql python package instance
-#' @param db_port The port of the database to connect to. 
-#' @param db_name The name of the database to connect to. 
 #' @param db_host The host of the database to connect to. 
 #' @param db_user The user name to connect to the database with. 
+#' @param db_port The port of the database to connect to. 
+#' @param db_name The name of the database to connect to. 
+#' @param db_password The database password (if any)
+#' @param retry_threshold If a DB connection cannot be established (e.g, there are currently too many connections),
+#'                        then retry ``retry_threshold`` many times to establish a connection. There
+#'                        will be random few second delay betwen each retry.
 #' @param log_level the logging threshold level. Defaults to logger::WARN.
 #' @param queue_type the type of task_queue to create - one of 'local', 'gcx', or 'service'.
 #' @return a reticulate wrapped Python instance of an eqsql.task_queues.core.TaskQueue
 #' that can be used as a task queue. 
 #' @export
 #'
-init_task_queue <- function(eqsql, db_host, db_user, db_port, db_name, password=NULL, retry_threshold = 0, 
+init_task_queue <- function(eqsql, db_host, db_user, db_port, db_name, db_password=NULL, retry_threshold = 0, 
                             log_level=logger::WARN, queue_type='local', service_url = NULL, 
                             gcx = NULL) {
 
@@ -68,11 +72,11 @@ init_task_queue <- function(eqsql, db_host, db_user, db_port, db_name, password=
     }
 
     if (queue_type == 'local') {
-        task_queue <- eqsql$task_queues$local_queue$init_task_queue(db_host, db_user, db_port, db_name, password, retry_threshold, log_level)
+        task_queue <- eqsql$task_queues$local_queue$init_task_queue(db_host, db_user, db_port, db_name, db_password, retry_threshold, log_level)
     } else if (queue_type == 'service') {
-        task_queue <- eqsql$task_queues$service_queue$init_task_queue(service_url, db_host, db_user, db_port, db_name, password, retry_threshold, log_level)
+        task_queue <- eqsql$task_queues$service_queue$init_task_queue(service_url, db_host, db_user, db_port, db_name, db_password, retry_threshold, log_level)
     } else if (queue_type == 'gcx') {
-        task_queue <- eqsql$task_queues$gcx_queue$init_task_queue(gcx, db_host, db_user, db_port, db_name, password, retry_threshold, log_level)
+        task_queue <- eqsql$task_queues$gcx_queue$init_task_queue(gcx, db_host, db_user, db_port, db_name, db_password, retry_threshold, log_level)
     }
 
     task_queue
