@@ -10,10 +10,11 @@ from eqsql.db_tools import reset_db
 # Assumes the existence of a testing database
 # with these characteristics
 host = 'localhost'
-user = 'eqsql_admin'
+user = 'eqsql_test_user'
 port = 5433
-db_name = 'eqsql'
+db_name = 'eqsql_test_db'
 password = None
+
 
 def create_payload(x=1.2):
     payload = {'x': x, 'y': 7.3, 'z': 'foo'}
