@@ -35,9 +35,6 @@ test-swift-py-2.sh - deap GA ME with batch synchronous tasks, single DB row with
 test-swift-py-3.sh - asynchronous ME, one task per DB row, worker pool queries up to batch size to
     execute.
 
-test-swift-R-2.sh - R ME with batch synchronous tasks, single DB row with multiple tasks separated
-    by swift.
-
 == Proxy Tests
 
 Consists of the 3 parts:
