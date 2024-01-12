@@ -9,8 +9,10 @@ import os
 from eqsql.task_queues import local_queue
 from eqsql.task_queues.core import ABORT_MSG
 
+password = None
+check_password = True
 
-def _create_eqsql(retry_threshold: int = 0, log_level=logging.WARN):
+def _create_eqsql(retry_threshold: int = 0, log_level=logging.WARN): 
     host = os.getenv('DB_HOST')
     user = os.getenv('DB_USER')
     if os.getenv('DB_PORT') is None or os.getenv('DB_PORT') == '':
@@ -18,10 +20,14 @@ def _create_eqsql(retry_threshold: int = 0, log_level=logging.WARN):
     else:
         port = int(os.getenv('DB_PORT'))
 
-    if os.getenv('DB_PASSWORD') is None or os.getenv('DB_PASSWORD') == '':
-        password = None
-    else:
-        password = os.getenv('DB_PASSWORD')
+    global check_password, password
+    if check_password:
+        check_password = False
+        if os.getenv('DB_PASSWORD_F') is not None and os.getenv('DB_PASSWORD_F') != '':
+            password_f= os.getenv('DB_PASSWORD_F')
+            with open(password_f) as fin:
+                password = fin.readline().strip()
+
     db_name = os.getenv('DB_NAME')
     return local_queue.init_task_queue(host, user, port, db_name, password, retry_threshold, log_level)
 
@@ -72,9 +78,8 @@ def report_task(eq_task_id: int, eq_work_type: int, result_payload: str,
 _q = mp.Queue(1)
 _go = True
 
-
 def query_tasks_n(batch_size: int, threshold: int, work_type: int, worker_pool: str,
-                  retry_threshold: int, q: mp.Queue):
+                  timeout: float, retry_threshold: int, q: mp.Queue):
     running_task_ids = []
     wait = 0.25
     while _go:
@@ -83,7 +88,7 @@ def query_tasks_n(batch_size: int, threshold: int, work_type: int, worker_pool: 
             eq_sql = _create_eqsql(retry_threshold)
             running_task_ids, tasks = eq_sql.query_more_tasks(work_type, running_task_ids,
                                                               batch_size=batch_size, threshold=threshold,
-                                                              worker_pool=worker_pool, timeout=10)
+                                                              worker_pool=worker_pool, timeout=timeout)
         except Exception:
             if eq_sql is None:
                 print(f'eq_swift.query_task_n error {traceback.format_exc()}', flush=True)
@@ -115,10 +120,11 @@ def query_tasks_n(batch_size: int, threshold: int, work_type: int, worker_pool: 
                 wait += 0.25
 
 
-def init_task_querier(worker_pool: str, batch_size: int, threshold: int, work_type: int, retry_threshold: int = 0):
+def init_task_querier(worker_pool: str, batch_size: int, threshold: int, work_type: int, 
+                      timeout: float = 120, retry_threshold: int = 0):
     # wait_info = WaitInfo
     t = threading.Thread(target=query_tasks_n, args=(batch_size, threshold, work_type,
-                         worker_pool, retry_threshold, _q))
+                         worker_pool, timeout, retry_threshold, _q))
     t.start()
 
 
