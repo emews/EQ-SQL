@@ -1,5 +1,5 @@
 import location;
-// pragma worktypedef eqsql_resident_work;
+pragma worktypedef resident_work;
 
 type message {
     int eq_task_id;
