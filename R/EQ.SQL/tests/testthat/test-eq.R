@@ -186,3 +186,18 @@ test_that("pop_completed", {
   uncompleted_ids <- lapply(new_fts, function(x) x$eq_task_id)
   expect_false(50 %in% uncompleted_ids)
 })
+
+test_that("cfg", {
+  f <- '../../../../python/test_data/cfg_ex.yaml'
+  params <- parse_yaml_cfg(f)
+  absf <- toString(fs::path_abs(f))
+  absd <- dirname(absf)
+  # ~/Documents/eqsql_dbs/db1
+  expect_equal(params$db_path, toString(fs::path_expand('~/Documents/eqsql_dbs/db1')))
+  # ./output/
+  expect_equal(params$out_path, toString(fs::path(absd, 'output')))
+  #  ../swift/run_eqsql_workflow.sh
+  expect_equal(params$pool_launch_script, toString(fs::path(dirname(absd), '/swift/run_eqsql_workflow.sh')))
+  #  /home/nick/Documents/repos/../emews_examples/simple_eqsql/swift/cfgs/eqsql_workflow.cfg
+  expect_equal(params$pool_cfg_file, '/home/nick/Documents/emews_examples/simple_eqsql/swift/cfgs/eqsql_workflow.cfg')
+})

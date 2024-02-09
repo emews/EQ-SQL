@@ -1,0 +1,11 @@
+db_path: ~/Documents/eqsql_dbs/db1
+db_host: localhost
+db_user: eqsql_user
+db_name: EQ_SQL
+
+worker_pool_id: worker_pool_1
+task_type: 0
+
+pool_launch_script: ../swift/run_eqsql_workflow.sh
+pool_cfg_file: /home/nick/Documents/repos/../emews_examples/simple_eqsql/swift/cfgs/eqsql_workflow.cfg
+out_path: ./output/

@@ -1,11 +1,13 @@
 import unittest
 import json
 import logging
+import os
 
 from eqsql.task_queues import local_queue
 from eqsql.task_queues.core import ResultStatus, TaskStatus, TimeoutError
 from eqsql.task_queues.core import EQ_TIMEOUT, EQ_STOP, EQ_ABORT
 from eqsql.db_tools import reset_db
+from eqsql.cfg import parse_yaml_cfg
 
 # Assumes the existence of a testing database
 # with these characteristics
@@ -690,3 +692,26 @@ class EQTests(unittest.TestCase):
         for ft in fts:
             exp_status = TaskStatus.COMPLETE if ft.eq_task_id < 4 else TaskStatus.CANCELED
             self.assertEqual(exp_status, ft.status)
+
+
+class CFGTests(unittest.TestCase):
+
+    def test_cfg(self):
+        f = "test_data/cfg_ex.yaml"
+        params = parse_yaml_cfg(f)
+        print(params)
+
+        # ~/Documents/eqsql_dbs/db1
+        self.assertEqual(os.path.expanduser('~/Documents/eqsql_dbs/db1'), params['db_path'])
+
+        abs_f = os.path.abspath(f)
+        abs_d = os.path.dirname(abs_f)
+
+        #  ../swift/run_eqsql_workflow.sh
+        exp = os.path.dirname(abs_d)
+        self.assertEqual(f'{exp}/swift/run_eqsql_workflow.sh', params['pool_launch_script'])
+        # ./output/
+        self.assertEqual(f"{abs_d}/output", params['out_path'])
+        # /home/nick/Documents/repos/../emews_examples/simple_eqsql/swift/cfgs/eqsql_workflow.cfg
+        self.assertEqual('/home/nick/Documents/emews_examples/simple_eqsql/swift/cfgs/eqsql_workflow.cfg',
+                         params['pool_cfg_file'])

@@ -1,4 +1,5 @@
 library(reticulate)
+library(yaml)
 
 #' Initializes the Python "eqsql" package on which this R package
 #' depends. The object returned by this function call can be used
@@ -23,10 +24,12 @@ init_eqsql <- function(python_path = NULL, eqsql_path = NULL) {
         eqsql <- import('eqsql')
         import('eqsql.db_tools')
         import('eqsql.task_queues')
+        import('eqsql.cfg')
     } else {
         eqsql <- import_from_path('eqsql', path = eqsql_path)
         import_from_path('eqsql.task_queues', path = eqsql_path)
         import_from_path('eqsql.db_tools', path = eqsql_path)
+        import_from_path('eqsql.cfg', path = eqsql_path)
     }
 
     eqsql
@@ -142,6 +145,30 @@ pop_completed <- function(task_queue, futures, timeout = NULL, sleep = 0.0) {
   fts <- discard(futures, function(x) x$eq_task_id == ft$eq_task_id)
   return(list(fts=fts, ft=ft))
 }
+
+parse_yaml_cfg <- function(cfg_file) {
+  cfg_d <- yaml.load_file(cfg_file)
+  dn <- dirname(cfg_file)
+  pd <- fs::path_abs(dn)
+  for (name in names(cfg_d)) {
+    if (endsWith(name, 'path') | endsWith(name, 'script') | endsWith(name, 'file')) {
+      p <- toString(fs::path_expand(cfg_d[[name]]))
+      if (startsWith(p, '..') | startsWith(p, '.')) {
+        p <- toString(fs::path(pd, p))
+      }
+      cfg_d[[name]] <- toString(fs::path_abs(p))
+      # if (file_test("-f", p)) {
+      #   np <- fs::path_abs(dirname(p))
+      #   cfg_d[[name]] <- toString(fs::path(np, basename(p)))
+      # } else {
+      #   np <- fs::path_abs(p)
+      #   cfg_d[[name]] <- toString(np)
+      # }
+    }
+  }
+  cfg_d
+}
+
 
 # _as_completed <- generator(function(eqr, futures, pop = FALSE, n = -1) {
 #   start_time <- Sys.time()
