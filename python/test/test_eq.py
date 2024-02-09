@@ -699,7 +699,6 @@ class CFGTests(unittest.TestCase):
     def test_cfg(self):
         f = "test_data/cfg_ex.yaml"
         params = parse_yaml_cfg(f)
-        print(params)
 
         # ~/Documents/eqsql_dbs/db1
         self.assertEqual(os.path.expanduser('~/Documents/eqsql_dbs/db1'), params['db_path'])
