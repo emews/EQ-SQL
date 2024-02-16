@@ -232,10 +232,11 @@ def _run_cmd(cmd: List, start_msg, failure_msg, end_msg=None, print_result=True)
             print(result_str)
     except subprocess.CalledProcessError as ex:
         if ex.stdout is None:
-            print(failure_msg)
+            msg = failure_msg
         else:
-            print(failure_msg + ex.stdout.decode('utf-8'))
-        raise ValueError()
+            msg = failure_msg + ex.stdout.decode('utf-8')
+        print(msg)
+        raise ValueError(msg)
 
 
 def _exec_sql(sql_file: Union[str, bytes, os.PathLike], db_user: str = 'eqsql_user',
@@ -263,110 +264,41 @@ def _exec_sql(sql_file: Union[str, bytes, os.PathLike], db_user: str = 'eqsql_us
     conn.close()
 
 
-def init_eqsql_db(db_path: str, create_db_sql_file: Union[str, bytes, os.PathLike] = None,
-                  db_user='eqsql_user', db_name='EQ_SQL', db_port=None):
-    """Creates and initialized an EQSQL postgresql database.
-
-    This will:
-        1. Create a database "cluster" at the specified path.
-        2. Start the server instance using that cluster.
-        3. Create the specified user.
-        4. Create the specified database in that cluster.
-        5. Populate that database with tables etc. by executing the commands in the
-           specified file.
-        6. Stop the database server.
-
-    Args:
-        db_path: the file path for the database cluster. This must not exist.
-        create_db_sql_file: a file containing the SQL to execute to create the database tables etc.
-            If this is None (the default) the default EQSQL SQL schema will be used.
-        db_user: the database user name
-        db_name: the name of the database
-        db_port: the port of the database server.
-    """
-    try:
-        _run_cmd(['which', 'initdb'], 'Checking for initdb ...',
-                 'EQ/SQL create database failed: "initdb" command not found',
-                 print_result=True)
-        _run_cmd(['initdb', '-D', db_path], f'Initializing database directory: {db_path} ...',
-                 'EQ/SQL create database failed:', 'Database directory initialized',
-                 False)
-        if db_port is None:
-            cmd = ['pg_ctl', '-D', db_path, '-l', f'{db_path}/db.log', '-o', '-F', 'start']
-        else:
-            cmd = ['pg_ctl', '-D', db_path, '-l', f'{db_path}/db.log', f'-o -F -p {db_port}', 'start']
-        _run_cmd(cmd, f'Starting database with log: {db_path}/db.log',
-                 'EQ/SQL create database failed: error starting database server', 'Database server started', False)
-
-        port_arg = []
-        args = ['createuser', '-w', db_user]
-        if db_port is not None:
-            port_arg = ['-p', f'{db_port}']
-        _run_cmd(args + port_arg,
-                 f'\nCreating database user {db_user}',
-                 'EQ/SQL create database failed: error creating user', 'User created', False)
-
-        args = ['createdb', f'--owner={db_user}', db_name]
-        _run_cmd(args + port_arg,
-                 f'\nCreating {db_name} database',
-                 'EQ/SQL create database failed: error creating user', 'Database created', True)
-
-        print("\nCreating EQ/SQL database tables")
-        if create_db_sql_file is None:
-            create_db_sql_file = resources.files('eqsql').joinpath('workflow.sql')
-        _exec_sql(create_db_sql_file, db_name=db_name, db_user=db_user, db_port=db_port)
-
-        return (db_path, db_user, db_name, socket.getfqdn(), db_port)
-
-    except ValueError:
-        pass
-
-    finally:
-        try:
-            _run_cmd(['pg_ctl', '-D', db_path, 'stop'], '\nStopping database server', '', '', True)
-        except ValueError:
-            pass
-
-
-def start_db(db_path: Union[str, bytes, os.PathLike], pg_ctl: Union[str, bytes, os.PathLike] = 'pg_ctl',
+def start_db(db_path: Union[str, bytes, os.PathLike], pg_bin_path: Union[str, bytes, os.PathLike] = '',
              db_port: int = None):
     """Starts the postgresql database cluster on the specified path
 
     Args:
         db_path: the file path for the database cluster to start
-        pg_ctl: path to postgresql's pg_ctl executable
+        pg_bin_path: path to postgresql's bin directory (i.e. the directory that contains
+            the pg_ctl executable)
         db_port: the port number to start the db on
     """
-    try:
-        if db_port is None:
-            cmd = [pg_ctl, '-D', db_path, '-l', f'{db_path}/db.log', '-o', '-F', 'start']
-        else:
-            cmd = [pg_ctl, '-D', db_path, '-l', f'{db_path}/db.log', f'-o -F -p {db_port}', 'start']
-        _run_cmd(cmd,
-                 f'\nStarting database with log:{db_path}/db.log',
-                 'EQ/SQL create database failed: error starting database server', 'Database server started', False)
-    except ValueError:
-        pass
+    pg_ctl = os.path.join(pg_bin_path, 'pg_ctl')
+    if db_port is None:
+        cmd = [pg_ctl, '-D', db_path, '-l', f'{db_path}/db.log', '-o', '-F', 'start']
+    else:
+        cmd = [pg_ctl, '-D', db_path, '-l', f'{db_path}/db.log', f'-o -F -p {db_port}', 'start']
+    _run_cmd(cmd, f'\nStarting database with log:{db_path}/db.log',
+             'EQ/SQL create database failed: error starting database server', 'Database server started', False)
 
 
-def stop_db(db_path: Union[str, bytes, os.PathLike], pg_ctl: Union[str, bytes, os.PathLike] = 'pg_ctl',
+def stop_db(db_path: Union[str, bytes, os.PathLike], pg_bin_path: Union[str, bytes, os.PathLike] = '',
             db_port: int = None):
     """Stops the postgresql database cluster on the specified path
 
     Args:
         db_path: the file path for the database cluster to stop
-        pg_ctl: path to postgresql's pg_ctl executable
+        pg_bin_path: path to postgresql's bin directory (i.e. the directory that contains
+            the pg_ctl executable)
         db_port: the port number of the database to stop
     """
-    try:
-        if db_port is None:
-            cmd = [pg_ctl, '-D', db_path, 'stop']
-        else:
-            cmd = [pg_ctl, '-D', db_path, f'-o -F -p {db_port}', 'stop']
-        _run_cmd(cmd, '\nStopping database server', '', '', True)
-
-    except ValueError:
-        pass
+    pg_ctl = os.path.join(pg_bin_path, 'pg_ctl')
+    if db_port is None:
+        cmd = [pg_ctl, '-D', db_path, 'stop']
+    else:
+        cmd = [pg_ctl, '-D', db_path, f'-o -F -p {db_port}', 'stop']
+    _run_cmd(cmd, '\nStopping database server', '', '', True)
 
 
 def reset_db(db_user: str = 'eqsql_user', db_name: str = 'EQ_SQL', db_host: str = 'localhost',
@@ -395,3 +327,169 @@ def reset_db(db_user: str = 'eqsql_user', db_name: str = 'EQ_SQL', db_host: str 
             cur.execute(clear_db_sql)
 
     conn.close()
+
+
+def init_psql_cluster(db_path: str, pg_bin_path: Union[str, bytes, os.PathLike] = ''):
+    """Creates a new PostgreSQL database cluster on the specified path.
+
+    Args:
+        db_path: the file path for the database cluster. This must not exist.
+        pg_bin_path: path to postgresql's bin directory (i.e. the directory that contains the
+            initdb executable)
+
+    Raises:
+        ValueError: if the PostgresSQL initdb can't be found or fails.
+    """
+    init_db = os.path.join(pg_bin_path, 'initdb')
+    _run_cmd(['which', init_db], 'Checking for initdb ...',
+             'EQ/SQL create database failed: "initdb" command not found',
+             print_result=True)
+    _run_cmd([init_db, '-D', db_path], f'Initializing database directory: {db_path} ...',
+             'EQ/SQL create database failed:', 'Database directory initialized',
+             False)
+
+
+def is_db_running(db_path: str, db_port: int = None, pg_bin_path: Union[str, bytes, os.PathLike] = ''):
+    """Checks if the database server for the specified path, and port is running
+
+    Args:
+        db_path: the file path for the database cluster. This must not exist.
+        db_port: the port the database is listening on
+        pg_bin_path: path to postgresql's bin directory (i.e. the directory that contains the
+            pg_ctl executable)
+
+    Returns:
+        True if the database server is running, otherwise false
+    """
+    pg_ctl = os.path.join(pg_bin_path, 'pg_ctl')
+    if db_port is None:
+        cmd = [pg_ctl, '-D', db_path, '-o', '-F', 'status']
+    else:
+        cmd = [pg_ctl, '-D', db_path, f'-o -F -p {db_port}', 'status']
+
+    try:
+        subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, check=True)
+        return True
+    except subprocess.CalledProcessError as ex:
+        if ex.returncode == 3:
+            return False
+
+        msg = 'Failure Getting DB Status: '
+        if ex.stdout is not None:
+            msg += ex.stdout.decode('utf-8')
+        raise ValueError(msg)
+
+
+def create_eqsql_db(db_path: str, db_user='eqsql_user', db_name='EQ_SQL', db_port=None,
+                    pg_bin_path: Union[str, bytes, os.PathLike] = ''):
+    """Creates the named database ownwed by the named user in the specified database cluster path.
+    If the database server is not running it will be started prior to creating the user and
+    database, and then stopped.
+
+    Args:
+        db_path: the file path for the database cluster
+        db_user: the name of the database user to create
+        db_name: the name of the database to create
+        db_port: the port number of the database
+        pg_bin_path: the path to postgresql's bin directory (i.e. the directory that contains
+            the pg_ctl, createuser and createdb executables)
+    """
+
+    running = is_db_running(db_path, db_port, pg_bin_path)
+    if not running:
+        start_db(db_path, pg_bin_path, db_port)
+
+    try:
+        createuser = os.path.join(pg_bin_path, 'createuser')
+        port_arg = []
+        args = [createuser, '-w', db_user]
+        if db_port is not None:
+            port_arg = ['-p', f'{db_port}']
+        _run_cmd(args + port_arg,
+                 f'\nCreating database user {db_user}',
+                 'EQ/SQL create database failed: error creating user', 'User created', False)
+
+        createdb = os.path.join(pg_bin_path, 'createdb')
+        args = [createdb, f'--owner={db_user}', db_name]
+        _run_cmd(args + port_arg,
+                 f'\nCreating {db_name} database',
+                 'EQ/SQL create database failed: error creating user', 'Database created', True)
+    finally:
+        if not running:
+            stop_db(db_path, pg_bin_path, db_port)
+
+
+def create_eqsql_tables(db_path: str, db_user='eqsql_user', db_name='EQ_SQL', db_port=None,
+                        create_db_sql_file: Union[str, bytes, os.PathLike] = None,
+                        pg_bin_path: Union[str, bytes, os.PathLike] = ''):
+    """Create the EQSQL database tables, in the specified database.
+
+    If the database server is not running it will be started prior to creating the tables etc.
+
+    Args:
+        db_path: the file path for the database cluster
+        db_user: the name of the database user
+        db_name: the name of the database
+        db_port: the port number of the database
+        create_db_sql_file: a file containing the SQL to execute to create the database tables etc.
+            If this is None (the default) the default EQSQL SQL schema will be used.
+        pg_bin_path: the path to postgresql's bin directory (i.e. the directory that contains
+            the pg_ctl  executable)
+    """
+
+    running = is_db_running(db_path, db_port, pg_bin_path)
+    if not running:
+        start_db(db_path, pg_bin_path, db_port)
+
+    try:
+        if create_db_sql_file is None:
+            create_db_sql_file = resources.files('eqsql').joinpath('workflow.sql')
+        _exec_sql(create_db_sql_file, db_name=db_name, db_user=db_user, db_port=db_port)
+
+    finally:
+        if not running:
+            stop_db(db_path, pg_bin_path, db_port)
+
+
+def init_eqsql_db(db_path: str, create_db_sql_file: Union[str, bytes, os.PathLike] = None,
+                  db_user: str = 'eqsql_user', db_name: str = 'EQ_SQL', db_port=None,
+                  pg_bin_path: Union[str, bytes, os.PathLike] = ''):
+    """Creates and initialized an EQSQL postgresql database.
+
+    This will:
+        1. Create a database "cluster" at the specified path.
+        2. Start the server instance using that cluster.
+        3. Create the specified user.
+        4. Create the specified database in that cluster.
+        5. Populate that database with tables etc. by executing the commands in the
+           specified file.
+        6. Stop the database server.
+
+    Args:
+        db_path: the file path for the database cluster. This must not exist.
+        create_db_sql_file: a file containing the SQL to execute to create the database tables etc.
+            If this is None (the default) the default EQSQL SQL schema will be used.
+        db_user: the database user name
+        db_name: the name of the database
+        db_port: the port of the database server.
+        pg_bin_path: the path to postgresql's bin directory (i.e. the directory that contains
+            the pg_ctl, createuser and createdb executables)
+    """
+    try:
+        init_psql_cluster(db_path, pg_bin_path)
+        start_db(db_path, pg_bin_path=pg_bin_path, db_port=db_port)
+        create_eqsql_db(db_path, db_user, db_name, db_port, pg_bin_path)
+
+        print("\nCreating EQ/SQL database tables")
+        create_eqsql_tables(db_path, db_user, db_name, db_port, create_db_sql_file,
+                            pg_bin_path)
+        return (db_path, db_user, db_name, socket.getfqdn(), db_port)
+
+    except ValueError:
+        pass
+
+    finally:
+        try:
+            stop_db(db_path, pg_bin_path, db_port)
+        except ValueError:
+            pass

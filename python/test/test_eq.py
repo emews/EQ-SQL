@@ -2,20 +2,24 @@ import unittest
 import json
 import logging
 import os
+import shutil
 
 from eqsql.task_queues import local_queue
 from eqsql.task_queues.core import ResultStatus, TaskStatus, TimeoutError
 from eqsql.task_queues.core import EQ_TIMEOUT, EQ_STOP, EQ_ABORT
-from eqsql.db_tools import reset_db
+from eqsql.db_tools import reset_db, init_eqsql_db, start_db, stop_db, is_db_running
 from eqsql.cfg import parse_yaml_cfg
 
 # Assumes the existence of a testing database
 # with these characteristics
 host = 'localhost'
 user = 'eqsql_test_user'
-port = 5433
+port = 5444
 db_name = 'eqsql_test_db'
 password = None
+
+db_path = './test_data/db/eqsql_test'
+pg_bin = '/home/nick/sfw/postgresql-14.11/bin'
 
 
 def create_payload(x=1.2):
@@ -28,6 +32,20 @@ def clear_db():
 
 
 class EQTests(unittest.TestCase):
+
+    @classmethod
+    def setUpClass(cls):
+        if os.path.exists(db_path):
+            shutil.rmtree(db_path)
+
+        init_eqsql_db(db_path, db_user=user, db_name=db_name,
+                      db_port=port, pg_bin_path=pg_bin)
+        if not is_db_running(db_path, port, pg_bin):
+            start_db(db_path, pg_bin, port)
+
+    @classmethod
+    def tearDownClass(cls):
+        stop_db(db_path, pg_bin, port)
 
     def tearDown(self):
         self.eq_sql.close()
