@@ -235,7 +235,6 @@ def _run_cmd(cmd: List, start_msg, failure_msg, end_msg=None, print_result=True)
             msg = failure_msg
         else:
             msg = failure_msg + ex.stdout.decode('utf-8')
-        print(msg)
         raise ValueError(msg)
 
 
@@ -274,6 +273,10 @@ def start_db(db_path: Union[str, bytes, os.PathLike], pg_bin_path: Union[str, by
             the pg_ctl executable)
         db_port: the port number to start the db on
     """
+    if is_db_running(db_path, db_port, pg_bin_path):
+        print("Failure Starting Database: database is already running.")
+        return
+
     pg_ctl = os.path.join(pg_bin_path, 'pg_ctl')
     if db_port is None:
         cmd = [pg_ctl, '-D', db_path, '-l', f'{db_path}/db.log', '-o', '-F', 'start']
@@ -293,6 +296,10 @@ def stop_db(db_path: Union[str, bytes, os.PathLike], pg_bin_path: Union[str, byt
             the pg_ctl executable)
         db_port: the port number of the database to stop
     """
+    if not is_db_running(db_path, db_port, pg_bin_path):
+        print("Failure Stopping Database: database is not running.")
+        return
+
     pg_ctl = os.path.join(pg_bin_path, 'pg_ctl')
     if db_port is None:
         cmd = [pg_ctl, '-D', db_path, 'stop']
@@ -342,7 +349,7 @@ def create_eqsql_cluster(db_path: str, pg_bin_path: Union[str, bytes, os.PathLik
     """
     init_db = os.path.join(pg_bin_path, 'initdb')
     _run_cmd(['which', init_db], 'Checking for initdb ...',
-             'EQ/SQL create database failed: "initdb" command not found',
+             'EQ/SQL create database failed: "initdb" command not found. Set pg_bin_path argument to the directory containing the "initdb" executable',
              print_result=True)
     _run_cmd([init_db, '-D', db_path], f'Initializing database directory: {db_path} ...',
              'EQ/SQL create database failed:', 'Database directory initialized',
@@ -362,6 +369,10 @@ def is_db_running(db_path: str, db_port: int = None, pg_bin_path: Union[str, byt
         True if the database server is running, otherwise false
     """
     pg_ctl = os.path.join(pg_bin_path, 'pg_ctl')
+    _run_cmd(['which', pg_ctl], 'Checking for pg_ctl ...',
+             '"pg_ctl" executable not found. Set pg_bin_path argument to the directory containing the "pg_ctl" executable',
+             print_result=True)
+
     if db_port is None:
         cmd = [pg_ctl, '-D', db_path, '-o', '-F', 'status']
     else:
@@ -399,8 +410,16 @@ def create_eqsql_db(db_path: str, db_user='eqsql_user', db_name='EQ_SQL', db_por
     if not running:
         start_db(db_path, pg_bin_path, db_port)
 
+    createuser = os.path.join(pg_bin_path, 'createuser')
+    _run_cmd(['which', createuser], 'Checking for createuser ...',
+             '"createuser" executable not found. Set pg_bin_path argument to the directory containing the "createuser" executable',
+             print_result=True)
+    createdb = os.path.join(pg_bin_path, 'createdb')
+    _run_cmd(['which', createdb], 'Checking for createdb ...',
+             '"createdb" executable not found. Set pg_bin_path argument to the directory containing the "createdb" executable',
+             print_result=True)
+
     try:
-        createuser = os.path.join(pg_bin_path, 'createuser')
         port_arg = []
         args = [createuser, '-w', db_user]
         if db_port is not None:
@@ -409,7 +428,6 @@ def create_eqsql_db(db_path: str, db_user='eqsql_user', db_name='EQ_SQL', db_por
                  f'\nCreating database user {db_user}',
                  'EQ/SQL create database failed: error creating user', 'User created', False)
 
-        createdb = os.path.join(pg_bin_path, 'createdb')
         args = [createdb, f'--owner={db_user}', db_name]
         _run_cmd(args + port_arg,
                  f'\nCreating {db_name} database',
@@ -436,7 +454,6 @@ def create_eqsql_tables(db_path: str, db_user='eqsql_user', db_name='EQ_SQL', db
         pg_bin_path: the path to postgresql's bin directory (i.e. the directory that contains
             the pg_ctl  executable)
     """
-
     running = is_db_running(db_path, db_port, pg_bin_path)
     if not running:
         start_db(db_path, pg_bin_path, db_port)
@@ -489,7 +506,4 @@ def init_eqsql_db(db_path: str, create_db_sql_file: Union[str, bytes, os.PathLik
         pass
 
     finally:
-        try:
-            stop_db(db_path, pg_bin_path, db_port)
-        except ValueError:
-            pass
+        stop_db(db_path, pg_bin_path, db_port)
