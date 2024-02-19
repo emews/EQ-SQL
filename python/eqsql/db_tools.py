@@ -329,7 +329,7 @@ def reset_db(db_user: str = 'eqsql_user', db_name: str = 'EQ_SQL', db_host: str 
     conn.close()
 
 
-def init_psql_cluster(db_path: str, pg_bin_path: Union[str, bytes, os.PathLike] = ''):
+def create_eqsql_cluster(db_path: str, pg_bin_path: Union[str, bytes, os.PathLike] = ''):
     """Creates a new PostgreSQL database cluster on the specified path.
 
     Args:
@@ -476,7 +476,7 @@ def init_eqsql_db(db_path: str, create_db_sql_file: Union[str, bytes, os.PathLik
             the pg_ctl, createuser and createdb executables)
     """
     try:
-        init_psql_cluster(db_path, pg_bin_path)
+        create_eqsql_cluster(db_path, pg_bin_path)
         start_db(db_path, pg_bin_path=pg_bin_path, db_port=db_port)
         create_eqsql_db(db_path, db_user, db_name, db_port, pg_bin_path)
 
