@@ -460,7 +460,11 @@ def create_eqsql_tables(db_path: str, db_user='eqsql_user', db_name='EQ_SQL', db
 
     try:
         if create_db_sql_file is None:
-            create_db_sql_file = resources.files('eqsql').joinpath('workflow.sql')
+            try:
+                create_db_sql_file = resources.files('eqsql').joinpath('workflow.sql')
+            except AttributeError:
+                # py3.8 doesn't have resources.files
+                create_db_sql_file = os.path.join(os.path.dirname(__file__), 'workflow.sql')
         _exec_sql(create_db_sql_file, db_name=db_name, db_user=db_user, db_port=db_port)
 
     finally:
