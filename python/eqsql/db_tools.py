@@ -393,7 +393,7 @@ def is_db_running(db_path: str, db_port: int = None, pg_bin_path: Union[str, byt
 
 def create_eqsql_db(db_path: str, db_user='eqsql_user', db_name='EQ_SQL', db_port=None,
                     pg_bin_path: Union[str, bytes, os.PathLike] = ''):
-    """Creates the named database ownwed by the named user in the specified database cluster path.
+    """Creates the named database owned by the named user in the specified database cluster path.
     If the database server is not running it will be started prior to creating the user and
     database, and then stopped.
 
