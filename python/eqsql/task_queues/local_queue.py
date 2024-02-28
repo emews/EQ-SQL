@@ -406,8 +406,9 @@ class LocalTaskQueue:
             with self.db.conn:
                 with self.db.conn.cursor() as cur:
                     eq_task_id = self._insert_task(cur, exp_id, eq_type, payload, priority)
-                    cmd = db_tools.format_insert('eq_task_tags', ['eq_task_id', 'tag'])
-                    cur.execute(cmd, (eq_task_id, tag))
+                    if tag is not None:
+                        cmd = db_tools.format_insert('eq_task_tags', ['eq_task_id', 'tag'])
+                        cur.execute(cmd, (eq_task_id, tag))
                     self.push_out_queue(cur, eq_task_id, eq_type, priority)
                     return (ResultStatus.SUCCESS, Future(self, eq_task_id, tag))
         except Exception:
