@@ -24,6 +24,7 @@ init_eqsql <- function(python_path = NULL, eqsql_path = NULL) {
         eqsql <- import('eqsql')
         import('eqsql.db_tools')
         import('eqsql.task_queues')
+        import('eqsql.task_queues')
         import('eqsql.cfg')
     } else {
         eqsql <- import_from_path('eqsql', path = eqsql_path)
@@ -50,7 +51,7 @@ init_eqsql <- function(python_path = NULL, eqsql_path = NULL) {
 #'                        then retry ``retry_threshold`` many times to establish a connection. There
 #'                        will be random few second delay betwen each retry.
 #' @param log_level the logging threshold level. Defaults to logger::WARN.
-#' @param queue_type the type of task_queue to create - one of 'local', 'gcx', or 'service'.
+#' @param queue_type the type of task_queue to create - one of 'local', 'gc', or 'service'.
 #' @return a reticulate wrapped Python instance of an eqsql.task_queues.core.TaskQueue
 #' that can be used as a task queue. 
 #' @export
@@ -59,7 +60,7 @@ init_task_queue <- function(eqsql, db_host, db_user, db_port, db_name, db_passwo
                             log_level=logger::WARN, queue_type='local', service_url = NULL, 
                             gcx = NULL) {
 
-    match.arg(arg=queue_type, choices = c("local", "gcx", "service"))
+    match.arg(arg=queue_type, choices = c("local", "gc", "service"))
     if (log_level == logger::TRACE || log_level == logger::DEBUG) {
         pylog <- 10
     } else if (log_level == logger::WARN) {
@@ -75,11 +76,11 @@ init_task_queue <- function(eqsql, db_host, db_user, db_port, db_name, db_passwo
     }
 
     if (queue_type == 'local') {
-        task_queue <- eqsql$task_queues$local_queue$init_task_queue(db_host, db_user, db_port, db_name, db_password, retry_threshold, log_level)
+        task_queue <- eqsql$task_queues$local_queue$init_task_queue(db_host, db_user, as.integer(db_port), db_name, db_password, as.integer(retry_threshold), as.integer(pylog))
     } else if (queue_type == 'service') {
-        task_queue <- eqsql$task_queues$service_queue$init_task_queue(service_url, db_host, db_user, db_port, db_name, db_password, retry_threshold, log_level)
-    } else if (queue_type == 'gcx') {
-        task_queue <- eqsql$task_queues$gcx_queue$init_task_queue(gcx, db_host, db_user, db_port, db_name, db_password, retry_threshold, log_level)
+        task_queue <- eqsql$task_queues$service_queue$init_task_queue(service_url, db_host, db_user, as.integer(db_port), db_name, db_password, as.integer(retry_threshold))
+    } else if (queue_type == 'gc') {
+        task_queue <- eqsql$task_queues$gc_queue$init_task_queue(gcx, db_host, db_user, as.integer(db_port), db_name, db_password, as.integer(retry_threshold))
     }
 
     task_queue
