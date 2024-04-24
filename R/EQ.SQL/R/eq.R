@@ -24,7 +24,6 @@ init_eqsql <- function(python_path = NULL, eqsql_path = NULL) {
         eqsql <- import('eqsql')
         import('eqsql.db_tools')
         import('eqsql.task_queues')
-        import('eqsql.task_queues')
         import('eqsql.cfg')
     } else {
         eqsql <- import_from_path('eqsql', path = eqsql_path)
