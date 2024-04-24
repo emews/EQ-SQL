@@ -506,8 +506,5 @@ def init_eqsql_db(db_path: str, create_db_sql_file: Union[str, bytes, os.PathLik
                             pg_bin_path)
         return (db_path, db_user, db_name, socket.getfqdn(), db_port)
 
-    except ValueError:
-        pass
-
     finally:
         stop_db(db_path, pg_bin_path, db_port)
