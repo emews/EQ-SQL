@@ -208,7 +208,7 @@ class ServiceTaskQueue:
         return f
 
     def as_completed(self, futures: List[Future], pop: bool = False, timeout: float = None, n: int = None,
-                     sleep: float = 0) -> Generator[Future, None, None]:
+                     batch_size: int = 1, sleep: float = 0) -> Generator[Future, None, None]:
         """Returns a generator over the :py:class:`Futures <Future>` in the ``futures`` argument that yields
         Futures as they complete. The  :py:class:`Futures <Future>` are checked for completion by iterating over all of the
         ones that have not yet completed and checking for a result. At the end of each iteration, the
@@ -239,35 +239,46 @@ class ServiceTaskQueue:
         n_completed = 0
         n_futures = len(futures)
         completed_tasks = []
+        if n is None:
+            n_required = n_futures
+        else:
+            n_required = n_futures if n_futures < n else n
+        total_required = n_required
 
         while True:
             eq_task_ids = [ft.eq_task_id for ft in futures]
             # _as_completed iterates through the list of task_ids
             # we shuffle so not biasing the members at the front of the list
             shuffle(eq_task_ids)
-            msg = {'db_params': self.db_params, 'task_ids': eq_task_ids, 'timeout': timeout, 'n': n,
-                   'sleep': sleep, 'completed_tasks': completed_tasks}
+            msg = {'db_params': self.db_params, 'task_ids': eq_task_ids, 'timeout': timeout, 'batch_size': batch_size,
+                   'n_required': n_required, 'sleep': sleep, 'completed_tasks': completed_tasks}
             response = requests.post(api_url, json=json.dumps(msg))
             result = response.json()
 
             if result['status'] == "timeout_error":
                 raise TimeoutError(f'as_completed timed out after {timeout} seconds')
 
-            task_results = result['result']
-            task_id, task_status, result_status, task_result = task_results
-            completed_tasks.append(task_id)
+            batch = result['result']
+            for task_id, task_status, result_status, task_result in batch:
 
-            ft = id_map[task_id]
-            ft._result = (result_status, task_result)
-            ft._task_status = TaskStatus.COMPLETE if task_status == TaskStatus.COMPLETE else None
-            if pop:
-                futures.remove(ft)
-            yield ft
+                ft = id_map[task_id]
+                ft._result = (result_status, task_result)
+                ft._task_status = TaskStatus.COMPLETE if task_status == TaskStatus.COMPLETE else None
+                if pop:
+                    futures.remove(ft)
+                else:
+                    # task_ids to query are gathered from the futures
+                    # if popped then we don't need to track it as completed
+                    # as it won't be part of the task_ids
+                    completed_tasks.append(ft.eq_task_id)
+                yield ft
 
-            n_completed += 1
-            if n_completed == n_futures or n_completed == n:
-                # Python docs: return rather than raise StopIteration
-                return
+                n_completed += 1
+                if n_completed == n_futures or n_completed == n:
+                    # Python docs: return rather than raise StopIteration
+                    return
+
+            n_required = total_required - n_completed
 
     def get_status(self, futures: Iterable[Future]) -> List[Tuple[Future, TaskStatus]]:
         """Gets the status (queued, running, etc.) of the specified tasks

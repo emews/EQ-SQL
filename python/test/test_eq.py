@@ -568,6 +568,132 @@ class EQTests(unittest.TestCase):
         self.assertEqual(fs_len - n, len(fs))
         self.eq_sql.close()
 
+    def test_as_completed_pop_batch(self):
+        self.eq_sql = local_queue.init_task_queue(host, user, port, db_name, password)
+        clear_db()
+
+        fs = []
+        # 100 submissions
+        for i in range(0, 200):
+            payload = create_payload(i)
+            submit_status, ft = self.eq_sql.submit_task('eq_test', 0, payload, priority=0)
+            self.assertEqual(ResultStatus.SUCCESS, submit_status)
+            fs.append(ft)
+
+        # add 100 results
+        for _ in range(100):
+            result = self.eq_sql.query_task(0, timeout=0.0)
+            if result['type'] == 'status':
+                break
+            self.assertEqual('work', result['type'])
+            task_id = result['eq_task_id']
+            task_result = {'j': task_id}
+            report_result = self.eq_sql.report_task(task_id, 0, json.dumps(task_result))
+            self.assertEqual(ResultStatus.SUCCESS, report_result)
+
+        fs_len = len(fs)
+        ft = self.eq_sql.pop_completed(fs)
+        self.assertTrue(ft.done())
+        self.assertEqual(TaskStatus.COMPLETE, ft.status)
+        self.assertEqual(fs_len - 1, len(fs))
+
+        n = 30
+        fs_len = len(fs)
+        count = 0
+        ft_task_ids = set()
+        for ft in self.eq_sql.as_completed(fs, pop=True, n=n, batch_size=12):
+            count += 1
+            self.assertTrue(ft.done())
+            self.assertEqual(TaskStatus.COMPLETE, ft.status)
+            self.assertEqual(fs_len - count, len(fs))
+            ft_task_ids.add(ft.eq_task_id)
+
+        # test getting no duplicates
+        self.assertEqual(count, len(ft_task_ids))
+        self.assertEqual(fs_len - n, len(fs))
+        self.assertEqual(n, count)
+        self.eq_sql.close()
+
+    def test_as_completed_batch(self):
+        self.eq_sql = local_queue.init_task_queue(host, user, port, db_name, password)
+        clear_db()
+
+        fs = []
+        # 20 submissions
+        for i in range(0, 20):
+            payload = create_payload(i)
+            submit_status, ft = self.eq_sql.submit_task('eq_test', 0, payload, priority=0)
+            self.assertEqual(ResultStatus.SUCCESS, submit_status)
+            fs.append(ft)
+
+        # add 20 results
+        for _ in range(20):
+            result = self.eq_sql.query_task(0, timeout=0.0)
+            if result['type'] == 'status':
+                break
+            self.assertEqual('work', result['type'])
+            task_id = result['eq_task_id']
+            task_result = {'j': task_id}
+            report_result = self.eq_sql.report_task(task_id, 0, json.dumps(task_result))
+            self.assertEqual(ResultStatus.SUCCESS, report_result)
+
+        # n greater than number of futures
+        n = 30
+        fs_len = len(fs)
+        count = 0
+        ft_task_ids = set()
+        for ft in self.eq_sql.as_completed(fs, pop=False, n=n, batch_size=12):
+            count += 1
+            self.assertTrue(ft.done())
+            ft_task_ids.add(ft.eq_task_id)
+            self.assertEqual(TaskStatus.COMPLETE, ft.status)
+            self.assertEqual(fs_len, len(fs))
+
+        # test getting no duplicates
+        self.assertEqual(count, len(ft_task_ids))
+        self.assertEqual(count, fs_len)
+        self.assertNotEqual(count, n)
+        self.eq_sql.close()
+
+    def test_as_completed_batch_no_n(self):
+        self.eq_sql = local_queue.init_task_queue(host, user, port, db_name, password)
+        clear_db()
+
+        fs = []
+        # 20 submissions
+        for i in range(0, 20):
+            payload = create_payload(i)
+            submit_status, ft = self.eq_sql.submit_task('eq_test', 0, payload, priority=0)
+            self.assertEqual(ResultStatus.SUCCESS, submit_status)
+            fs.append(ft)
+
+        # add 20 results
+        for _ in range(20):
+            result = self.eq_sql.query_task(0, timeout=0.0)
+            if result['type'] == 'status':
+                break
+            self.assertEqual('work', result['type'])
+            task_id = result['eq_task_id']
+            task_result = {'j': task_id}
+            report_result = self.eq_sql.report_task(task_id, 0, json.dumps(task_result))
+            self.assertEqual(ResultStatus.SUCCESS, report_result)
+
+        # n greater than number of futures
+        fs_len = len(fs)
+        count = 0
+        ft_task_ids = set()
+        for ft in self.eq_sql.as_completed(fs, pop=False, batch_size=12):
+            count += 1
+            self.assertTrue(ft.done())
+            ft_task_ids.add(ft.eq_task_id)
+            self.assertEqual(TaskStatus.COMPLETE, ft.status)
+            self.assertEqual(fs_len, len(fs))
+
+        # test getting no duplicates
+        self.assertEqual(count, len(ft_task_ids))
+        self.assertEqual(count, fs_len)
+        self.eq_sql.close()
+
     def test_cancel_tasks(self):
         self.eq_sql = local_queue.init_task_queue(host, user, port, db_name, password)
         clear_db()

@@ -954,7 +954,7 @@ class LocalTaskQueue:
         return f
 
     def as_completed(self, futures: List[Future], pop: bool = False, timeout: float = None, n: int = None,
-                     sleep: float = 0) -> Generator[Future, None, None]:
+                     batch_size: int = 1, sleep: float = 0) -> Generator[Future, None, None]:
         """Returns a generator over the :py:class:`Futures <Future>` in the ``futures`` argument that yields
         Futures as they complete. The  :py:class:`Futures <Future>` are checked for completion by iterating over all of the
         ones that have not yet completed and checking for a result. At the end of each iteration, the
@@ -984,17 +984,36 @@ class LocalTaskQueue:
         completed_tasks = set()
         wk_futures = [f for f in futures]
         n_futures = len(wk_futures)
+        n_completed = 0
+        batch = []
+        n_batch = 0
+
         while True:
             for f in wk_futures:
                 if f.eq_task_id not in completed_tasks:
                     status, result_str = f.result(timeout=0.0)
                     if status == ResultStatus.SUCCESS or result_str == EQ_ABORT:
                         completed_tasks.add(f.eq_task_id)
-                        if pop:
-                            futures.remove(f)
-                        yield f
+                        batch.append(f)
+                        n_batch += 1
+
+                        if n_batch == batch_size:
+                            for ft in batch:
+                                if pop:
+                                    futures.remove(ft)
+                                yield ft
+
+                            batch.clear()
+                            n_batch = 0
+
                         n_completed = len(completed_tasks)
                         if n_completed == n_futures or n_completed == n:
+                            if n_batch > 0:
+                                for ft in batch:
+                                    if pop:
+                                        futures.remove(ft)
+                                    yield ft
+
                             # Python docs: return rather than raise StopIteration
                             return
 

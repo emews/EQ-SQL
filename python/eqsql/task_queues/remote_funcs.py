@@ -88,13 +88,15 @@ def _are_queues_empty(db_params: DBParameters, eq_type: int = None) -> bool:
 
 
 def _as_completed(db_params: DBParameters, eq_task_ids: List[int], completed_tasks: List[int],
-                  timeout: float = None, n: int = None,
-                  sleep: float = 0) -> Tuple[int, TaskStatus, ResultStatus, str]:
+                  timeout: float = None, n_required: int = 1, batch_size: int = 1,
+                  sleep: float = 0) -> List[Tuple[int, TaskStatus, ResultStatus, str]]:
     from eqsql.task_queues import local_queue
     task_queue = local_queue.init_task_queue(db_params.host, db_params.user, db_params.port, db_params.db_name,
                                              password=db_params.password, retry_threshold=db_params.retry_threshold)
     completed_task_set = set(completed_tasks)
     start_time = time.time()
+    batch = []
+
     while True:
         for eq_task_id in eq_task_ids:
             if eq_task_id not in completed_task_set:
@@ -102,7 +104,12 @@ def _as_completed(db_params: DBParameters, eq_task_ids: List[int], completed_tas
                 if result_status == ResultStatus.SUCCESS or result_str == EQ_ABORT:
                     query_result = task_queue._query_status([eq_task_id])
                     task_status = None if query_result is None else query_result[0][1]
-                    return (eq_task_id, task_status, result_status, result_str)
+                    batch.append((eq_task_id, task_status, result_status, result_str))
+                    completed_task_set.add(eq_task_id)
+
+                    n_batch = len(batch)
+                    if n_batch == batch_size or n_batch == n_required or len(completed_task_set) == len(eq_task_ids):
+                        return batch
 
             if timeout is not None and time.time() - start_time > timeout:
                 raise TimeoutError(f'as_completed timed out after {timeout} seconds')

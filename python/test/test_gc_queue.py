@@ -15,19 +15,18 @@ from .common import create_payload, report_task, query_task
 
 # Assumes the existence of a testing database
 # with these characteristics
-host = 'beboplogin1'
-user = 'eqsql_test_user'
+host = 'ilogin3'
+user = 'eqsql_user'
 port = 52718
-db_name = 'eqsql_test_db'
+db_name = 'EQ_SQL'
 
-# conda environment - bebop gce_py3.10
-# globus compute endpoint - gce_py3.10 (same as environment)
-gcx_endpoint = '2b2fa624-9845-494b-8ba8-2750821d3716'
+# globus compute endpoint - osprey-py3.10, env - osprey-py3.10
+gcx_endpoint = '8d5f8bde-8c4b-48ac-9c43-0d377d68e651'
 
 
 def clear_db(gcx: Executor):
-    def _reset_db(db_user: str = 'eqsql_test_user', dbname: str = 'eqsql_test_db', db_host: str = 'localhost',
-                  db_port: int = None):
+    def _reset_db(db_user: str = 'eqsql_user', dbname: str = 'EQ_SQL', db_host: str = 'ilogin3',
+                  db_port: int = 52718):
         import psycopg2
         """Resets the database by deleting the contents of all the eqsql tables and restarting
         the emews task id generator sequence.
@@ -286,7 +285,7 @@ class GCTaskQueueTests(unittest.TestCase):
             submit_status, fts = self.eq_sql.submit_tasks('eq_test', 0, payloads, priority=0)
             self.assertEqual(ResultStatus.SUCCESS, submit_status)
 
-            # Add 2 results as if worker pool had done them
+            # Add 10 results as if worker pool had done them
             for _ in range(10):
                 result = gcx.submit(query_task, self.eq_sql.db_params, eq_type=0, timeout=0).result()
                 self.assertEqual('work', result['type'])
@@ -307,6 +306,111 @@ class GCTaskQueueTests(unittest.TestCase):
                 self.assertTrue(ft not in fts)
 
             self.assertEqual(fs_len - n, len(fts))
+
+    def test_as_completed_pop_batch(self):
+        with Executor(endpoint_id=gcx_endpoint) as gcx:
+            self.eq_sql = gc_queue.init_task_queue(gcx, host, user, port, db_name)
+            clear_db(gcx)
+
+            payloads = [create_payload(i) for i in range(0, 40)]
+            submit_status, fts = self.eq_sql.submit_tasks('eq_test', 0, payloads, priority=0)
+            self.assertEqual(ResultStatus.SUCCESS, submit_status)
+
+            # Add 35 results as if worker pool had done them
+            for _ in range(35):
+                result = gcx.submit(query_task, self.eq_sql.db_params, eq_type=0, timeout=0).result()
+                self.assertEqual('work', result['type'])
+                task_id = result['eq_task_id']
+                task_result = {'j': task_id}
+                report_result = gcx.submit(report_task, self.eq_sql.db_params, eq_task_id=task_id,
+                                           eq_type=0, result=json.dumps(task_result)).result()
+                self.assertEqual(ResultStatus.SUCCESS, report_result)
+
+            fs_len = len(fts)
+            n = 30
+            count = 0
+            for ft in self.eq_sql.as_completed(fts, timeout=None, n=n, pop=True, batch_size=12):
+                count += 1
+                self.assertTrue(ft.done())
+                self.assertEqual(TaskStatus.COMPLETE, ft.status)
+                self.assertEqual(fs_len - count, len(fts))
+                self.assertTrue(ft not in fts)
+
+            self.assertEqual(fs_len - n, len(fts))
+
+    def test_as_completed_batch(self):
+        with Executor(endpoint_id=gcx_endpoint) as gcx:
+            self.eq_sql = gc_queue.init_task_queue(gcx, host, user, port, db_name)
+            clear_db(gcx)
+
+            payloads = [create_payload(i) for i in range(0, 20)]
+            submit_status, fts = self.eq_sql.submit_tasks('eq_test', 0, payloads, priority=0)
+            self.assertEqual(ResultStatus.SUCCESS, submit_status)
+
+            # Add 20 results (< n) as if worker pool had done them
+            for _ in range(20):
+                result = gcx.submit(query_task, self.eq_sql.db_params, eq_type=0, timeout=0).result()
+                self.assertEqual('work', result['type'])
+                task_id = result['eq_task_id']
+                task_result = {'j': task_id}
+                report_result = gcx.submit(report_task, self.eq_sql.db_params, eq_task_id=task_id,
+                                           eq_type=0, result=json.dumps(task_result)).result()
+                self.assertEqual(ResultStatus.SUCCESS, report_result)
+
+            # n greater than number of futures
+            n = 30
+            fs_len = len(fts)
+            count = 0
+            ft_task_ids = set()
+            for ft in self.eq_sql.as_completed(fts, pop=False, n=n, batch_size=12):
+                count += 1
+                self.assertTrue(ft.done())
+                ft_task_ids.add(ft.eq_task_id)
+                self.assertEqual(TaskStatus.COMPLETE, ft.status)
+                self.assertEqual(fs_len, len(fts))
+
+            # test getting no duplicates
+            self.assertEqual(count, len(ft_task_ids))
+            self.assertEqual(count, fs_len)
+            self.assertNotEqual(count, n)
+
+    def test_as_completed_batch_no_n(self):
+        with Executor(endpoint_id=gcx_endpoint) as gcx:
+            self.eq_sql = gc_queue.init_task_queue(gcx, host, user, port, db_name)
+            clear_db(gcx)
+
+            payloads = [create_payload(i) for i in range(0, 20)]
+            submit_status, fts = self.eq_sql.submit_tasks('eq_test', 0, payloads, priority=0)
+            self.assertEqual(ResultStatus.SUCCESS, submit_status)
+
+            # 20 submissions
+            payloads = [create_payload(i) for i in range(0, 20)]
+            submit_status, fts = self.eq_sql.submit_tasks('eq_test', 0, payloads, priority=0)
+            self.assertEqual(ResultStatus.SUCCESS, submit_status)
+
+            # Add 20 results as if worker pool had done them
+            for _ in range(20):
+                result = gcx.submit(query_task, self.eq_sql.db_params, eq_type=0, timeout=0).result()
+                self.assertEqual('work', result['type'])
+                task_id = result['eq_task_id']
+                task_result = {'j': task_id}
+                report_result = gcx.submit(report_task, self.eq_sql.db_params, eq_task_id=task_id,
+                                           eq_type=0, result=json.dumps(task_result)).result()
+                self.assertEqual(ResultStatus.SUCCESS, report_result)
+
+            fs_len = len(fts)
+            count = 0
+            ft_task_ids = set()
+            for ft in self.eq_sql.as_completed(fts, pop=False, batch_size=12):
+                count += 1
+                self.assertTrue(ft.done())
+                ft_task_ids.add(ft.eq_task_id)
+                self.assertEqual(TaskStatus.COMPLETE, ft.status)
+                self.assertEqual(fs_len, len(fts))
+
+            # test getting no duplicates
+            self.assertEqual(count, len(ft_task_ids))
+            self.assertEqual(count, fs_len)
 
     def test_queues_empty(self):
         with Executor(endpoint_id=gcx_endpoint) as gcx:

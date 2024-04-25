@@ -190,7 +190,7 @@ class GCTaskQueue:
         return f
 
     def as_completed(self, futures: List[Future], pop: bool = False, timeout: float = None, n: int = None,
-                     sleep: float = 0) -> Generator[Future, None, None]:
+                     batch_size: int = 1, sleep: float = 0) -> Generator[Future, None, None]:
         """Returns a generator over the :py:class:`Futures <Future>` in the ``futures`` argument that yields
         Futures as they complete. The  :py:class:`Futures <Future>` are checked for completion by iterating over all of the
         ones that have not yet completed and checking for a result. At the end of each iteration, the
@@ -221,6 +221,12 @@ class GCTaskQueue:
         n_futures = len(futures)
         completed_tasks = []
 
+        if n is None:
+            n_required = n_futures
+        else:
+            n_required = n_futures if n_futures < n else n
+        total_required = n_required
+
         try:
             while True:
                 eq_task_ids = [ft.eq_task_id for ft in futures]
@@ -228,21 +234,30 @@ class GCTaskQueue:
                 # we shuffle so not biasing the members at the front of the list
                 shuffle(eq_task_ids)
                 gc_ft = self.gcx.submit(_as_completed, self.db_params, eq_task_ids, completed_tasks,
-                                        timeout, n, sleep)
-                task_id, task_status, result_status, task_result = gc_ft.result()
-                completed_tasks.append(task_id)
+                                        timeout, n_required, batch_size, sleep)
 
-                ft = id_map[task_id]
-                ft._result = (result_status, task_result)
-                ft._task_status = TaskStatus.COMPLETE if task_status == TaskStatus.COMPLETE else None
-                if pop:
-                    futures.remove(ft)
-                yield ft
+                batch = gc_ft.result()
+                for task_id, task_status, result_status, task_result in batch:
+                    completed_tasks.append(task_id)
 
-                n_completed += 1
-                if n_completed == n_futures or n_completed == n:
-                    # Python docs: return rather than raise StopIteration
-                    return
+                    ft = id_map[task_id]
+                    ft._result = (result_status, task_result)
+                    ft._task_status = TaskStatus.COMPLETE if task_status == TaskStatus.COMPLETE else None
+                    if pop:
+                        futures.remove(ft)
+                    else:
+                        # task_ids to query are gathered from the futures
+                        # if popped then we don't need to track it as completed
+                        # as it won't be part of the task_ids
+                        completed_tasks.append(ft.eq_task_id)
+                    yield ft
+
+                    n_completed += 1
+                    if n_completed == n_futures or n_completed == n:
+                        # Python docs: return rather than raise StopIteration
+                        return
+
+                n_required = total_required - n_completed
 
         except TaskExecutionFailed as ex:
             if 'TimeoutError' in ex.remote_data:
