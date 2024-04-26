@@ -968,6 +968,7 @@ class LocalTaskQueue:
             timeout: if the time taken for futures to completed is greater than this value, then
                 raise :py:class:`TimeoutError`.
             n: yield this many completed Futures and then stop iteration.
+            batch_size: retrieve this many completed futures, before yielding.
             sleep: the time, in seconds, to sleep between each iteration over all the Futures.
 
         Yields:

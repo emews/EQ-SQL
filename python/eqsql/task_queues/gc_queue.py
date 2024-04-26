@@ -204,6 +204,10 @@ class GCTaskQueue:
             timeout: if the time taken for futures to completed is greater than this value, then
                 raise :py:class:`TimeoutError`.
             n: yield this many completed Futures and then stop iteration.
+            batch_size: retrieve this many completed futures, before yielding. Assuming a batch_size > 1,
+                the remotely executing code will retrieve this many results before returning them to the
+                locally executing code. Consequently, this greatly reduces communication overhead, and
+                can improve the performance of a remote queue.
             sleep: the time, in seconds, to sleep between each iteration over all the Futures.
 
         Yields:

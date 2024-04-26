@@ -378,7 +378,7 @@ class TaskQueue(Protocol):
         """
 
     def as_completed(self, futures: List[Future], pop: bool = False, timeout: float = None, n: int = None,
-                     sleep: float = 0) -> Generator[Future, None, None]:
+                     batch_size: int = 1, sleep: float = 0) -> Generator[Future, None, None]:
         """Returns a generator over the :py:class:`Futures <Future>` in the ``futures`` argument that yields
         Futures as they complete. The  :py:class:`Futures <Future>` are checked for completion by iterating over all of the
         ones that have not yet completed and checking for a result. At the end of each iteration, the
@@ -392,6 +392,7 @@ class TaskQueue(Protocol):
             timeout: if the time taken for futures to completed is greater than this value, then
                 raise :py:class:`TimeoutError`.
             n: yield this many completed Futures and then stop iteration.
+            batch_size: retrieve this many completed futures, before yielding.
             sleep: the time, in seconds, to sleep between each iteration over all the Futures.
 
         Yields:

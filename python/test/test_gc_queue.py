@@ -383,11 +383,6 @@ class GCTaskQueueTests(unittest.TestCase):
             submit_status, fts = self.eq_sql.submit_tasks('eq_test', 0, payloads, priority=0)
             self.assertEqual(ResultStatus.SUCCESS, submit_status)
 
-            # 20 submissions
-            payloads = [create_payload(i) for i in range(0, 20)]
-            submit_status, fts = self.eq_sql.submit_tasks('eq_test', 0, payloads, priority=0)
-            self.assertEqual(ResultStatus.SUCCESS, submit_status)
-
             # Add 20 results as if worker pool had done them
             for _ in range(20):
                 result = gcx.submit(query_task, self.eq_sql.db_params, eq_type=0, timeout=0).result()

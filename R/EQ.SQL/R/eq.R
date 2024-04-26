@@ -97,6 +97,9 @@ init_task_queue <- function(eqsql, db_host, db_user, db_port, db_name, db_passwo
 #' @param ... optional arguments to func
 #' @param pop if true, completed futures will be popped off of the returned
 #' futures argument list
+#' @param n the number of futures to return. If this is NULL, return all the passed in futures
+#' when they are completed.
+#' @param batch_size the database batch size query. Making this larger can improve the performance of remote queues.
 #' @param timeout if the time taken for futures to completed is greater than 
 #' this value, then raise TimeoutError.
 #' @param sleep the time, in seconds, to sleep between each iteration over all the Futures.
@@ -104,9 +107,10 @@ init_task_queue <- function(eqsql, db_host, db_user, db_port, db_name, db_passwo
 #' the completed futures omitted if the pop argument is true, and f_results:
 #' a list containing the result of the function application.
 #' @export
-as_completed <- function(task_queue, futures, func, ..., pop = FALSE, n = NULL, timeout = NULL,
+as_completed <- function(task_queue, futures, func, ..., pop = FALSE, n = NULL, batch_size = 1, timeout = NULL,
                          sleep = 0.0) {
-  iter <- task_queue$as_completed(futures, pop = pop, n = n, timeout = timeout, sleep = sleep)
+  iter <- task_queue$as_completed(futures, pop = pop, n = n, batch_size = batch_size, timeout = timeout,
+                                  sleep = sleep)
   args <- list(...)
   completed_ids <- c()
   results <- list()

@@ -108,7 +108,7 @@ def _as_completed(db_params: DBParameters, eq_task_ids: List[int], completed_tas
                     completed_task_set.add(eq_task_id)
 
                     n_batch = len(batch)
-                    if n_batch == batch_size or n_batch == n_required or len(completed_task_set) == len(eq_task_ids):
+                    if n_batch == batch_size or n_batch == n_required:
                         return batch
 
             if timeout is not None and time.time() - start_time > timeout:
