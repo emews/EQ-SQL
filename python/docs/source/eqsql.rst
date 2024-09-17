@@ -7,7 +7,11 @@ Submodules
 .. toctree::
    :maxdepth: 2
 
-   eqsql.eq
+   eqsql.task_queues.core
+   eqsql.task_queues.local_queue
+   eqsql.task_queues.gc_queue
+   eqsql.task_queues.service_queue
+   eqsql.task_queues.emews_service
    eqsql.db_tools
    eqsql.proxies
    eqsql.worker_pool
