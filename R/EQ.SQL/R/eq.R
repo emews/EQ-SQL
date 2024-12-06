@@ -74,12 +74,16 @@ init_task_queue <- function(eqsql, db_host, db_user, db_port, db_name, db_passwo
         pylog <- 20
     }
 
+    if (!is.null(db_port)) {
+      db_port <- as.integer(db_port)
+    }
+
     if (queue_type == 'local') {
-        task_queue <- eqsql$task_queues$local_queue$init_task_queue(db_host, db_user, as.integer(db_port), db_name, db_password, as.integer(retry_threshold), as.integer(pylog))
+        task_queue <- eqsql$task_queues$local_queue$init_task_queue(db_host, db_user, db_port, db_name, db_password, as.integer(retry_threshold), as.integer(pylog))
     } else if (queue_type == 'service') {
-        task_queue <- eqsql$task_queues$service_queue$init_task_queue(service_url, db_host, db_user, as.integer(db_port), db_name, db_password, as.integer(retry_threshold))
+        task_queue <- eqsql$task_queues$service_queue$init_task_queue(service_url, db_host, db_user, db_port, db_name, db_password, as.integer(retry_threshold))
     } else if (queue_type == 'gc') {
-        task_queue <- eqsql$task_queues$gc_queue$init_task_queue(gcx, db_host, db_user, as.integer(db_port), db_name, db_password, as.integer(retry_threshold))
+        task_queue <- eqsql$task_queues$gc_queue$init_task_queue(gcx, db_host, db_user, db_port, db_name, db_password, as.integer(retry_threshold))
     }
 
     task_queue
