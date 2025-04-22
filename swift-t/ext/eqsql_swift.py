@@ -5,6 +5,7 @@ import threading
 import time
 import multiprocessing as mp
 import os
+import json
 
 from eqsql.task_queues import local_queue
 from eqsql.task_queues.core import ABORT_MSG
@@ -12,7 +13,8 @@ from eqsql.task_queues.core import ABORT_MSG
 password = None
 check_password = True
 
-def _create_eqsql(retry_threshold: int = 0, log_level=logging.WARN): 
+
+def _create_eqsql(retry_threshold: int = 0, log_level=logging.WARN):
     host = os.getenv('DB_HOST')
     user = os.getenv('DB_USER')
     if os.getenv('DB_PORT') is None or os.getenv('DB_PORT') == '':
@@ -24,7 +26,7 @@ def _create_eqsql(retry_threshold: int = 0, log_level=logging.WARN):
     if check_password:
         check_password = False
         if os.getenv('DB_PASSWORD_F') is not None and os.getenv('DB_PASSWORD_F') != '':
-            password_f= os.getenv('DB_PASSWORD_F')
+            password_f = os.getenv('DB_PASSWORD_F')
             with open(password_f) as fin:
                 password = fin.readline().strip()
 
@@ -52,7 +54,9 @@ def query_task(eq_work_type: int, worker_pool: str, query_timeout: float = 120.0
         else:
             eq_sql.logger.error(f'eq_swift.query_task error {traceback.format_exc()}')
         # result_str returned via swift's python persist
-        return ABORT_MSG
+        # ABORT_MSG = json.dumps({'type': 'status', 'payload': EQ_ABORT})
+        abort_msg = json.loads(ABORT_MSG)
+        return "|".join([abort_msg['type'], abort_msg['payload']])
     finally:
         if eq_sql is not None:
             eq_sql.close()
@@ -78,6 +82,7 @@ def report_task(eq_task_id: int, eq_work_type: int, result_payload: str,
 _q = mp.Queue(1)
 _go = True
 
+
 def query_tasks_n(batch_size: int, threshold: int, work_type: int, worker_pool: str,
                   timeout: float, retry_threshold: int, q: mp.Queue):
     running_task_ids = []
@@ -95,7 +100,7 @@ def query_tasks_n(batch_size: int, threshold: int, work_type: int, worker_pool: 
             else:
                 eq_sql.logger.error(f'eq_swift.query_task_n error {traceback.format_exc()}')
             running_task_ids = []
-            tasks = [ABORT_MSG]
+            tasks = [json.loads(ABORT_MSG)]
         finally:
             if eq_sql is not None:
                 eq_sql.close()
@@ -120,7 +125,7 @@ def query_tasks_n(batch_size: int, threshold: int, work_type: int, worker_pool: 
                 wait += 0.25
 
 
-def init_task_querier(worker_pool: str, batch_size: int, threshold: int, work_type: int, 
+def init_task_querier(worker_pool: str, batch_size: int, threshold: int, work_type: int,
                       timeout: float = 120, retry_threshold: int = 0):
     # wait_info = WaitInfo
     t = threading.Thread(target=query_tasks_n, args=(batch_size, threshold, work_type,
