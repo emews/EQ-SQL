@@ -20,7 +20,7 @@ zparseopts -D -E m=M
 install-miniconda()
 {
   # The Miniconda we are working with:
-  MINICONDA=Miniconda3-py39_23.3.1-0-Linux-x86_64.sh
+  MINICONDA=Miniconda3-py311_24.11.1-0-Linux-x86_64.sh
 
   # Clean up prior runs
   rm -fv $MINICONDA
