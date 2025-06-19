@@ -17,19 +17,19 @@ library(yaml)
 #' @export
 init_eqsql <- function(python_path = NULL, eqsql_path = NULL) {
     if (!is.null(python_path)) {
-        use_python(python_path, required = T)
+        reticulate::use_python(python_path, required = T)
     }
     
     if (is.null(eqsql_path)) {
-        eqsql <- import('eqsql')
-        import('eqsql.db_tools')
-        import('eqsql.task_queues')
-        import('eqsql.cfg')
+        eqsql <- reticulate::import('eqsql')
+        reticulate::import('eqsql.db_tools')
+        reticulate::import('eqsql.task_queues')
+        reticulate::import('eqsql.cfg')
     } else {
-        eqsql <- import_from_path('eqsql', path = eqsql_path)
-        import_from_path('eqsql.task_queues', path = eqsql_path)
-        import_from_path('eqsql.db_tools', path = eqsql_path)
-        import_from_path('eqsql.cfg', path = eqsql_path)
+        eqsql <- reticulate::import_from_path('eqsql', path = eqsql_path)
+        reticulate::import_from_path('eqsql.task_queues', path = eqsql_path)
+        reticulate::import_from_path('eqsql.db_tools', path = eqsql_path)
+        reticulate::import_from_path('eqsql.cfg', path = eqsql_path)
     }
 
     eqsql
