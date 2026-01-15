@@ -40,7 +40,16 @@ def _get_status(db_params: DBParameters, eq_task_ids: List[int]) -> List[Tuple[i
     task_queue = local_queue.init_task_queue(db_params.host, db_params.user, db_params.port, db_params.db_name,
                                              password=db_params.password, retry_threshold=db_params.retry_threshold)
     result = task_queue._query_status(eq_task_ids)
+    task_queue.close()
     return result
+
+
+def _clear_queues(db_params: DBParameters):
+    from eqsql.task_queues import local_queue
+    task_queue = local_queue.init_task_queue(db_params.host, db_params.user, db_params.port, db_params.db_name,
+                                             password=db_params.password, retry_threshold=db_params.retry_threshold)
+    task_queue.clear_queues()
+    task_queue.close()
 
 
 def _get_priorities(db_params: DBParameters, eq_task_ids: List[int]):
@@ -48,6 +57,7 @@ def _get_priorities(db_params: DBParameters, eq_task_ids: List[int]):
     task_queue = local_queue.init_task_queue(db_params.host, db_params.user, db_params.port, db_params.db_name,
                                              password=db_params.password, retry_threshold=db_params.retry_threshold)
     result = task_queue._get_priorities(eq_task_ids)
+    task_queue.close()
     return result
 
 
@@ -55,7 +65,9 @@ def _update_priorities(db_params: DBParameters, eq_task_ids: List[int], new_prio
     from eqsql.task_queues import local_queue
     task_queue = local_queue.init_task_queue(db_params.host, db_params.user, db_params.port, db_params.db_name,
                                              password=db_params.password, retry_threshold=db_params.retry_threshold)
-    return task_queue._update_priorities(eq_task_ids, new_priority)
+    result = task_queue._update_priorities(eq_task_ids, new_priority)
+    task_queue.close()
+    return result
 
 
 def _query_result(db_params: DBParameters, eq_task_id: int, delay: float = 0.5,
@@ -63,28 +75,36 @@ def _query_result(db_params: DBParameters, eq_task_id: int, delay: float = 0.5,
     from eqsql.task_queues import local_queue
     task_queue = local_queue.init_task_queue(db_params.host, db_params.user, db_params.port, db_params.db_name,
                                              password=db_params.password, retry_threshold=db_params.retry_threshold)
-    return task_queue.query_result(eq_task_id, delay, timeout)
+    result = task_queue.query_result(eq_task_id, delay, timeout)
+    task_queue.close()
+    return result
 
 
 def _get_worker_pools(db_params: DBParameters, eq_task_ids: List[int]) -> List[Tuple[int, Union[str, None]]]:
     from eqsql.task_queues import local_queue
     task_queue = local_queue.init_task_queue(db_params.host, db_params.user, db_params.port, db_params.db_name,
                                              password=db_params.password, retry_threshold=db_params.retry_threshold)
-    return task_queue._get_worker_pools(eq_task_ids)
+    result = task_queue._get_worker_pools(eq_task_ids)
+    task_queue.close()
+    return result
 
 
 def _cancel_tasks(db_params: DBParameters, eq_task_ids: List[int]):
     from eqsql.task_queues import local_queue
     task_queue = local_queue.init_task_queue(db_params.host, db_params.user, db_params.port, db_params.db_name,
                                              password=db_params.password, retry_threshold=db_params.retry_threshold)
-    return task_queue._cancel_tasks(eq_task_ids)
+    result = task_queue._cancel_tasks(eq_task_ids)
+    task_queue.close()
+    return result
 
 
 def _are_queues_empty(db_params: DBParameters, eq_type: int = None) -> bool:
     from eqsql.task_queues import local_queue
     task_queue = local_queue.init_task_queue(db_params.host, db_params.user, db_params.port, db_params.db_name,
                                              password=db_params.password, retry_threshold=db_params.retry_threshold)
-    return task_queue.are_queues_empty(eq_type)
+    result = task_queue.are_queues_empty(eq_type)
+    task_queue.close()
+    return result
 
 
 def _as_completed(db_params: DBParameters, eq_task_ids: List[int], completed_tasks: List[int],
@@ -109,6 +129,7 @@ def _as_completed(db_params: DBParameters, eq_task_ids: List[int], completed_tas
 
                     n_batch = len(batch)
                     if n_batch == batch_size or n_batch == n_required:
+                        task_queue.close()
                         return batch
 
             if timeout is not None and time.time() - start_time > timeout:

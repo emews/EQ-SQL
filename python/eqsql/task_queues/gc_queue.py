@@ -6,7 +6,7 @@ from globus_compute_sdk.errors.error_types import TaskExecutionFailed
 
 from eqsql.task_queues.core import ResultStatus, TaskStatus, Future, TimeoutError
 from eqsql.task_queues.remote_funcs import _submit_tasks, _get_status, _get_priorities, _get_worker_pools
-from eqsql.task_queues.remote_funcs import _update_priorities, _query_result, _cancel_tasks
+from eqsql.task_queues.remote_funcs import _update_priorities, _query_result, _cancel_tasks, _clear_queues
 from eqsql.task_queues.remote_funcs import _are_queues_empty, _as_completed, DBParameters
 
 
@@ -270,6 +270,22 @@ class GCTaskQueue:
             else:
                 raise ex
 
+    def clear_queues(self):
+        """Clears the input and output queues and sets the status of those tasks in the
+        tasks table to CANCELED.
+
+        **NOTE**: this is only a convenience method for resetting the queues to a coherent
+        starting state, and should **NOT** be used to cancel tasks.
+        """
+        ft = self.gcx.submit(_clear_queues, self.db_params)
+        ft.result()
+
+    def close(self):
+        """Intended to close the task queue, but :py:class:`GCTaskQueue` opens closes the
+        remote queue with each call. Consequently, this a no-op.
+        """
+        pass
+
     def get_status(self, futures: Iterable[Future]) -> List[Tuple[Future, TaskStatus]]:
         """Gets the status (queued, running, etc.) of the specified tasks
 
@@ -294,7 +310,7 @@ class GCTaskQueue:
 
 def init_task_queue(gcx: Executor, host: str, user: str, port: int, db_name: str,
                     password: str = None, retry_threshold=0) -> GCTaskQueue:
-    """Initializes and returns an :py:class:`LocalTaskQueue` class instance with the specified parameters.
+    """Initializes and returns an :py:class:`GCTaskQueue` class instance with the specified parameters.
 
     Args:
         host: the eqsql database host
