@@ -31,12 +31,21 @@ def _cancel_pool(job_id, scheduler, poll_period=5):
     # imports here for funcx
     from psij import Job, JobExecutor
     import time
+    import subprocess
 
-    executor = JobExecutor.get_instance(scheduler)
-    job = Job()
-    executor.attach(job, job_id)
-    time.sleep(poll_period)
-    job.cancel()
+    if scheduler == "pbs":
+        try:
+            proc = subprocess.run(["qdel", str(job_id)], capture_output=True, text=True)
+            proc.check_returncode()
+        except subprocess.CalledProcessError as e:
+            raise ValueError(f"Error canceling PBS pool with job_id: {job_id}") from e
+
+    else:
+        executor = JobExecutor.get_instance(scheduler)
+        job = Job()
+        executor.attach(job, job_id)
+        time.sleep(poll_period)
+        job.cancel()
 
 
 class LocalPool:
@@ -125,12 +134,13 @@ class ScheduledPool:
             ft = self.gcx.submit(_cancel_pool, self.job_id, self.scheduler)
             ft.result()
 
-        retry_count = 0
-        sleep_val = 0.25
-        # TODO: fix this so polls for canceled some number of times, then returns a value.s
-        while self.status().state != JobState.CANCELED and retry_count < timeout / sleep_val:
-            sleep(sleep_val)
-            retry_count += 1
+        if self.scheduler != "pbs":
+            retry_count = 0
+            sleep_val = 0.25
+            # TODO: fix this so polls for canceled some number of times, then returns a value.s
+            while self.status().state != JobState.CANCELED and retry_count < timeout / sleep_val:
+                sleep(sleep_val)
+                retry_count += 1
 
     def status(self, timeout=60):
         """Gets the status (active, completed, or canceled) of this LocalPool.
