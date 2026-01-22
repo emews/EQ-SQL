@@ -76,11 +76,19 @@ class LocalPool:
             if p.is_running():
                 for child_process in p.children(recursive=True):
                     if child_process.is_running():
-                        child_process.send_signal(15)
+                        try:
+                            child_process.send_signal(15)
+                        except psutil.NoSuchProcess:
+                            # process may terminate before we can call this
+                            pass
 
             # may have terminated during the above
             if p.is_running():
-                self.proc.terminate()
+                try:
+                    self.proc.terminate()
+                except psutil.NoSuchProcess:
+                    # process may terminate before we can call this
+                    pass
 
             retry_count = 0
             sleep_val = 0.25
