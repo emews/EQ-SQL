@@ -19,7 +19,7 @@ db_name = 'eqsql_test_db'
 password = None
 
 db_path = './test_data/db/eqsql_test'
-pg_bin = '/home/nick/sfw/postgresql-14.11/bin'
+pg_bin = '/home/nick/sfw/postgres-14.18/bin'
 
 
 def create_payload(x=1.2):
